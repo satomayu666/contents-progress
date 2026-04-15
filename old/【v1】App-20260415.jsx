@@ -118,7 +118,6 @@ function CatIco({ cat, color }) {
   const Fn = map[cat] || ICONS.article;
   return <span style={{ color:color||G.greyMid, display:"inline-flex", alignItems:"center" }}><Fn/></span>;
 }
- 
 // ─── Categories ──────────────────────────────────────────────────────────────
 const CATS = {
   article: { label:"WEBサイト", unit:"件",  color:"#B6BF99", order:0 },
@@ -200,6 +199,7 @@ function lastNDays(n) {
   });
 }
  
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 // Outfit — clean geometric sans, neutral weight
 const F = "'Outfit','Inter','system-ui','-apple-system','Hiragino Sans','Noto Sans JP',sans-serif";
@@ -305,7 +305,7 @@ function Toast({ msg, onHide }) {
 function CatTag({ catKey }) {
   const c = CATS[catKey];
   return (
-    <span style={{ display:"inline-flex",alignItems:"center",gap:4,fontSize:10,fontWeight:700,color:dk(c.color),background:tint(c.color),borderRadius:5,padding:"2px 7px" }}>
+    <span style={{ display:"inline-flex",alignItems:"center",gap:5,fontSize:11,fontWeight:700,color:dk(c.color),background:tint(c.color),borderRadius:6,padding:"3px 9px" }}>
       <CatIco cat={catKey} color={dk(c.color)}/>{c.label}
     </span>
   );
@@ -520,95 +520,103 @@ function getDominantCat(dayData) {
 }
  
 function DotMatrix({ activityLog }) {
-  const todayStr = today();
-  const todayDate = new Date(todayStr);
-  // dow: 0=Mon … 6=Sun
-  const dow = (todayDate.getDay() + 6) % 7;
- 
-  // Build the three weeks as arrays of date strings (length 7, null for future)
-  const buildWeek = (mondayOffset) => {
-    // mondayOffset: days from today's Monday to target Monday (0=this week, -7=last, -14=two weeks ago)
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(todayDate);
-      d.setDate(d.getDate() - dow + mondayOffset + i);
-      const ds = d.toISOString().slice(0, 10);
-      // Future dates in current week = null (no dot)
-      if (ds > todayStr) return null;
-      return ds;
-    });
-  };
- 
-  const weeks = [
-    { label: "先々週", days: buildWeek(-14) },
-    { label: "先週",   days: buildWeek(-7)  },
-    { label: "今週",   days: buildWeek(0)   },
-  ];
+  const DAYS = 14;
+  const days = lastNDays(DAYS);
+  // week0 = older week, week1 = recent week
+  const week0 = days.slice(0, 7);
+  const week1 = days.slice(7, 14);
   const dayLabels = ["月","火","水","木","金","土","日"];
-  const DOT = 12;
-  const GAP = 7;
  
   const usedCats = [...new Set(
     Object.values(activityLog).flatMap(d => d && typeof d==="object" ? Object.keys(d) : [])
   )].filter(k => CATS[k]).sort((a,b) => (CATS[a]?.order??99)-(CATS[b]?.order??99));
  
+  const DOT_SIZE = 13;
+ 
   return (
-    <div style={{ paddingBottom:14, borderBottom:`1.5px solid ${G.border}`, marginBottom:4 }}>
+    <div style={{ paddingBottom:16, borderBottom:`1.5px solid ${G.border}`, marginBottom:4 }}>
       <div style={{ fontSize:10, fontWeight:700, color:G.greyMid, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>ACTIVITY</div>
- 
-      {/* Table: rows = weeks, cols = weekdays */}
-      <div style={{ display:"grid", gridTemplateColumns:`40px repeat(7, ${DOT}px)`, gap:`${GAP}px`, alignItems:"center" }}>
-        {/* Header row: empty cell + weekday labels */}
-        <div/>{/* spacer */}
-        {dayLabels.map(d => (
-          <div key={d} style={{ fontSize:9, fontWeight:700, color:G.greyMid, textAlign:"center", lineHeight:1 }}>{d}</div>
-        ))}
- 
-        {/* Data rows */}
-        {weeks.map(({ label, days }) => (
-          <React.Fragment key={label}>
-            {/* Row label */}
-            <div style={{ fontSize:9, fontWeight:600, color:G.greyMid, whiteSpace:"nowrap", letterSpacing:"0.02em", lineHeight:1 }}>{label}</div>
-            {/* Dots */}
-            {days.map((date, di) => {
-              if (!date) {
-                // future slot in current week
-                return <div key={di} style={{ width:DOT, height:DOT }}/>;
-              }
-              const dayData = activityLog[date];
-              const domCat  = getDominantCat(dayData);
-              const color   = domCat ? CATS[domCat].color : "#EBEBEB";
-              const total   = dayData && typeof dayData==="object"
-                ? Object.values(dayData).reduce((s,n) => s+n, 0)
-                : (typeof dayData==="number" ? dayData : 0);
-              const isToday = date === todayStr;
-              return (
-                <div key={di} title={`${date}${total ? ` — ${total}件` : ""}`}
-                  style={{
-                    width:DOT, height:DOT, borderRadius:"50%",
-                    background: total ? color : "#EBEBEB",
-                    opacity: total ? 1 : 0.4,
-                    outline: isToday ? `2px solid ${G.greyMid}` : "none",
-                    outlineOffset: 1,
-                    flexShrink: 0,
-                  }}
-                />
-              );
-            })}
-          </React.Fragment>
-        ))}
+      {/* horizontal grid: 7 rows (weekdays) × 2 cols (weeks) */}
+      <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
+        {/* weekday labels column */}
+        <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+          {dayLabels.map((d,i) => (
+            <div key={i} style={{ fontSize:9, color:G.borderMid, height:DOT_SIZE, lineHeight:`${DOT_SIZE}px`, fontWeight:600, width:12, textAlign:"center" }}>{d}</div>
+          ))}
+        </div>
+        {/* week columns: col header + dots */}
+        {[week0, week1].map((week, wi) => {
+          // find Monday of this week for column label
+          const colLabel = wi === 0 ? "先々週" : "先週";
+          return (
+            <div key={wi} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:0 }}>
+              <div style={{ fontSize:9, color:G.greyMid, fontWeight:600, marginBottom:5, letterSpacing:"0.04em" }}>{colLabel}</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {week.map((date, di) => {
+                  const dayData = activityLog[date];
+                  const domCat  = getDominantCat(dayData);
+                  const color   = domCat ? CATS[domCat].color : DOT.empty;
+                  const total   = dayData && typeof dayData==="object"
+                    ? Object.values(dayData).reduce((s,n)=>s+n,0)
+                    : (typeof dayData==="number" ? dayData : 0);
+                  return (
+                    <div key={date} title={`${date}${total ? ` — ${total}件` : ""}`}
+                      style={{ width:DOT_SIZE, height:DOT_SIZE, borderRadius:"50%", background:color, opacity:total?1:0.3, flexShrink:0 }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {/* today's week (partial) */}
+        {(() => {
+          const todayStr = today();
+          const todayDate = new Date(todayStr);
+          // day of week index (0=Mon)
+          const dow = (todayDate.getDay() + 6) % 7;
+          const todayWeekDays = Array.from({length: dow+1}, (_, i) => {
+            const d = new Date(todayDate); d.setDate(d.getDate() - dow + i);
+            return d.toISOString().slice(0,10);
+          });
+          const blanks = 7 - todayWeekDays.length;
+          return (
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:0 }}>
+              <div style={{ fontSize:9, color:G.greyMid, fontWeight:600, marginBottom:5, letterSpacing:"0.04em" }}>今週</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {todayWeekDays.map(date => {
+                  const dayData = activityLog[date];
+                  const domCat  = getDominantCat(dayData);
+                  const color   = domCat ? CATS[domCat].color : DOT.empty;
+                  const total   = dayData && typeof dayData==="object"
+                    ? Object.values(dayData).reduce((s,n)=>s+n,0)
+                    : (typeof dayData==="number" ? dayData : 0);
+                  const isToday = date === todayStr;
+                  return (
+                    <div key={date} title={`${date}${total ? ` — ${total}件` : ""}`}
+                      style={{ width:DOT_SIZE, height:DOT_SIZE, borderRadius:"50%", background:color, opacity:total?1:0.3, flexShrink:0, outline: isToday ? `2px solid ${G.greyMid}` : "none", outlineOffset:1 }}
+                    />
+                  );
+                })}
+                {Array.from({length:blanks}).map((_,i) => (
+                  <div key={`b${i}`} style={{ width:DOT_SIZE, height:DOT_SIZE, borderRadius:"50%", background:"transparent", flexShrink:0 }}/>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
- 
       {/* Legend */}
       {usedCats.length > 0 && (
         <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10 }}>
           <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-            <div style={{ width:8, height:8, borderRadius:"50%", background:"#EBEBEB", opacity:.6 }}/>
-            <span style={{ fontSize:9, color:G.greyMid }}>記録なし</span>
+            <div style={{ width:9, height:9, borderRadius:"50%", background:DOT.empty, opacity:.35 }}/>
+            <span style={{ fontSize:10, color:G.greyMid }}>記録なし</span>
           </div>
           {usedCats.map(k => (
             <div key={k} style={{ display:"flex", alignItems:"center", gap:4 }}>
-              <div style={{ width:8, height:8, borderRadius:"50%", background:CATS[k].color }}/>
-              <span style={{ fontSize:9, color:G.greyMid }}>{CATS[k].label}</span>
+              <div style={{ width:9, height:9, borderRadius:"50%", background:CATS[k].color }}/>
+              <span style={{ fontSize:10, color:G.greyMid }}>{CATS[k].label}</span>
             </div>
           ))}
         </div>
@@ -1081,6 +1089,7 @@ function AddModal({ onClose, onAdd }) {
   );
 }
  
+
 // ─── Data Modal ───────────────────────────────────────────────────────────────
 function DataModal({ items, onImport, onMerge, onClose }) {
   const fileRef  = useRef(null);
@@ -1184,8 +1193,7 @@ function DataModal({ items, onImport, onMerge, onClose }) {
     </div>
   );
 }
- 
-// ─── URL Button — opens directly in new tab, no confirmation ─────────────────
+ // ─── URL Button — opens directly in new tab, no confirmation ─────────────────
 function UrlButton({ url, color, label="URLを開く" }) {
   if (!url) return null;
   return (
@@ -1271,18 +1279,18 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   }).filter(Boolean);
  
   return (
-    <div style={{ background:G.surface,border:`1.5px solid ${isNext?c.color:G.border}`,borderRadius:10,padding:"11px 12px 10px",marginBottom:6,boxShadow:isNext?`0 0 0 3px ${tint(c.color)},0 2px 10px rgba(0,0,0,0.05)`:"0 1px 3px rgba(0,0,0,0.04)",transition:"box-shadow .2s" }}>
+    <div style={{ background:G.surface,border:`1.5px solid ${isNext?c.color:G.border}`,borderRadius:12,padding:"14px 14px 13px",marginBottom:8,boxShadow:isNext?`0 0 0 3px ${tint(c.color)},0 3px 14px rgba(0,0,0,0.05)`:"0 1px 3px rgba(0,0,0,0.04)",transition:"box-shadow .2s" }}>
       {nvIndex >= 0 && (
-        <div style={{ display:"flex",alignItems:"center",gap:5,marginBottom:7 }}>
-          <span style={{ fontSize:13, fontWeight:400, color:dk(c.color), lineHeight:1, fontFamily:"system-ui,sans-serif" }}>{NV_NUMS[nvIndex]}</span>
-          {nvIndex === 0 && <span style={{ fontSize:9,fontWeight:800,color:dk(c.color),letterSpacing:"0.1em",textTransform:"uppercase" }}>Next View</span>}
-          {nvIndex > 0 && <span style={{ fontSize:9,fontWeight:600,color:G.greyMid,letterSpacing:"0.06em" }}>Watch Queue</span>}        </div>
+        <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:10 }}>
+          <span style={{ fontSize:15, fontWeight:400, color:dk(c.color), lineHeight:1, fontFamily:"system-ui,sans-serif" }}>{NV_NUMS[nvIndex]}</span>
+          {nvIndex === 0 && <span style={{ fontSize:10,fontWeight:800,color:dk(c.color),letterSpacing:"0.1em",textTransform:"uppercase" }}>Next View</span>}
+          {nvIndex > 0 && <span style={{ fontSize:10,fontWeight:600,color:G.greyMid,letterSpacing:"0.06em" }}>Watch Queue</span>}        </div>
       )}
  
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10 }}>
+      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12 }}>
         <div style={{ flex:1 }}>
           <CatTag catKey={item.category}/>
-          <div style={{ fontSize:13,fontWeight:800,color:G.greyDeep,lineHeight:1.35,marginTop:5 }}>{item.title}</div>
+          <div style={{ fontSize:15,fontWeight:800,color:G.greyDeep,lineHeight:1.4,marginTop:7 }}>{item.title}</div>
  
           {/* Sub-info row: duration, URL, station, airDate */}
           {(isYT||isTV||isRadio)&&(
@@ -1380,13 +1388,13 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
             </div>
           )}
         </div>
-        <button onClick={()=>onEdit(item)} style={{ background:G.surfaceAlt,border:`1.5px solid ${G.border}`,borderRadius:7,width:30,height:30,cursor:"pointer",color:G.greyMid,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>
+        <button onClick={()=>onEdit(item)} style={{ background:G.surfaceAlt,border:`1.5px solid ${G.border}`,borderRadius:8,width:36,height:36,cursor:"pointer",color:G.greyMid,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center" }}>
           <ICONS.pencil/>
         </button>
       </div>
  
       {/* Progress */}
-      <div style={{ marginTop:10 }}>
+      <div style={{ marginTop:14 }}>
         {isBinary ? (
           <div style={{ display:"flex",justifyContent:"space-between",fontSize:12,color:G.greyMid }}>
             <span style={{ fontWeight:700,color:item.status==="done"?dk("#B6BF99"):G.greyDeep,display:"flex",alignItems:"center",gap:5 }}>
@@ -1421,7 +1429,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
       </div>
  
       {/* Actions */}
-      <div style={{ display:"flex",gap:6,marginTop:9,flexWrap:"wrap" }}>
+      <div style={{ display:"flex",gap:7,marginTop:12,flexWrap:"wrap" }}>
         {/* Primary quick-add — hidden for live and binary-done categories */}
         {item.status!=="done" && item.category!=="live" && (
           <button onClick={()=>quickAdd(qa)} style={sBt(c.color)}>{ql}</button>
@@ -1519,7 +1527,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
       {memoOpen&&<MemoPopup text={item.notes} onClose={()=>setMemoOpen(false)}/>}
       {showConfetti&&<Confetti onDone={()=>setShowConfetti(false)}/>}
  
-      <div style={{ display:"flex",gap:10,marginTop:8,fontSize:9,color:G.borderMid,flexWrap:"wrap",lineHeight:1.5 }}>
+      <div style={{ display:"flex",gap:12,marginTop:13,fontSize:10,color:G.borderMid,flexWrap:"wrap",lineHeight:1.6 }}>
         <span>追加: {item.addedAt}</span>
         {item.lastUpdated&&<span>更新: {item.lastUpdated}</span>}
         {item.completedAt&&<span>完了: {item.completedAt}</span>}
@@ -1813,7 +1821,6 @@ function ReportModal({ items, activityLog, onClose }) {
 }
  
  
- 
 export default function App() {
   const [items,setItems]             = useState(DEFAULTS);
   const [watchQueue,setWatchQueue]   = useState([]);
@@ -2008,45 +2015,32 @@ export default function App() {
       <div style={{ minHeight:"100vh",background:G.surfaceAlt,fontFamily:F,maxWidth:480,margin:"0 auto" }}>
  
         {/* ── Header ── */}
-        <div style={{ background:G.surface,borderBottom:`1.5px solid ${G.border}`,position:"sticky",top:0,zIndex:100 }}>
-          {/* top bar — same horizontal padding as the card list (14px) */}
-          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 14px 0" }}>
-            {/* Left: 2-line title */}
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontFamily:"'Outfit',sans-serif", fontSize:15, fontWeight:600, color:G.ink, letterSpacing:"0.05em", lineHeight:1.25, whiteSpace:"nowrap" }}>
-                Contents Progress
-              </div>
-              <div style={{ fontSize:10, color:G.greyMid, fontWeight:500, marginTop:3, whiteSpace:"nowrap" }}>
-                進行中 {active.length} · 待機 {queue.length} · 完了 {done.length}
+        <div style={{ background:G.surface,borderBottom:`1.5px solid ${G.border}`,padding:"20px 18px 0",position:"sticky",top:0,zIndex:100 }}>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
+            <div>
+              <div style={{ display:"flex",alignItems:"baseline",gap:10,flexWrap:"nowrap" }}>
+                <div style={{ fontFamily:"'Outfit',sans-serif", fontSize:14, fontWeight:500, color:G.ink, letterSpacing:"0.07em", lineHeight:1, whiteSpace:"nowrap" }}>
+                  Contents Progress
+                </div>
+                <div style={{ fontSize:11,color:G.greyMid,fontWeight:500,whiteSpace:"nowrap" }}>
+                  進行中 {active.length} · 待機 {queue.length} · 完了 {done.length}
+                </div>
               </div>
             </div>
-            {/* Right: 3 icon buttons + 追加 */}
-            <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-              <button onClick={()=>setReport(true)} title="振り返りレポート"
-                style={{ background:"none", border:`1.5px solid ${G.border}`, borderRadius:8, width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:G.greyMid, flexShrink:0 }}>
-                <ICONS.report/>
-              </button>
-              <button onClick={()=>setData(true)} title="データ管理 (エクスポート/インポート)"
-                style={{ background:"none", border:`1.5px solid ${G.border}`, borderRadius:8, width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:G.greyMid, flexShrink:0 }}>
-                <ICONS.dl/>
-              </button>
-              <button onClick={()=>setHeat(s=>!s)} title="アクティビティログ"
-                style={{ background:showHeat?G.surfaceAlt:"none", border:`1.5px solid ${showHeat?G.greyMid:G.border}`, borderRadius:8, width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:showHeat?G.greyDeep:G.greyMid, flexShrink:0 }}>
-                <ICONS.chart/>
-              </button>
-              <button onClick={()=>setAddOpen(true)}
-                style={{ ...sBt(G.greyDeep), padding:"8px 13px", fontSize:12, flexShrink:0 }}>
-                <ICONS.plus/> 追加
-              </button>
+            <div style={{ display:"flex",gap:7 }}>
+              <button onClick={()=>setReport(true)} style={{ background:G.surface,border:`1.5px solid ${G.border}`,borderRadius:9,padding:"9px 11px",cursor:"pointer",display:"flex",alignItems:"center",color:G.greyMid }}><ICONS.report/></button>
+              <button onClick={()=>setData(true)} style={{ background:G.surface,border:`1.5px solid ${G.border}`,borderRadius:9,padding:"9px 11px",cursor:"pointer",display:"flex",alignItems:"center",color:G.greyMid }}><ICONS.dl/></button>
+              <button onClick={()=>setHeat(s=>!s)} style={{ background:showHeat?G.surfaceAlt:G.surface,border:`1.5px solid ${showHeat?G.greyMid:G.border}`,borderRadius:9,padding:"9px 11px",cursor:"pointer",display:"flex",alignItems:"center",color:showHeat?G.greyDeep:G.greyMid }}><ICONS.chart/></button>
+              <button onClick={()=>setAddOpen(true)} style={{ ...sBt(G.greyDeep),padding:"9px 15px",fontSize:13 }}><ICONS.plus/> 追加</button>
             </div>
           </div>
  
-          {showHeat&&<div style={{ padding:"12px 14px 0" }}><DotMatrix activityLog={activityLog}/></div>}
+          {showHeat&&<DotMatrix activityLog={activityLog}/>}
  
-          <div style={{ display:"flex", padding:"0 14px" }}>
+          <div style={{ display:"flex" }}>
             {TABS.map((t,i)=>(
               <button key={t} onClick={()=>switchTab(i)}
-                style={{ flex:1,background:"none",border:"none",borderBottom:`2.5px solid ${tab===i?G.greyDeep:"transparent"}`,color:tab===i?G.greyDeep:G.greyMid,fontWeight:tab===i?800:500,fontSize:13,padding:"10px 4px",cursor:"pointer",transition:"all .15s",fontFamily:F }}>
+                style={{ flex:1,background:"none",border:"none",borderBottom:`2.5px solid ${tab===i?G.greyDeep:"transparent"}`,color:tab===i?G.greyDeep:G.greyMid,fontWeight:tab===i?800:500,fontSize:13,padding:"11px 4px",cursor:"pointer",transition:"all .15s",fontFamily:F }}>
                 {t} <span style={{ fontSize:11,opacity:.65 }}>({lists[i].length})</span>
               </button>
             ))}
@@ -2054,7 +2048,7 @@ export default function App() {
         </div>
  
         {/* ── Filter + Search + Sort ── */}
-        <div style={{ background:G.surface, borderBottom:`1.5px solid ${G.border}`, padding:"10px 14px 11px", position:"sticky", top:84, zIndex:99 }}>
+        <div style={{ background:G.surface, borderBottom:`1.5px solid ${G.border}`, padding:"10px 18px 11px", position:"sticky", top:90, zIndex:99 }}>
           <FilterBar active={filter} onChange={setFilter} counts={counts}/>
  
           {/* Search bar */}
