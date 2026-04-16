@@ -241,19 +241,7 @@ function lastNDays(n) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 // Outfit — clean geometric sans, neutral weight
 const F = "'Outfit','Inter','system-ui','-apple-system','Hiragino Sans','Noto Sans JP',sans-serif";
-const INP = { width:"100%",minWidth:0,padding:"10px 12px",border:`1.5px solid ${G.border}`,borderRadius:9,fontSize:13,outline:"none",fontFamily:F,background:G.surfaceAlt,boxSizing:"border-box",color:G.greyDeep,lineHeight:1.5,letterSpacing:"0.07em" };
-// Date/datetime inputs: fully override iOS Safari defaults so width matches other inputs
-const INP_DATE = {
-  ...INP,
-  display: "block",
-  width: "100%",
-  maxWidth: "100%",
-  WebkitAppearance: "none",
-  MozAppearance: "none",
-  appearance: "none",
-  // Explicit sizing so border-box kicks in correctly on all browsers
-  boxSizing: "border-box",
-};
+const INP = { width:"100%",padding:"10px 12px",border:`1.5px solid ${G.border}`,borderRadius:9,fontSize:13,outline:"none",fontFamily:F,background:G.surfaceAlt,boxSizing:"border-box",color:G.greyDeep,lineHeight:1.5,letterSpacing:"0.07em" };
 const LBL = { fontSize:9,fontWeight:700,color:G.greyMid,textTransform:"uppercase",letterSpacing:"0.11em",display:"block",marginBottom:5 };
 function sBt(bg,fg="#fff") { return {padding:"8px 13px",borderRadius:8,fontSize:11,fontWeight:700,border:"none",background:bg,color:fg,cursor:"pointer",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:5,fontFamily:F,lineHeight:1,letterSpacing:"0.02em"}; }
 function oBt(c,fg) { return {padding:"8px 13px",borderRadius:8,fontSize:11,fontWeight:700,border:`1.5px solid ${c}`,background:"transparent",color:fg||dk(c),cursor:"pointer",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:5,fontFamily:F,lineHeight:1,letterSpacing:"0.02em"}; }
@@ -824,36 +812,12 @@ function NVChoosePrompt({ queueItems, onSelect, onDismiss }) {
   );
 }
  
-// ─── Per-category startedAt label ────────────────────────────────────────────
-function startedAtLabel(cat) {
-  if (["article","book","manga"].includes(cat)) return "読み始めた日";
-  if (cat === "radio") return "聴き始めた日";
-  return "視聴開始日"; // live, youtube, tv, anime, drama, movie
-}
- 
 // ─── Edit Modal ───────────────────────────────────────────────────────────────
 function EditModal({ item, onClose, onSave, onDelete }) {
   const c = CATS[item.category];
   const [f, setF] = useState({ ...item });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const set = (k,v) => setF(p=>({...p,[k]:v}));
- 
-  // Article URL fetch state (same as AddModal)
-  const [articleFetching, setArticleFetching] = useState(false);
-  const [articleMinutes, setArticleMinutes]   = useState(null);
-  const fetchTimeoutRef = useRef(null);
-  const handleArticleUrlChange = (url) => {
-    set("articleUrl", url);
-    setArticleMinutes(null);
-    clearTimeout(fetchTimeoutRef.current);
-    if (!url || !url.startsWith("http")) return;
-    fetchTimeoutRef.current = setTimeout(async () => {
-      setArticleFetching(true);
-      const mins = await fetchArticleReadingMin(url);
-      setArticleFetching(false);
-      setArticleMinutes(mins);
-    }, 800);
-  };
  
   const save = () => {
     const cur  = Number(f.current)||0;
@@ -885,6 +849,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
  
   const isTimed = ["tv","radio","live","movie","youtube"].includes(f.category);
   const isEpBased = ["anime","drama"].includes(f.category);
+  // movie uses episodeMin as its duration — no separate current/total grid
   const showProgress = !["youtube","article","tv","radio","live","movie"].includes(f.category);
  
   return (
@@ -936,7 +901,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         {f.category==="radio"&&(
           <>
             <FF label="ラジオ局"><input style={INP} placeholder="例: NHK FM" value={f.station||""} onChange={e=>set("station",e.target.value)}/></FF>
-            <FF label="放送日時"><input type="datetime-local" style={INP_DATE} value={f.airDate||""} onChange={e=>set("airDate",e.target.value)}/></FF>
+            <FF label="放送日時"><input type="datetime-local" style={INP} value={f.airDate||""} onChange={e=>set("airDate",e.target.value)}/></FF>
             <FF label="URL"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
           </>
         )}
@@ -946,12 +911,12 @@ function EditModal({ item, onClose, onSave, onDelete }) {
             <FF label="視聴方法">
               <MultiSelect options={TV_VIEW_OPTIONS} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/>
             </FF>
-            <FF label="OA日時"><input type="datetime-local" style={INP_DATE} value={f.airDate||""} onChange={e=>set("airDate",e.target.value)}/></FF>
+            <FF label="OA日時"><input type="datetime-local" style={INP} value={f.airDate||""} onChange={e=>set("airDate",e.target.value)}/></FF>
             <FF label="URL"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
           </>
         )}
-        {["book","anime","drama","movie","manga"].includes(f.category)&&(
-          <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+        {["radio","tv","book","anime","drama","movie","manga"].includes(f.category)&&f.category!=="radio"&&f.category!=="tv"&&(
+          <FF label="URL"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
         )}
         {f.category==="article"&&(
           <FF label="URL">
@@ -967,11 +932,16 @@ function EditModal({ item, onClose, onSave, onDelete }) {
                 ✓ 推定読了時間：約{fmtGap(articleMinutes)}
               </div>
             )}
+            {!articleFetching && !articleMinutes && f.articleUrl?.startsWith("http") && (
+              <div style={{ fontSize:11, color:G.greyMid, marginTop:5 }}>
+                ※ 取得できない場合は推定値を使用します
+              </div>
+            )}
           </FF>
         )}
  
-        <FF label={startedAtLabel(f.category)}>
-          <input type="date" style={INP_DATE} value={f.startedAt||""} onChange={e=>set("startedAt",e.target.value)}/>
+        <FF label="視聴・読み始めた日">
+          <input type="date" style={INP} value={f.startedAt||""} onChange={e=>set("startedAt",e.target.value)}/>
         </FF>
         <FF label="メモ">
           <textarea style={{ ...INP,minHeight:64,resize:"vertical" }} value={f.notes} onChange={e=>set("notes",e.target.value)}/>
@@ -1049,10 +1019,8 @@ function AddModal({ onClose, onAdd }) {
     if(!f.title) return;
     const noProgress = ["youtube","tv","radio","live","article","movie"].includes(f.category);
     const totalVal = f.category==="movie" ? (Number(f.episodeMin)||1) : noProgress ? 1 : Number(f.total)||1;
-    // For article: use fetched minutes if available; if URL provided but fetch failed, use estimate; if no URL, null
-    const articleEpisodeMin = articleMinutes
-      ? articleMinutes
-      : (f.articleUrl && f.articleUrl.startsWith("http") ? estimateReadingMin(f.articleUrl) : null);
+    // For article: use fetched minutes, or fallback estimate
+    const articleEpisodeMin = articleMinutes || estimateReadingMin(f.articleUrl);
     onAdd({
       id:               Date.now(),
       title:            f.title,
@@ -1151,7 +1119,7 @@ function AddModal({ onClose, onAdd }) {
         {f.category==="radio"&&(
           <>
             <FF label="ラジオ局"><input style={INP} placeholder="例: NHK FM" value={f.station} onChange={e=>set("station",e.target.value)}/></FF>
-            <FF label="放送日時"><input type="datetime-local" style={INP_DATE} value={f.airDate} onChange={e=>set("airDate",e.target.value)}/></FF>
+            <FF label="放送日時"><input type="datetime-local" style={INP} value={f.airDate} onChange={e=>set("airDate",e.target.value)}/></FF>
             <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl} onChange={e=>set("contentUrl",e.target.value)}/></FF>
           </>
         )}
@@ -1161,7 +1129,7 @@ function AddModal({ onClose, onAdd }) {
             <FF label="視聴方法">
               <MultiSelect options={TV_VIEW_OPTIONS} value={f.tvViewMethod} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther} onOtherChange={v=>set("tvViewOther",v)}/>
             </FF>
-            <FF label="OA日時（任意）"><input type="datetime-local" style={INP_DATE} value={f.airDate} onChange={e=>set("airDate",e.target.value)}/></FF>
+            <FF label="OA日時（任意）"><input type="datetime-local" style={INP} value={f.airDate} onChange={e=>set("airDate",e.target.value)}/></FF>
             <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl} onChange={e=>set("contentUrl",e.target.value)}/></FF>
           </>
         )}
@@ -1170,22 +1138,11 @@ function AddModal({ onClose, onAdd }) {
         )}
         {f.category==="article"&&(
           <FF label="URL">
-            <input style={INP} placeholder="https://…" value={f.articleUrl} onChange={e=>handleArticleUrlChange(e.target.value)}/>
-            {articleFetching && (
-              <div style={{ fontSize:11, color:G.greyMid, marginTop:5, display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{ display:"inline-block", width:10, height:10, borderRadius:"50%", border:`2px solid ${G.greyMid}`, borderTopColor:"transparent", animation:"spin .6s linear infinite" }}/>
-                文字数を取得中…
-              </div>
-            )}
-            {!articleFetching && articleMinutes && (
-              <div style={{ fontSize:11, color:dk(CATS.article.color), marginTop:5, fontWeight:600 }}>
-                ✓ 推定読了時間：約{fmtGap(articleMinutes)}
-              </div>
-            )}
+            <input style={INP} placeholder="https://…" value={f.articleUrl} onChange={e=>set("articleUrl",e.target.value)}/>
           </FF>
         )}
-        <FF label={`${startedAtLabel(f.category)}（任意）`}>
-          <input type="date" style={INP_DATE} value={f.startedAt} onChange={e=>set("startedAt",e.target.value)}/>
+        <FF label="視聴・読み始めた日（任意）">
+          <input type="date" style={INP} value={f.startedAt} onChange={e=>set("startedAt",e.target.value)}/>
         </FF>
         <FF label="メモ（任意）">
           <input style={INP} placeholder="メモ…" value={f.notes} onChange={e=>set("notes",e.target.value)}/>
@@ -1312,84 +1269,8 @@ function UrlButton({ url, color, label="URLを開く" }) {
   );
 }
  
-// ─── Past Record Modal ────────────────────────────────────────────────────────
-function PastRecordModal({ item, onSave, onClose }) {
-  const c = CATS[item.category];
-  const isBinary = ["youtube","tv","radio","live","article"].includes(item.category);
-  // Yesterday as default date
-  const yesterday = (() => { const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); })();
-  const [date, setDate] = useState(yesterday);
-  const [amount, setAmount] = useState(isBinary ? 1 : "");
- 
-  // Amount presets for quick tap
-  const presets = item.category==="book" ? [10,20,50,100]
-    : item.category==="manga" ? [1,2,3,5]
-    : (item.category==="anime"||item.category==="drama") ? [1,2,3]
-    : item.category==="movie" ? [10,30,60]
-    : [];
- 
-  const save = () => {
-    const amt = Number(amount);
-    if (!date || (amt <= 0 && !isBinary)) return;
-    onSave({ date, amount: isBinary ? 1 : amt });
-  };
- 
-  return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(34,34,34,0.32)",zIndex:910,display:"flex",alignItems:"flex-end" }}>
-      <div style={{ background:G.surface,borderRadius:"22px 22px 0 0",width:"100%",padding:"26px 20px 44px",boxShadow:"0 -8px 40px rgba(0,0,0,0.12)" }}>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18 }}>
-          <span style={{ fontSize:16,fontWeight:800,color:G.greyDeep,display:"flex",alignItems:"center",gap:7 }}>
-            <ICONS.calendar/> 過去の記録
-          </span>
-          <button onClick={onClose} style={{ background:"none",border:"none",cursor:"pointer",color:G.greyMid,display:"flex",padding:4 }}><ICONS.close/></button>
-        </div>
-        <div style={{ fontSize:12,color:G.greyMid,marginBottom:18,lineHeight:1.6 }}>
-          「{item.title}」の記録を指定した日付で追加します。
-        </div>
- 
-        {/* Date picker */}
-        <FF label="記録日">
-          <input type="date" style={INP_DATE}
-            value={date} max={today()} onChange={e=>setDate(e.target.value)}/>
-        </FF>
- 
-        {/* Amount — hidden for binary categories */}
-        {!isBinary && (
-          <FF label={`記録量 (${c.unit})`}>
-            <input type="number" style={INP} placeholder={`例: ${item.category==="book"?10:1}`}
-              min="1" value={amount} onChange={e=>setAmount(e.target.value)}/>
-            {presets.length > 0 && (
-              <div style={{ display:"flex", gap:7, marginTop:8, flexWrap:"wrap" }}>
-                {presets.map(p => (
-                  <button key={p} onClick={()=>setAmount(p)}
-                    style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600,
-                      border:`1.5px solid ${amount===p||Number(amount)===p?c.color:G.border}`,
-                      background:Number(amount)===p?tint(c.color):G.surfaceAlt,
-                      color:Number(amount)===p?dk(c.color):G.greyDark,cursor:"pointer",fontFamily:F }}>
-                    +{p}{c.unit}
-                  </button>
-                ))}
-              </div>
-            )}
-          </FF>
-        )}
-        {isBinary && (
-          <div style={{ padding:"11px 13px",borderRadius:9,background:G.surfaceAlt,fontSize:12,color:G.greyMid,marginBottom:14,lineHeight:1.6 }}>
-            この日に完了・視聴したとして記録されます。
-          </div>
-        )}
- 
-        <button onClick={save}
-          style={{ ...sBt(c.color),width:"100%",justifyContent:"center",padding:"13px",fontSize:14,marginTop:4 }}>
-          <ICONS.check/> 記録する
-        </button>
-      </div>
-    </div>
-  );
-}
- 
 // ─── Item Card ─────────────────────────────────────────────────────────────────
-function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onStatusChange, removeActivityLog }) {
+function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onStatusChange }) {
   const isNext = nvIndex === 0;
   const c = CATS[item.category];
   const p = pct(item.current, item.total);
@@ -1398,29 +1279,14 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   const [timerOpen,setTimerOpen]     = useState(false);
   const [memoOpen,setMemoOpen]       = useState(false);
   const [showConfetti,setShowConfetti] = useState(false);
-  const [pastRecordOpen,setPastRecord] = useState(false);
   const hasNotes = item.notes && item.notes.trim().length > 0;
- 
-  const handlePastRecord = ({ date, amount }) => {
-    const nx = Math.min(item.total, item.current + amount);
-    const newSt = resolveStatus(nx, item.total);
-    const histEntry = { date, delta: nx - item.current, from: item.current, to: nx };
-    const patch = { current: nx, lastUpdated: date, status: newSt,
-      progressHistory: [...(item.progressHistory||[]), histEntry] };
-    onActivityLog(date, item.category);
-    if (nx >= item.total) Object.assign(patch, { status:"done", completedAt: date, current: item.total });
-    onUpdate(item.id, patch);
-    setPastRecord(false);
-    setToast(`${date} の記録を追加しました`);
-    if (nx >= item.total) { setShowConfetti(true); }
-  };
  
   const totalMin =
     (item.category==="anime"||item.category==="drama")&&item.episodeMin ? rem*item.episodeMin :
     item.category==="movie"&&item.episodeMin ? item.episodeMin*(1-p/100) :
     (item.category==="live"||item.category==="tv"||item.category==="radio")&&item.totalDurationMin ? item.totalDurationMin :
     item.category==="youtube"&&item.videoDurationMin ? item.videoDurationMin :
-    item.category==="article" ? (item.episodeMin ? item.episodeMin*rem : null) : null;
+    item.category==="article" ? (item.episodeMin||5)*rem : null;
  
   const qa = (item.category==="anime"||item.category==="drama")?1:item.category==="book"?10:item.category==="manga"?1:item.category==="movie"?10:1;
   const ql = (item.category==="anime"||item.category==="drama")?"+1話":item.category==="book"?"+10P":item.category==="manga"?"+1巻":item.category==="movie"?"+10分":item.category==="live"?"+1曲":item.category==="youtube"||item.category==="tv"||item.category==="radio"?"視聴済み":"読了";
@@ -1428,10 +1294,9 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   const quickAdd = (amt) => {
     const nx = Math.min(item.total, item.current+amt);
     const newSt = resolveStatus(nx, item.total);
-    const histEntry = { date:today(), delta:nx-item.current, from:item.current, to:nx };
-    const patch = { current:nx, lastUpdated:today(), status:newSt,
-      progressHistory:[...(item.progressHistory||[]), histEntry] };
+    const patch = { current:nx, lastUpdated:today(), status:newSt };
     onActivityLog(today(), item.category);
+    // Notify WQ manager when status becomes active (was queue before)
     if (newSt === "active" && item.status === "queue") onStatusChange && onStatusChange(item.id, "active");
     if (nx >= item.total) {
       Object.assign(patch, { status:"done", completedAt:today(), current:item.total });
@@ -1448,7 +1313,6 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   };
  
   const completeCelebrate = () => {
-    onActivityLog(today(), item.category); // log activity when completing via button
     onMove(item.id, "done");
     setToast("完了！おめでとうございます 🎉");
     setShowConfetti(true);
@@ -1609,7 +1473,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
                 item.status==="done" ? <><ICONS.check/> 視聴済み</> : "未視聴"
               )}
             </span>
-            {item.category==="article"&&item.episodeMin&&item.articleUrl&&<span>約{item.episodeMin}分で読了</span>}
+            {item.category==="article"&&<span>約{item.episodeMin||5}分で読了</span>}
             {isTV&&item.totalDurationMin&&<span>約{fmtGap(item.totalDurationMin)}</span>}
             {isRadio&&item.totalDurationMin&&<span>約{fmtGap(item.totalDurationMin)}</span>}
           </div>
@@ -1643,12 +1507,6 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         {item.status!=="done" && !["youtube","article","tv","radio","live"].includes(item.category) && (
           <button onClick={()=>setTimerOpen(t=>!t)} style={oBt(G.grey,G.greyDark)}><ICONS.clock/> 5分</button>
         )}
-        {/* 過去の記録 — for all non-done items with quantifiable progress */}
-        {item.status!=="done" && (
-          <button onClick={()=>setPastRecord(true)} style={gBt()}>
-            <ICONS.calendar/> 過去の記録
-          </button>
-        )}
  
         {/* ── live ── */}
         {item.category==="live" && item.status==="queue" && (
@@ -1662,9 +1520,9 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         )}
         {item.category==="live" && item.status==="active" && (
           <>
-            <button onClick={()=>{ removeActivityLog && removeActivityLog(item.lastUpdated||today(), item.category); onMove(item.id,"queue"); }}
+            <button onClick={()=>onMove(item.id,"queue")}
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
-              これからにする
+              これからに戻す
             </button>
             <button onClick={completeCelebrate} style={{ ...gBt(), fontSize:11, padding:"7px 11px" }}><ICONS.check/>完了にする</button>
           </>
@@ -1675,7 +1533,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               <ICONS.play/>進行中に戻す
             </button>
-            <button onClick={()=>{ removeActivityLog && removeActivityLog(item.completedAt||today(), item.category); onMove(item.id,"queue"); }}
+            <button onClick={()=>onMove(item.id,"queue")}
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからに戻す
             </button>
@@ -1691,7 +1549,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         )}
         {item.category==="article" && item.status==="active" && (
           <>
-            <button onClick={()=>{ removeActivityLog && removeActivityLog(item.lastUpdated||today(), item.category); onMove(item.id,"queue"); }}
+            <button onClick={()=>onMove(item.id,"queue")}
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからにする
             </button>
@@ -1704,7 +1562,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               <ICONS.play/>進行中に戻す
             </button>
-            <button onClick={()=>{ removeActivityLog && removeActivityLog(item.completedAt||today(), item.category); onMove(item.id,"queue"); }}
+            <button onClick={()=>onMove(item.id,"queue")}
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからに戻す
             </button>
@@ -1737,7 +1595,6 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
       {toast&&<Toast msg={toast} onHide={()=>setToast(null)}/>}
       {memoOpen&&<MemoPopup text={item.notes} onClose={()=>setMemoOpen(false)}/>}
       {showConfetti&&<Confetti onDone={()=>setShowConfetti(false)}/>}
-      {pastRecordOpen&&<PastRecordModal item={item} onSave={handlePastRecord} onClose={()=>setPastRecord(false)}/>}
  
       <div style={{ display:"flex",gap:10,marginTop:8,fontSize:9,color:G.borderMid,flexWrap:"wrap",lineHeight:1.5 }}>
         <span>追加: {item.addedAt}</span>
@@ -1751,22 +1608,12 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
 // ─── Report Modal ─────────────────────────────────────────────────────────────
 function ReportModal({ items, activityLog, onClose }) {
   const now = new Date();
-  const [reportMode, setReportMode] = useState("period");   // "period" | "content"
   const [year,  setYear]  = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [view,  setView]  = useState("month");
   const [exportDone, setExportDone] = useState(false);
   const [showAllItems, setShowAllItems] = useState(false);
-  const [selectedItemId, setSelectedItemId] = useState(null);
-  const ITEM_PREVIEW = 4;
- 
-  // All items that have any progress history
-  const itemsWithHistory = React.useMemo(() =>
-    items.filter(i => (i.progressHistory||[]).length > 0 || i.completedAt)
-      .sort((a,b) => (b.lastUpdated||b.addedAt||"").localeCompare(a.lastUpdated||a.addedAt||"")),
-  [items]);
- 
-  const selectedItem = selectedItemId ? items.find(i=>i.id===selectedItemId) : null;
+  const ITEM_PREVIEW = 4; // show first N items, rest collapsed
  
   const stats = React.useMemo(() => {
     const doneItems = items.filter(i => i.status === "done" && i.completedAt);
@@ -1811,21 +1658,27 @@ function ReportModal({ items, activityLog, onClose }) {
     return { catCounts, mvpKey, mvpCount, trendMsg, avgDays, periodItems, activeDayCount, totalActions };
   }, [items, activityLog, view, year, month]);
  
-  // ── Canvas export ────────────────────────────────────────────────────────
+  // ── Canvas export (white background) ────────────────────────────────────
   const exportImage = () => {
     const W=600, H=900;
     const c=document.createElement("canvas"); c.width=W; c.height=H;
     const ctx=c.getContext("2d");
     function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();ctx.fill();}
+ 
+    // White background
     ctx.fillStyle="#FFFFFF"; ctx.fillRect(0,0,W,H);
+    // Top accent bar
     const grad=ctx.createLinearGradient(0,0,W,0);
     CONFETTI_COLORS.forEach((col,i)=>grad.addColorStop(i/(CONFETTI_COLORS.length-1),col));
     ctx.fillStyle=grad; ctx.fillRect(0,0,W,5);
+ 
     const periodLabel=view==="month"?`${year}年${month}月`:view==="year"?`${year}年`:"全期間";
     ctx.fillStyle=G.ink; ctx.font="bold 24px 'Outfit',sans-serif";
     ctx.fillText("Contents Progress", 40, 52);
     ctx.fillStyle=G.greyMid; ctx.font="14px sans-serif";
     ctx.fillText(periodLabel+" 振り返り", 40, 76);
+ 
+    // Summary pills
     [{label:"完了",val:stats.periodItems.length},{label:"活動日",val:`${stats.activeDayCount}日`},{label:"記録",val:`${stats.totalActions}回`}]
       .forEach(({label,val},i)=>{
         const x=40+i*175;
@@ -1833,6 +1686,8 @@ function ReportModal({ items, activityLog, onClose }) {
         ctx.fillStyle=G.greyMid; ctx.font="10px sans-serif"; ctx.fillText(label,x+10,112);
         ctx.fillStyle=G.ink; ctx.font="bold 18px sans-serif"; ctx.fillText(String(val),x+10,132);
       });
+ 
+    // MVP
     if(stats.mvpCount>0){
       const mc=CATS[stats.mvpKey];
       ctx.fillStyle=mc.color+"33"; rr(30,158,W-60,52,12);
@@ -1840,6 +1695,8 @@ function ReportModal({ items, activityLog, onClose }) {
       ctx.fillStyle=G.ink; ctx.font="bold 18px sans-serif";
       ctx.fillText(`${mc.label}  ×${stats.mvpCount}作品`,50,200);
     }
+ 
+    // Category bar chart
     ctx.fillStyle=G.greyDeep; ctx.font="bold 12px sans-serif"; ctx.fillText("カテゴリ別 完了数",40,232);
     const maxC=Math.max(...Object.values(stats.catCounts),1);
     const BX=110,BW=440,BH=16,BY0=245;
@@ -1854,6 +1711,8 @@ function ReportModal({ items, activityLog, onClose }) {
         ctx.fillText(cnt,BX+BW*(cnt/maxC)-18,y+BH-4);
       }
     });
+ 
+    // Completed items list
     const listY=BY0+CAT_KEYS.length*(BH+8)+16;
     ctx.fillStyle=G.greyDeep; ctx.font="bold 12px sans-serif"; ctx.fillText("完了コンテンツ",40,listY);
     const SHOW=Math.min(stats.periodItems.length,8);
@@ -1864,13 +1723,19 @@ function ReportModal({ items, activityLog, onClose }) {
       ctx.fillStyle=G.greyDeep; ctx.font="12px sans-serif"; ctx.fillText(it.title,110,y+14);
       if(it.completedAt){ctx.fillStyle=G.greyMid; ctx.font="10px sans-serif"; ctx.textAlign="right"; ctx.fillText(it.completedAt,W-40,y+14); ctx.textAlign="left";}
     });
-    if(stats.periodItems.length>SHOW){ctx.fillStyle=G.greyMid; ctx.font="11px sans-serif"; ctx.fillText(`… 他${stats.periodItems.length-SHOW}件`,40,listY+14+SHOW*24+14);}
+    if(stats.periodItems.length>SHOW){
+      ctx.fillStyle=G.greyMid; ctx.font="11px sans-serif";
+      ctx.fillText(`… 他${stats.periodItems.length-SHOW}件`,40,listY+14+SHOW*24+14);
+    }
+ 
+    // Footer
     ctx.fillStyle="#F5F5F5"; rr(30,H-48,W-60,34,10);
     ctx.fillStyle=G.greyMid; ctx.font="11px sans-serif";
     ctx.fillText(`Contents Progress — ${new Date().toLocaleDateString("ja-JP")}`,50,H-26);
+ 
     const url=c.toDataURL("image/png");
     const a=document.createElement("a"); a.href=url;
-    a.download=`cp-report-${(view==="month"?`${year}年${month}月`:view==="year"?`${year}年`:"全期間").replace(/[年月]/g,"")}.png`;
+    a.download=`cp-report-${periodLabel.replace(/[年月]/g,"")}.png`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setExportDone(true); setTimeout(()=>setExportDone(false),2500);
   };
@@ -1878,6 +1743,8 @@ function ReportModal({ items, activityLog, onClose }) {
   const periodLabel = view==="month"?`${year}年${month}月`:view==="year"?`${year}年`:"全期間";
   const months = Array.from({length:12},(_,i)=>i+1);
   const years  = Array.from({length:5},(_,i)=>now.getFullYear()-i);
+ 
+  // Section card style (white theme)
   const SC = { background:G.surfaceAlt, borderRadius:14, padding:"14px 16px", marginBottom:12 };
   const SH = { fontSize:10, fontWeight:700, color:G.greyMid, letterSpacing:"0.09em", textTransform:"uppercase", marginBottom:10 };
  
@@ -1886,280 +1753,142 @@ function ReportModal({ items, activityLog, onClose }) {
       <div style={{ background:G.surface,borderRadius:"24px 24px 0 0",width:"100%",padding:"26px 20px 52px",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 -10px 50px rgba(0,0,0,0.15)" }}>
  
         {/* Header */}
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18 }}>
           <span style={{ fontSize:16,fontWeight:800,color:G.greyDeep,display:"flex",alignItems:"center",gap:8,fontFamily:F }}>
             <ICONS.report/> 振り返りレポート
           </span>
           <button onClick={onClose} style={{ background:"none",border:"none",cursor:"pointer",color:G.greyMid,display:"flex",padding:4 }}><ICONS.close/></button>
         </div>
  
-        {/* Mode toggle */}
-        <div style={{ display:"flex",borderRadius:10,border:`1.5px solid ${G.border}`,overflow:"hidden",marginBottom:18 }}>
-          {[["period","期間で振り返る"],["content","コンテンツ別"]].map(([mode,label])=>(
-            <button key={mode} onClick={()=>{ setReportMode(mode); setSelectedItemId(null); }}
-              style={{ flex:1,padding:"9px 4px",border:"none",borderRight:mode==="period"?`1.5px solid ${G.border}`:"none",
-                background:reportMode===mode?G.greyDeep:"transparent",
-                color:reportMode===mode?"#fff":G.greyDark,
-                fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,transition:"all .15s" }}>
-              {label}
+        {/* Period selector */}
+        <div style={{ display:"flex",gap:6,marginBottom:16,flexWrap:"wrap",alignItems:"center" }}>
+          {["month","year","alltime"].map(v=>(
+            <button key={v} onClick={()=>setView(v)}
+              style={{ padding:"6px 14px",borderRadius:99,fontSize:12,fontWeight:600,border:`1.5px solid ${view===v?G.greyDeep:G.border}`,background:view===v?G.greyDeep:"transparent",color:view===v?"#fff":G.greyDark,cursor:"pointer",fontFamily:F,transition:"all .15s" }}>
+              {v==="month"?"月別":v==="year"?"年別":"全期間"}
             </button>
+          ))}
+          {view!=="alltime"&&(
+            <select value={year} onChange={e=>setYear(Number(e.target.value))}
+              style={{ padding:"6px 10px",borderRadius:8,fontSize:12,background:G.surfaceAlt,border:`1.5px solid ${G.border}`,color:G.greyDeep,fontFamily:F,cursor:"pointer",outline:"none" }}>
+              {years.map(y=><option key={y} value={y}>{y}年</option>)}
+            </select>
+          )}
+          {view==="month"&&(
+            <select value={month} onChange={e=>setMonth(Number(e.target.value))}
+              style={{ padding:"6px 10px",borderRadius:8,fontSize:12,background:G.surfaceAlt,border:`1.5px solid ${G.border}`,color:G.greyDeep,fontFamily:F,cursor:"pointer",outline:"none" }}>
+              {months.map(m=><option key={m} value={m}>{m}月</option>)}
+            </select>
+          )}
+        </div>
+ 
+        {/* Summary numbers */}
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12 }}>
+          {[
+            {label:"完了作品",  val:stats.periodItems.length},
+            {label:"アクティブ日", val:`${stats.activeDayCount}日`},
+            {label:"記録回数",  val:`${stats.totalActions}回`},
+          ].map(({label,val})=>(
+            <div key={label} style={{ background:G.surfaceAlt,borderRadius:11,padding:"12px 10px",textAlign:"center" }}>
+              <div style={{ fontSize:10,color:G.greyMid,fontWeight:600,letterSpacing:"0.06em",marginBottom:5 }}>{label}</div>
+              <div style={{ fontSize:20,fontWeight:700,color:G.ink,lineHeight:1 }}>{val}</div>
+            </div>
           ))}
         </div>
  
-        {/* ── PERIOD VIEW ── */}
-        {reportMode==="period" && <>
-          {/* Period selector */}
-          <div style={{ display:"flex",gap:6,marginBottom:16,flexWrap:"wrap",alignItems:"center" }}>
-            {["month","year","alltime"].map(v=>(
-              <button key={v} onClick={()=>setView(v)}
-                style={{ padding:"6px 14px",borderRadius:99,fontSize:12,fontWeight:600,border:`1.5px solid ${view===v?G.greyDeep:G.border}`,background:view===v?G.greyDeep:"transparent",color:view===v?"#fff":G.greyDark,cursor:"pointer",fontFamily:F,transition:"all .15s" }}>
-                {v==="month"?"月別":v==="year"?"年別":"全期間"}
-              </button>
-            ))}
-            {view!=="alltime"&&(
-              <select value={year} onChange={e=>setYear(Number(e.target.value))}
-                style={{ padding:"6px 10px",borderRadius:8,fontSize:12,background:G.surfaceAlt,border:`1.5px solid ${G.border}`,color:G.greyDeep,fontFamily:F,cursor:"pointer",outline:"none" }}>
-                {years.map(y=><option key={y} value={y}>{y}年</option>)}
-              </select>
-            )}
-            {view==="month"&&(
-              <select value={month} onChange={e=>setMonth(Number(e.target.value))}
-                style={{ padding:"6px 10px",borderRadius:8,fontSize:12,background:G.surfaceAlt,border:`1.5px solid ${G.border}`,color:G.greyDeep,fontFamily:F,cursor:"pointer",outline:"none" }}>
-                {months.map(m=><option key={m} value={m}>{m}月</option>)}
-              </select>
-            )}
-          </div>
- 
-          {/* Summary numbers */}
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12 }}>
-            {[
-              {label:"完了作品",  val:stats.periodItems.length},
-              {label:"アクティブ日", val:`${stats.activeDayCount}日`},
-              {label:"記録回数",  val:`${stats.totalActions}回`},
-            ].map(({label,val})=>(
-              <div key={label} style={{ background:G.surfaceAlt,borderRadius:11,padding:"12px 10px",textAlign:"center" }}>
-                <div style={{ fontSize:10,color:G.greyMid,fontWeight:600,letterSpacing:"0.06em",marginBottom:5 }}>{label}</div>
-                <div style={{ fontSize:20,fontWeight:700,color:G.ink,lineHeight:1 }}>{val}</div>
-              </div>
-            ))}
-          </div>
- 
-          {/* MVP */}
-          {stats.mvpCount>0 ? (
-            <div style={{ ...SC, borderLeft:`4px solid ${CATS[stats.mvpKey].color}`, marginBottom:12 }}>
-              <div style={{ fontSize:10,fontWeight:700,color:G.greyMid,letterSpacing:"0.09em",textTransform:"uppercase",marginBottom:6 }}>{periodLabel} MVP</div>
-              <div style={{ fontSize:17,fontWeight:700,color:G.ink,display:"flex",alignItems:"center",gap:8 }}>
-                <CatIco cat={stats.mvpKey} color={CATS[stats.mvpKey].color}/>
-                {CATS[stats.mvpKey].label}
-                <span style={{ fontSize:13,color:CATS[stats.mvpKey].color,fontWeight:600 }}>×{stats.mvpCount}作品</span>
-              </div>
-              {stats.trendMsg&&<div style={{ fontSize:12,color:G.greyMid,marginTop:4 }}>{stats.trendMsg}</div>}
+        {/* MVP */}
+        {stats.mvpCount>0 ? (
+          <div style={{ ...SC, borderLeft:`4px solid ${CATS[stats.mvpKey].color}`, marginBottom:12 }}>
+            <div style={{ fontSize:10,fontWeight:700,color:G.greyMid,letterSpacing:"0.09em",textTransform:"uppercase",marginBottom:6 }}>{periodLabel} MVP</div>
+            <div style={{ fontSize:17,fontWeight:700,color:G.ink,display:"flex",alignItems:"center",gap:8 }}>
+              <CatIco cat={stats.mvpKey} color={CATS[stats.mvpKey].color}/>
+              {CATS[stats.mvpKey].label}
+              <span style={{ fontSize:13,color:CATS[stats.mvpKey].color,fontWeight:600 }}>×{stats.mvpCount}作品</span>
             </div>
+            {stats.trendMsg&&<div style={{ fontSize:12,color:G.greyMid,marginTop:4 }}>{stats.trendMsg}</div>}
+          </div>
+        ) : (
+          <div style={{ ...SC, color:G.greyMid, fontSize:13 }}>{periodLabel}の完了記録がありません</div>
+        )}
+ 
+        {/* Category breakdown */}
+        <div style={SC}>
+          <div style={SH}>カテゴリ別 完了数</div>
+          {CAT_KEYS.filter(k=>stats.catCounts[k]>0).length===0
+            ? <div style={{ fontSize:12,color:G.greyMid }}>記録なし</div>
+            : CAT_KEYS.map(k=>{
+              const cnt=stats.catCounts[k]; if(!cnt) return null;
+              const max=Math.max(...Object.values(stats.catCounts),1);
+              return (
+                <div key={k} style={{ marginBottom:8,display:"flex",alignItems:"center",gap:8 }}>
+                  <span style={{ fontSize:11,color:G.greyMid,width:62,flexShrink:0,textAlign:"right" }}>{CATS[k].label}</span>
+                  <div style={{ flex:1,background:G.border,borderRadius:99,height:8,overflow:"hidden" }}>
+                    <div style={{ width:`${cnt/max*100}%`,height:"100%",background:CATS[k].color,borderRadius:99,transition:"width .4s" }}/>
+                  </div>
+                  <span style={{ fontSize:12,fontWeight:700,color:G.ink,width:20,textAlign:"right" }}>{cnt}</span>
+                </div>
+              );
+            })
+          }
+        </div>
+ 
+        {/* Completed items list */}
+        <div style={SC}>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
+            <div style={SH}>完了コンテンツ一覧</div>
+            <span style={{ fontSize:11,color:G.greyMid,fontWeight:600 }}>{stats.periodItems.length}件</span>
+          </div>
+          {stats.periodItems.length===0 ? (
+            <div style={{ fontSize:12,color:G.greyMid }}>完了したコンテンツがありません</div>
           ) : (
-            <div style={{ ...SC, color:G.greyMid, fontSize:13 }}>{periodLabel}の完了記録がありません</div>
-          )}
- 
-          {/* Category breakdown */}
-          <div style={SC}>
-            <div style={SH}>カテゴリ別 完了数</div>
-            {CAT_KEYS.filter(k=>stats.catCounts[k]>0).length===0
-              ? <div style={{ fontSize:12,color:G.greyMid }}>記録なし</div>
-              : CAT_KEYS.map(k=>{
-                const cnt=stats.catCounts[k]; if(!cnt) return null;
-                const max=Math.max(...Object.values(stats.catCounts),1);
-                return (
-                  <div key={k} style={{ marginBottom:8,display:"flex",alignItems:"center",gap:8 }}>
-                    <span style={{ fontSize:11,color:G.greyMid,width:62,flexShrink:0,textAlign:"right" }}>{CATS[k].label}</span>
-                    <div style={{ flex:1,background:G.border,borderRadius:99,height:8,overflow:"hidden" }}>
-                      <div style={{ width:`${cnt/max*100}%`,height:"100%",background:CATS[k].color,borderRadius:99,transition:"width .4s" }}/>
-                    </div>
-                    <span style={{ fontSize:12,fontWeight:700,color:G.ink,width:20,textAlign:"right" }}>{cnt}</span>
+            <>
+              {(showAllItems ? stats.periodItems : stats.periodItems.slice(0,ITEM_PREVIEW)).map(it=>(
+                <div key={it.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${G.border}` }}>
+                  <CatIco cat={it.category} color={CATS[it.category].color}/>
+                  <div style={{ flex:1,minWidth:0 }}>
+                    <div style={{ fontSize:13,fontWeight:700,color:G.greyDeep,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{it.title}</div>
+                    <div style={{ fontSize:10,color:G.greyMid,marginTop:2 }}>{CATS[it.category].label}</div>
                   </div>
-                );
-              })
-            }
-          </div>
- 
-          {/* Completed items list */}
-          <div style={SC}>
-            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
-              <div style={SH}>完了コンテンツ一覧</div>
-              <span style={{ fontSize:11,color:G.greyMid,fontWeight:600 }}>{stats.periodItems.length}件</span>
-            </div>
-            {stats.periodItems.length===0 ? (
-              <div style={{ fontSize:12,color:G.greyMid }}>完了したコンテンツがありません</div>
-            ) : (
-              <>
-                {(showAllItems ? stats.periodItems : stats.periodItems.slice(0,ITEM_PREVIEW)).map(it=>(
-                  <div key={it.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${G.border}` }}>
-                    <CatIco cat={it.category} color={CATS[it.category].color}/>
-                    <div style={{ flex:1,minWidth:0 }}>
-                      <div style={{ fontSize:13,fontWeight:700,color:G.greyDeep,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{it.title}</div>
-                      <div style={{ fontSize:10,color:G.greyMid,marginTop:2 }}>{CATS[it.category].label}</div>
-                    </div>
-                    {it.completedAt&&<div style={{ fontSize:10,color:G.greyMid,flexShrink:0 }}>{it.completedAt}</div>}
-                  </div>
-                ))}
-                {stats.periodItems.length > ITEM_PREVIEW && (
-                  <button onClick={()=>setShowAllItems(s=>!s)}
-                    style={{ width:"100%",marginTop:8,padding:"7px",background:"none",border:`1px solid ${G.border}`,borderRadius:8,fontSize:12,color:G.greyMid,cursor:"pointer",fontFamily:F,fontWeight:600 }}>
-                    {showAllItems ? "折りたたむ ↑" : `残り${stats.periodItems.length-ITEM_PREVIEW}件を表示 ↓`}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
- 
-          {/* Avg days */}
-          <div style={{ ...SC, marginBottom:16 }}>
-            <div style={SH}>完了までの平均日数（全期間）</div>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8 }}>
-              {CAT_KEYS.filter(k=>stats.avgDays[k]!==null).map(k=>(
-                <div key={k} style={{ background:G.surface,border:`1.5px solid ${G.border}`,borderRadius:10,padding:"10px" }}>
-                  <div style={{ fontSize:9,color:CATS[k].color,fontWeight:700,letterSpacing:"0.06em",marginBottom:4 }}>{CATS[k].label}</div>
-                  <div style={{ fontSize:18,fontWeight:700,color:G.ink,lineHeight:1 }}>{stats.avgDays[k]}<span style={{ fontSize:11,fontWeight:400,color:G.greyMid }}>日</span></div>
+                  {it.completedAt&&<div style={{ fontSize:10,color:G.greyMid,flexShrink:0 }}>{it.completedAt}</div>}
                 </div>
               ))}
-              {CAT_KEYS.filter(k=>stats.avgDays[k]!==null).length===0&&(
-                <div style={{ gridColumn:"1/-1",fontSize:12,color:G.greyMid }}>開始日・完了日が記録されたコンテンツがありません</div>
+              {stats.periodItems.length > ITEM_PREVIEW && (
+                <button onClick={()=>setShowAllItems(s=>!s)}
+                  style={{ width:"100%",marginTop:8,padding:"7px",background:"none",border:`1px solid ${G.border}`,borderRadius:8,fontSize:12,color:G.greyMid,cursor:"pointer",fontFamily:F,fontWeight:600 }}>
+                  {showAllItems ? "折りたたむ ↑" : `残り${stats.periodItems.length-ITEM_PREVIEW}件を表示 ↓`}
+                </button>
               )}
-            </div>
-          </div>
- 
-          <button onClick={exportImage}
-            style={{ ...sBt(exportDone?G.greyDeep:G.greyDeep,"#fff"),width:"100%",justifyContent:"center",padding:"13px",fontSize:13,opacity:exportDone?0.7:1 }}>
-            <ICONS.dl/> {exportDone?"ダウンロードしました ✓":"画像としてエクスポート (.png)"}
-          </button>
-        </>}
- 
-        {/* ── CONTENT VIEW ── */}
-        {reportMode==="content" && <>
-          {!selectedItem ? (
-            <>
-              <div style={{ fontSize:12,color:G.greyMid,marginBottom:14,lineHeight:1.6 }}>
-                コンテンツを選択すると、いつどれだけ進めたかを確認できます。
-              </div>
-              {itemsWithHistory.length===0 && (
-                <div style={{ ...SC, color:G.greyMid, fontSize:13 }}>記録があるコンテンツがありません。<br/>+1話などのボタンで進捗を記録すると履歴が表示されます。</div>
-              )}
-              {/* Group by status */}
-              {["active","queue","done"].map(st => {
-                const group = itemsWithHistory.filter(i=>i.status===st);
-                if (!group.length) return null;
-                const stLabel = st==="active"?"進行中":st==="queue"?"これから":"完了";
-                return (
-                  <div key={st} style={{ marginBottom:14 }}>
-                    <div style={{ fontSize:10,fontWeight:700,color:G.greyMid,letterSpacing:"0.09em",textTransform:"uppercase",marginBottom:8 }}>{stLabel}</div>
-                    {group.map(it => {
-                      const cat = CATS[it.category];
-                      const hist = it.progressHistory||[];
-                      return (
-                        <button key={it.id} onClick={()=>setSelectedItemId(it.id)}
-                          style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 12px",marginBottom:6,borderRadius:11,border:`1.5px solid ${G.border}`,background:G.surfaceAlt,cursor:"pointer",textAlign:"left",fontFamily:F,transition:"background .15s" }}>
-                          <CatIco cat={it.category} color={dk(cat.color)}/>
-                          <div style={{ flex:1,minWidth:0 }}>
-                            <div style={{ fontSize:13,fontWeight:700,color:G.greyDeep,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{it.title}</div>
-                            <div style={{ fontSize:10,color:G.greyMid,marginTop:2 }}>
-                              {hist.length>0 ? `${hist.length}回記録` : "記録なし"}
-                              {it.completedAt ? ` · 完了: ${it.completedAt}` : ""}
-                            </div>
-                          </div>
-                          <span style={{ fontSize:11,color:G.greyMid }}>›</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </>
-          ) : (
-            <>
-              {/* Back button */}
-              <button onClick={()=>setSelectedItemId(null)}
-                style={{ display:"flex",alignItems:"center",gap:5,background:"none",border:"none",cursor:"pointer",color:G.greyDark,fontSize:12,fontWeight:700,fontFamily:F,marginBottom:14,padding:0 }}>
-                ‹ 戻る
-              </button>
- 
-              {/* Item header */}
-              <div style={{ ...SC, borderLeft:`4px solid ${CATS[selectedItem.category].color}` }}>
-                <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:4 }}>
-                  <CatIco cat={selectedItem.category} color={dk(CATS[selectedItem.category].color)}/>
-                  <span style={{ fontSize:10,fontWeight:700,color:dk(CATS[selectedItem.category].color) }}>{CATS[selectedItem.category].label}</span>
-                </div>
-                <div style={{ fontSize:15,fontWeight:800,color:G.greyDeep,lineHeight:1.3 }}>{selectedItem.title}</div>
-                <div style={{ display:"flex",gap:12,marginTop:8,fontSize:11,color:G.greyMid,flexWrap:"wrap" }}>
-                  <span>進捗: {selectedItem.current}/{selectedItem.total} {CATS[selectedItem.category].unit}</span>
-                  {selectedItem.startedAt&&<span>開始: {selectedItem.startedAt}</span>}
-                  {selectedItem.completedAt&&<span>完了: {selectedItem.completedAt}</span>}
-                </div>
-              </div>
- 
-              {/* Progress history timeline */}
-              <div style={SC}>
-                <div style={SH}>記録履歴</div>
-                {(selectedItem.progressHistory||[]).length===0 ? (
-                  <div style={{ fontSize:12,color:G.greyMid }}>
-                    記録がありません。<br/>
-                    <span style={{ fontSize:11,color:G.borderMid }}>+1話などのクイックボタン、または「過去の記録」ボタンで進捗を記録すると、ここに表示されます。</span>
-                  </div>
-                ) : (
-                  // Sort history by date desc
-                  [...(selectedItem.progressHistory||[])].sort((a,b)=>b.date.localeCompare(a.date)).map((h,i,arr)=>{
-                    const cat = CATS[selectedItem.category];
-                    const isLast = i===arr.length-1;
-                    return (
-                      <div key={i} style={{ display:"flex",gap:10,paddingBottom:isLast?0:12,marginBottom:isLast?0:12,borderBottom:isLast?"none":`1px solid ${G.border}` }}>
-                        {/* Timeline dot */}
-                        <div style={{ display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0,width:14 }}>
-                          <div style={{ width:10,height:10,borderRadius:"50%",background:cat.color,flexShrink:0,marginTop:2 }}/>
-                          {!isLast&&<div style={{ width:1,flex:1,background:G.border,marginTop:4 }}/>}
-                        </div>
-                        <div style={{ flex:1 }}>
-                          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline" }}>
-                            <div style={{ fontSize:13,fontWeight:700,color:G.greyDeep }}>
-                              +{h.delta} {cat.unit}
-                            </div>
-                            <div style={{ fontSize:10,color:G.greyMid }}>{h.date}</div>
-                          </div>
-                          <div style={{ fontSize:11,color:G.greyMid,marginTop:2 }}>
-                            {h.from}{cat.unit} → {h.to}{cat.unit}
-                            {selectedItem.total > 0 && <span style={{ marginLeft:6,color:G.borderMid }}>({Math.round(h.to/selectedItem.total*100)}%)</span>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
- 
-              {/* Mini activity calendar for this item */}
-              {(selectedItem.progressHistory||[]).length > 0 && (() => {
-                const dates = (selectedItem.progressHistory||[]).map(h=>h.date);
-                const uniqueDates = [...new Set(dates)];
-                const countByDate = {};
-                dates.forEach(d=>{ countByDate[d]=(countByDate[d]||0)+1; });
-                return (
-                  <div style={SC}>
-                    <div style={SH}>記録した日（{uniqueDates.length}日）</div>
-                    <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-                      {uniqueDates.sort().map(d=>(
-                        <span key={d} style={{ fontSize:11,background:tint(CATS[selectedItem.category].color),color:dk(CATS[selectedItem.category].color),borderRadius:7,padding:"3px 9px",fontWeight:600 }}>
-                          {d}
-                          {countByDate[d]>1&&<span style={{ marginLeft:4,opacity:.7 }}>×{countByDate[d]}</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
             </>
           )}
-        </>}
+        </div>
+ 
+        {/* Avg days */}
+        <div style={{ ...SC, marginBottom:16 }}>
+          <div style={SH}>完了までの平均日数（全期間）</div>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8 }}>
+            {CAT_KEYS.filter(k=>stats.avgDays[k]!==null).map(k=>(
+              <div key={k} style={{ background:G.surface,border:`1.5px solid ${G.border}`,borderRadius:10,padding:"10px" }}>
+                <div style={{ fontSize:9,color:CATS[k].color,fontWeight:700,letterSpacing:"0.06em",marginBottom:4 }}>{CATS[k].label}</div>
+                <div style={{ fontSize:18,fontWeight:700,color:G.ink,lineHeight:1 }}>{stats.avgDays[k]}<span style={{ fontSize:11,fontWeight:400,color:G.greyMid }}>日</span></div>
+              </div>
+            ))}
+            {CAT_KEYS.filter(k=>stats.avgDays[k]!==null).length===0&&(
+              <div style={{ gridColumn:"1/-1",fontSize:12,color:G.greyMid }}>開始日・完了日が記録されたコンテンツがありません</div>
+            )}
+          </div>
+        </div>
+ 
+        {/* Export button */}
+        <button onClick={exportImage}
+          style={{ ...sBt(exportDone?G.greyDeep:G.greyDeep,"#fff"),width:"100%",justifyContent:"center",padding:"13px",fontSize:13,opacity:exportDone?0.7:1 }}>
+          <ICONS.dl/> {exportDone?"ダウンロードしました ✓":"画像としてエクスポート (.png)"}
+        </button>
  
       </div>
     </div>
   );
 }
+ 
  
  
 export default function App() {
@@ -2191,27 +1920,6 @@ export default function App() {
     setActivityLog(prev => {
       const day = prev[date] && typeof prev[date] === "object" ? prev[date] : {};
       return { ...prev, [date]: { ...day, [category]: (day[category]||0) + 1 } };
-    });
-  }, []);
- 
-  // Decrements (or removes) one activity entry for a given date+category
-  const removeActivity = useCallback((date, category) => {
-    if (!date) return;
-    setActivityLog(prev => {
-      const day = prev[date];
-      if (!day || typeof day !== "object") return prev;
-      const cur = (day[category] || 0);
-      if (cur <= 1) {
-        const next = { ...day };
-        delete next[category];
-        if (Object.keys(next).length === 0) {
-          const top = { ...prev };
-          delete top[date];
-          return top;
-        }
-        return { ...prev, [date]: next };
-      }
-      return { ...prev, [date]: { ...day, [category]: cur - 1 } };
     });
   }, []);
  
@@ -2374,16 +2082,6 @@ export default function App() {
         ::-webkit-scrollbar { display:none; }
         @keyframes fadeUp { from{opacity:0;transform:translate(-50%,10px);}to{opacity:1;transform:translate(-50%,0);} }
         @keyframes spin { to { transform: rotate(360deg); } }
-        input[type="date"],
-        input[type="datetime-local"] {
-          -webkit-appearance: none;
-          -moz-appearance: none;
-          appearance: none;
-          box-sizing: border-box;
-          width: 100%;
-          max-width: 100%;
-          min-width: 0;
-        }
       `}</style>
       <div style={{ minHeight:"100vh",background:G.surfaceAlt,fontFamily:F,maxWidth:480,margin:"0 auto" }}>
  
@@ -2503,7 +2201,7 @@ export default function App() {
             return (
               <div key={item.id}>
                 {showArrows && <Arrows list={lst} idx={idx} onReorder={(i,d)=>reorder(lst,i,d)}/>}
-                <ItemCard item={item} onUpdate={update} onEdit={setEdit} onMove={move} nvIndex={tab===1 ? wqValid.indexOf(item.id) : -1} onActivityLog={logActivity} onStatusChange={statusChange} removeActivityLog={removeActivity}/>
+                <ItemCard item={item} onUpdate={update} onEdit={setEdit} onMove={move} nvIndex={tab===1 ? wqValid.indexOf(item.id) : -1} onActivityLog={logActivity} onStatusChange={statusChange}/>
               </div>
             );
           })}
