@@ -38,16 +38,8 @@ const LS_ITEMS = "cp_items_v5";
 const LS_WQ    = "cp_wq_v1";   // watch queue: string[] of item IDs (max 5)
 const LS_DATES = "cp_dates_v6";
  
-// ─── Persistent storage ────────────────────────────────────────────────────────
-// Primary: localStorage (works in browser / GitHub Pages)
-// Fallback: window.storage (Claude Artifact environment)
+// ─── Persistent storage (window.storage for Claude Artifacts) ────────────────
 async function wsGet(key, fallback) {
-  // 1) localStorage (browser / URL版)
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw != null) return JSON.parse(raw);
-  } catch {}
-  // 2) window.storage (Claude Artifact)
   try {
     if (window.storage) {
       const res = await window.storage.get(key);
@@ -57,11 +49,7 @@ async function wsGet(key, fallback) {
   return fallback;
 }
 async function wsSet(key, value) {
-  const json = JSON.stringify(value);
-  // 1) localStorage
-  try { localStorage.setItem(key, json); } catch {}
-  // 2) window.storage
-  try { if (window.storage) await window.storage.set(key, json); } catch {}
+  try { if (window.storage) await window.storage.set(key, JSON.stringify(value)); } catch {}
 }
  
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -189,34 +177,8 @@ function cjkMin(t) {
   const l=(t.replace(/[\u3000-\u9FFF\uF900-\uFAFF\uAC00-\uD7FF]/g,"").match(/\S+/g)||[]).length;
   return Math.ceil(c/400+l/200)||1;
 }
- 
-// Real article fetch: targets <article>, <main>, [role=main] — strips ads/sidebars
-// Uses allorigins CORS proxy so it works from browser/GitHub Pages too
-async function fetchArticleReadingMin(url) {
-  if (!url || !url.startsWith("http")) return null;
-  try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const html = data.contents || "";
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    // Remove noise elements
-    ["script","style","noscript","nav","footer","header","aside","[role=complementary]","[role=navigation]","[class*=ad]","[id*=ad]"].forEach(sel => {
-      try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
-    });
-    // Extract main content
-    const main = doc.querySelector("article, [role='main'], main, .entry-content, .post-content, .article-body") || doc.body;
-    const text = main ? (main.innerText || main.textContent || "") : "";
-    const mins = cjkMin(text.trim());
-    return mins >= 1 ? mins : null;
-  } catch {
-    return null;
-  }
-}
- 
-// Fallback estimate (used when URL is blank or fetch fails)
-function estimateReadingMin(_url) { return cjkMin("あ".repeat(3200)); }
+// Future: real fetch → querySelector('article,main') → innerText
+function simulateArticleFetch(_url) { return { estimatedMin: cjkMin("あ".repeat(3200)) }; }
 function fmtGap(m) {
   const mc = Math.ceil(m); // always round up
   if (mc < 60) return `${mc}分`;
@@ -920,23 +882,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         )}
         {f.category==="article"&&(
           <FF label="URL">
-            <input style={INP} placeholder="https://…" value={f.articleUrl||""} onChange={e=>handleArticleUrlChange(e.target.value)}/>
-            {articleFetching && (
-              <div style={{ fontSize:11, color:G.greyMid, marginTop:5, display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{ display:"inline-block", width:10, height:10, borderRadius:"50%", border:`2px solid ${G.greyMid}`, borderTopColor:"transparent", animation:"spin .6s linear infinite" }}/>
-                文字数を取得中…
-              </div>
-            )}
-            {!articleFetching && articleMinutes && (
-              <div style={{ fontSize:11, color:dk(CATS.article.color), marginTop:5, fontWeight:600 }}>
-                ✓ 推定読了時間：約{fmtGap(articleMinutes)}
-              </div>
-            )}
-            {!articleFetching && !articleMinutes && f.articleUrl?.startsWith("http") && (
-              <div style={{ fontSize:11, color:G.greyMid, marginTop:5 }}>
-                ※ 取得できない場合は推定値を使用します
-              </div>
-            )}
+            <input style={INP} placeholder="https://…" value={f.articleUrl||""} onChange={e=>set("articleUrl",e.target.value)}/>
           </FF>
         )}
  
@@ -996,31 +942,12 @@ function AddModal({ onClose, onAdd }) {
   const set = (k,v) => setF(p=>({...p,[k]:v}));
   const c = CATS[f.category];
  
-  // Article URL fetch state
-  const [articleFetching, setArticleFetching] = useState(false);
-  const [articleMinutes, setArticleMinutes]   = useState(null); // fetched result
-  const fetchTimeoutRef = useRef(null);
- 
-  const handleArticleUrlChange = (url) => {
-    set("articleUrl", url);
-    setArticleMinutes(null);
-    clearTimeout(fetchTimeoutRef.current);
-    if (!url || !url.startsWith("http")) return;
-    // Debounce 800ms after user stops typing
-    fetchTimeoutRef.current = setTimeout(async () => {
-      setArticleFetching(true);
-      const mins = await fetchArticleReadingMin(url);
-      setArticleFetching(false);
-      setArticleMinutes(mins);
-    }, 800);
-  };
- 
   const add = () => {
     if(!f.title) return;
     const noProgress = ["youtube","tv","radio","live","article","movie"].includes(f.category);
+    // For movie, total = episodeMin (upper duration); for others, use f.total
     const totalVal = f.category==="movie" ? (Number(f.episodeMin)||1) : noProgress ? 1 : Number(f.total)||1;
-    // For article: use fetched minutes, or fallback estimate
-    const articleEpisodeMin = articleMinutes || estimateReadingMin(f.articleUrl);
+    const aMeta = f.category==="article" ? simulateArticleFetch(f.notes) : {};
     onAdd({
       id:               Date.now(),
       title:            f.title,
@@ -1033,7 +960,7 @@ function AddModal({ onClose, onAdd }) {
       completedAt:      null,
       lastUpdated:      null,
       notes:            f.notes,
-      episodeMin:       f.category==="article" ? articleEpisodeMin : Number(f.episodeMin)||null,
+      episodeMin:       f.category==="article" ? aMeta.estimatedMin : Number(f.episodeMin)||null,
       totalDurationMin: Number(f.totalDurationMin)||null,
       videoDurationMin: Number(f.videoDurationMin)||null,
       videoUrl:         f.videoUrl||null,
@@ -1445,7 +1372,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               )}
               {hasNotes&&(
                 <button onClick={()=>setMemoOpen(true)}
-                  style={{ background:"none",border:"none",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,padding:0,fontFamily:F,color:G.greyMid }}>
+                  style={{ background:"none",border:"none",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,padding:0,fontFamily:F }}>
                   <ICONS.memo/>
                   <span style={{ fontSize:10,color:G.greyMid,fontWeight:600,textDecoration:"underline",textDecorationStyle:"dotted",textUnderlineOffset:2 }}>メモあり</span>
                 </button>
@@ -1489,11 +1416,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
           color={c.color}
         />
         {totalMin!=null&&rem>0&&!["live","tv","radio","youtube"].includes(item.category)&&(
-          <div style={{ fontSize:11,color:G.greyMid,marginTop:3 }}>
-            あと{fmtGap(totalMin)}
-            {/* hint only for episodic/page-based content */}
-            {!["movie","article"].includes(item.category) && `（${hint(totalMin)}）`}
-          </div>
+          <div style={{ fontSize:11,color:G.greyMid,marginTop:3 }}>あと{fmtGap(totalMin)}（{hint(totalMin)}）</div>
         )}
       </div>
  
@@ -2081,7 +2004,6 @@ export default function App() {
         body { margin:0; background:${G.surfaceAlt}; font-family:'Outfit','Inter','system-ui','-apple-system','Hiragino Sans','Noto Sans JP',sans-serif; letter-spacing:0.07em; }
         ::-webkit-scrollbar { display:none; }
         @keyframes fadeUp { from{opacity:0;transform:translate(-50%,10px);}to{opacity:1;transform:translate(-50%,0);} }
-        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
       <div style={{ minHeight:"100vh",background:G.surfaceAlt,fontFamily:F,maxWidth:480,margin:"0 auto" }}>
  
@@ -2125,7 +2047,7 @@ export default function App() {
             {TABS.map((t,i)=>(
               <button key={t} onClick={()=>switchTab(i)}
                 style={{ flex:1,background:"none",border:"none",borderBottom:`2.5px solid ${tab===i?G.greyDeep:"transparent"}`,color:tab===i?G.greyDeep:G.greyMid,fontWeight:tab===i?800:500,fontSize:13,padding:"10px 4px",cursor:"pointer",transition:"all .15s",fontFamily:F }}>
-                {t}<span style={{ fontSize:10,opacity:.6,marginLeft:5,letterSpacing:"0.05em" }}>( {lists[i].length} )</span>
+                {t} <span style={{ fontSize:11,opacity:.65 }}>({lists[i].length})</span>
               </button>
             ))}
           </div>
