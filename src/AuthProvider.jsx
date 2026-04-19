@@ -15,7 +15,7 @@ der · JSX
  
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
-import ContentsProgress from "./ContentsProgress";
+import ContentsProgress from "./ContentsProgress.jsx";
  
 // ─── Supabase client (singleton) ─────────────────────────────────────────────
 let _sbClient = null;

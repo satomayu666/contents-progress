@@ -1,5 +1,5 @@
 import React from 'react';
-import AuthProvider from './AuthProvider'; // ファイル名が修正済み前提
+import AuthProvider from './AuthProvider.jsx'; // ファイル名が修正済み前提
 
 function App() {
   return (
