@@ -1,6 +1,3 @@
-der · JSX
-コピー
-
 /**
  * AuthProvider.jsx
  *
