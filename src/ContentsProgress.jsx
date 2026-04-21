@@ -142,7 +142,7 @@ const CATS = {
   anime:   { label:"アニメ",    unit:"話",  color:"#899EB4", order:6 },
   drama:   { label:"ドラマ",    unit:"話",  color:"#7C8F5E", order:7 },
   movie:   { label:"映画",       unit:"分",  color:"#D3ABAA", order:8 },
-  manga:   { label:"漫画",       unit:"巻",  color:"#D1B7A0", order:9 },
+  manga:   { label:"漫画",       unit:"巻",  unitAlt:"話", color:"#D1B7A0", order:9 },
 };
 const CAT_KEYS = Object.keys(CATS).sort((a,b) => CATS[a].order - CATS[b].order);
 const ALL = "すべて";
@@ -439,6 +439,15 @@ const STREAMING_OPTIONS = [
   { key:"abema",   label:"ABEMA" },
   { key:"other",   label:"その他" },
 ];
+// 映画専用（映画館を追加）
+const MOVIE_STREAMING_OPTIONS = [
+  { key:"cinema",  label:"映画館" },
+  { key:"amazon",  label:"Amazon Prime" },
+  { key:"netflix", label:"Netflix" },
+  { key:"hulu",    label:"Hulu" },
+  { key:"abema",   label:"ABEMA" },
+  { key:"other",   label:"その他" },
+];
 // Reading method options for book & manga
 const READING_OPTIONS = [
   { key:"paper",  label:"紙書籍を購入" },
@@ -451,6 +460,40 @@ const TV_VIEW_OPTIONS = [
   { key:"tv",    label:"TV" },
   { key:"tver",  label:"TVer" },
   { key:"other", label:"その他" },
+];
+ 
+// ─── Genre options ────────────────────────────────────────────────────────────
+// 汎用ジャンル（TV/本/アニメ/ドラマ/映画/漫画 共通）
+const GENRE_OPTIONS = [
+  { key:"action",    label:"アクション" },
+  { key:"adventure", label:"アドベンチャー" },
+  { key:"comedy",    label:"コメディ" },
+  { key:"romance",   label:"恋愛" },
+  { key:"drama",     label:"ヒューマンドラマ" },
+  { key:"mystery",   label:"ミステリー" },
+  { key:"horror",    label:"ホラー" },
+  { key:"scifi",     label:"SF" },
+  { key:"fantasy",   label:"ファンタジー" },
+  { key:"history",   label:"歴史・時代劇" },
+  { key:"sports",    label:"スポーツ" },
+  { key:"food",      label:"グルメ" },
+  { key:"documentary",label:"ドキュメンタリー" },
+  { key:"music",     label:"音楽" },
+  { key:"anime_genre",label:"アニメ" },
+  { key:"domestic",  label:"国内" },
+  { key:"foreign",   label:"海外" },
+  { key:"other",     label:"その他" },
+];
+ 
+// YouTubeジャンル（YouTube専用）
+const YOUTUBE_GENRE_OPTIONS = [
+  { key:"music",   label:"音楽" },
+  { key:"vlog",    label:"Vlog" },
+  { key:"tech",    label:"スマホ/アプリ" },
+  { key:"beauty",  label:"美容" },
+  { key:"fitness", label:"運動" },
+  { key:"quiz",    label:"QuizKnock" },
+  { key:"other",   label:"その他" },
 ];
 function MemoPopup({ text, onClose }) {
   return (
@@ -897,6 +940,9 @@ function EditModal({ item, onClose, onSave, onDelete }) {
       startedAt:         f.startedAt||null,
       status:            newStatus,
       completedAt:       isBinaryCat ? f.completedAt : newCompletedAt,
+      genres:            f.genres||[],
+      genreOther:        f.genreOther||"",
+      mangaUnit:         f.category==="manga" ? (f.mangaUnit||"巻") : f.mangaUnit,
     });
   };
  
@@ -916,11 +962,34 @@ function EditModal({ item, onClose, onSave, onDelete }) {
  
         <FF label="タイトル"><input style={INP} value={f.title} onChange={e=>set("title",e.target.value)}/></FF>
  
-        {showProgress&&(
+        {showProgress&&f.category!=="manga"&&(
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
             <div><label style={LBL}>現在 ({c.unit})</label><input type="number" style={INP} value={f.current} onChange={e=>set("current",e.target.value)}/></div>
             <div><label style={LBL}>合計 ({c.unit})</label><input type="number" style={INP} value={f.total} onChange={e=>set("total",e.target.value)}/></div>
           </div>
+        )}
+        {/* 漫画：単位選択 + 現在/合計 */}
+        {f.category==="manga"&&(
+          <>
+            <div style={{ marginBottom:10 }}>
+              <label style={LBL}>単位</label>
+              <div style={{ display:"flex", gap:8 }}>
+                {["巻","話"].map(u=>(
+                  <button key={u} type="button" onClick={()=>set("mangaUnit",u)}
+                    style={{ padding:"8px 18px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,
+                      border:`1.5px solid ${(f.mangaUnit||"巻")===u?CATS.manga.color:G.border}`,
+                      background:(f.mangaUnit||"巻")===u?tint(CATS.manga.color):G.surfaceAlt,
+                      color:(f.mangaUnit||"巻")===u?dk(CATS.manga.color):G.greyDark }}>
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+              <div><label style={LBL}>現在 ({f.mangaUnit||"巻"})</label><input type="number" style={INP} value={f.current} onChange={e=>set("current",e.target.value)}/></div>
+              <div><label style={LBL}>合計 ({f.mangaUnit||"巻"})</label><input type="number" style={INP} value={f.total} onChange={e=>set("total",e.target.value)}/></div>
+            </div>
+          </>
         )}
         {isEpBased&&<FF label="1話の時間 (分)"><input type="number" style={INP} value={f.episodeMin||""} onChange={e=>set("episodeMin",e.target.value)}/></FF>}
         {(isTimed&&!isEpBased)&&f.category!=="youtube"&&f.category!=="movie"&&(
@@ -936,6 +1005,11 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         {(f.category==="anime"||f.category==="drama")&&(
           <FF label="配信サービス">
             <MultiSelect options={STREAMING_OPTIONS} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/>
+          </FF>
+        )}
+        {f.category==="movie"&&(
+          <FF label="視聴方法">
+            <MultiSelect options={MOVIE_STREAMING_OPTIONS} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/>
           </FF>
         )}
         {(f.category==="book"||f.category==="manga")&&(
@@ -1000,6 +1074,33 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         )}
  
         <FFDate label={startedAtLabel(f.category)} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+ 
+        {/* ジャンル選択 */}
+        {["tv","book","anime","drama","movie","manga"].includes(f.category)&&(
+          <FF label="ジャンル（任意）">
+            <MultiSelect
+              options={GENRE_OPTIONS}
+              value={f.genres||[]}
+              onChange={v=>set("genres",v)}
+              otherKey="other"
+              otherValue={f.genreOther||""}
+              onOtherChange={v=>set("genreOther",v)}
+            />
+          </FF>
+        )}
+        {f.category==="youtube"&&(
+          <FF label="ジャンル（任意）">
+            <MultiSelect
+              options={YOUTUBE_GENRE_OPTIONS}
+              value={f.genres||[]}
+              onChange={v=>set("genres",v)}
+              otherKey="other"
+              otherValue={f.genreOther||""}
+              onOtherChange={v=>set("genreOther",v)}
+            />
+          </FF>
+        )}
+ 
         <FF label="メモ">
           <textarea style={{ ...INP,minHeight:64,resize:"vertical" }} value={f.notes} onChange={e=>set("notes",e.target.value)}/>
         </FF>
@@ -1049,7 +1150,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
  
 // ─── Add Modal ────────────────────────────────────────────────────────────────
 function AddModal({ onClose, onAdd }) {
-  const [f,setF] = useState({ title:"",category:"anime",total:"",episodeMin:"",totalDurationMin:"",videoDurationMin:"",videoUrl:"",articleUrl:"",contentUrl:"",station:"",tvStation:"",tvViewMethod:[],tvViewOther:"",airDate:"",streamingServices:[],streamingOther:"",readingMethod:[],readingSubOther:"",readingOther:"",startedAt:"",notes:"" });
+  const [f,setF] = useState({ title:"",category:"anime",total:"",episodeMin:"",totalDurationMin:"",videoDurationMin:"",videoUrl:"",articleUrl:"",contentUrl:"",station:"",tvStation:"",tvViewMethod:[],tvViewOther:"",airDate:"",streamingServices:[],streamingOther:"",readingMethod:[],readingSubOther:"",readingOther:"",startedAt:"",notes:"",genres:[],genreOther:"",mangaUnit:"巻" });
   const set = (k,v) => setF(p=>({...p,[k]:v}));
   const c = CATS[f.category];
  
@@ -1107,6 +1208,10 @@ function AddModal({ onClose, onAdd }) {
       readingSubOther:  f.readingSubOther||"",
       readingOther:     f.readingOther||"",
       startedAt:        f.startedAt||null,
+      genres:           f.genres||[],
+      genreOther:       f.genreOther||"",
+      firstActiveAt:    null,
+      mangaUnit:        f.category==="manga" ? (f.mangaUnit||"巻") : undefined,
     });
     onClose();
   };
@@ -1137,8 +1242,27 @@ function AddModal({ onClose, onAdd }) {
         <FF label="タイトル"><input style={INP} placeholder="タイトルを入力…" value={f.title} onChange={e=>set("title",e.target.value)}/></FF>
  
         {/* Per-category fields */}
-        {!["article","youtube","tv","radio","live","movie"].includes(f.category)&&(
+        {!["article","youtube","tv","radio","live","movie","manga"].includes(f.category)&&(
           <FF label={`合計 (${c.unit})`}><input type="number" style={INP} placeholder="例: 24" value={f.total} onChange={e=>set("total",e.target.value)}/></FF>
+        )}
+        {/* 漫画：単位（巻/話）選択 → 数値入力 */}
+        {f.category==="manga"&&(
+          <div style={{ marginBottom:14 }}>
+            <label style={LBL}>単位と合計数</label>
+            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+              {["巻","話"].map(u=>(
+                <button key={u} type="button" onClick={()=>set("mangaUnit",u)}
+                  style={{ padding:"8px 18px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,
+                    border:`1.5px solid ${(f.mangaUnit||"巻")===u?CATS.manga.color:G.border}`,
+                    background:(f.mangaUnit||"巻")===u?tint(CATS.manga.color):G.surfaceAlt,
+                    color:(f.mangaUnit||"巻")===u?dk(CATS.manga.color):G.greyDark }}>
+                  {u}
+                </button>
+              ))}
+              <input type="number" style={{ ...INP, flex:1 }} placeholder={`例: ${(f.mangaUnit||"巻")==="巻"?"14":"143"}`}
+                value={f.total} onChange={e=>set("total",e.target.value)}/>
+            </div>
+          </div>
         )}
         {isEpBased&&<FF label="1話の時間 (分)"><input type="number" style={INP} placeholder="例: 24" value={f.episodeMin} onChange={e=>set("episodeMin",e.target.value)}/></FF>}
         {(["live","tv","radio"].includes(f.category))&&(
@@ -1155,6 +1279,18 @@ function AddModal({ onClose, onAdd }) {
           <FF label="配信サービス">
             <MultiSelect
               options={STREAMING_OPTIONS}
+              value={f.streamingServices}
+              onChange={v=>set("streamingServices",v)}
+              otherKey="other"
+              otherValue={f.streamingOther}
+              onOtherChange={v=>set("streamingOther",v)}
+            />
+          </FF>
+        )}
+        {f.category==="movie"&&(
+          <FF label="視聴方法">
+            <MultiSelect
+              options={MOVIE_STREAMING_OPTIONS}
               value={f.streamingServices}
               onChange={v=>set("streamingServices",v)}
               otherKey="other"
@@ -1224,6 +1360,31 @@ function AddModal({ onClose, onAdd }) {
           </FF>
         )}
         <FFDate label={`${startedAtLabel(f.category)}（任意）`} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        {/* ジャンル選択 */}
+        {["tv","book","anime","drama","movie","manga"].includes(f.category)&&(
+          <FF label="ジャンル（任意）">
+            <MultiSelect
+              options={GENRE_OPTIONS}
+              value={f.genres||[]}
+              onChange={v=>set("genres",v)}
+              otherKey="other"
+              otherValue={f.genreOther||""}
+              onOtherChange={v=>set("genreOther",v)}
+            />
+          </FF>
+        )}
+        {f.category==="youtube"&&(
+          <FF label="ジャンル（任意）">
+            <MultiSelect
+              options={YOUTUBE_GENRE_OPTIONS}
+              value={f.genres||[]}
+              onChange={v=>set("genres",v)}
+              otherKey="other"
+              otherValue={f.genreOther||""}
+              onOtherChange={v=>set("genreOther",v)}
+            />
+          </FF>
+        )}
         <FF label="メモ（任意）">
           <input style={INP} placeholder="メモ…" value={f.notes} onChange={e=>set("notes",e.target.value)}/>
         </FF>
@@ -1235,109 +1396,6 @@ function AddModal({ onClose, onAdd }) {
 }
  
 // ─── Data Modal ───────────────────────────────────────────────────────────────
-function DataModal({ items, onImport, onMerge, onClose }) {
-  const fileRef  = useRef(null);
-  const mergeRef = useRef(null);
-  const [status, setStatus]       = useState(null);
-  const [exportText, setExportText] = useState(null);
- 
-  // Filename: contents_progress_YYYYMMDDHHII.json
-  function exportFilename() {
-    const d = new Date();
-    const pad = n => String(n).padStart(2,"0");
-    return `contents_progress_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}.json`;
-  }
- 
-  const doExport = () => {
-    const json = JSON.stringify({ version:3, exportedAt:new Date().toISOString(), items }, null, 2);
-    try {
-      const blob = new Blob([json],{type:"application/json"}), url = URL.createObjectURL(blob), a = document.createElement("a");
-      a.href = url; a.download = exportFilename();
-      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-      setStatus({ ok:true, msg:"ダウンロードしました！" });
-    } catch { setExportText(json); }
-  };
- 
-  const parseFile = (file, cb) => {
-    const r = new FileReader();
-    r.onload = ev => {
-      try {
-        const d = JSON.parse(ev.target.result);
-        if (!d.items || !Array.isArray(d.items)) throw new Error();
-        cb(d.items);
-      } catch { setStatus({ ok:false, msg:"⚠️ ファイル形式が正しくありません" }); }
-    };
-    r.readAsText(file);
-  };
- 
-  const doOverwrite = e => {
-    const file = e.target.files[0]; if (!file) return;
-    parseFile(file, ni => { onImport(ni); setStatus({ ok:true, msg:`${ni.length}件を上書きインポートしました！` }); });
-  };
- 
-  const doMerge = e => {
-    const file = e.target.files[0]; if (!file) return;
-    parseFile(file, ni => { onMerge(ni); setStatus({ ok:true, msg:"マージ完了！重複IDはスキップされました。" }); });
-  };
- 
-  const sectionStyle = { border:`1.5px solid ${G.border}`, borderRadius:14, padding:"18px 16px", marginBottom:12 };
- 
-  return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(34,34,34,0.32)",zIndex:900,display:"flex",alignItems:"flex-end" }}>
-      <div style={{ background:G.surface,borderRadius:"22px 22px 0 0",width:"100%",padding:"28px 22px 48px",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 -8px 40px rgba(0,0,0,0.12)" }}>
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22 }}>
-          <span style={{ fontSize:17,fontWeight:800,color:G.greyDeep }}>データ管理</span>
-          <button onClick={onClose} style={{ background:"none",border:"none",cursor:"pointer",color:G.greyMid,display:"flex",padding:4 }}><ICONS.close/></button>
-        </div>
-        {status && <div style={{ background:status.ok?tint(P.green):tint(P.pink),borderRadius:10,padding:"11px 14px",fontSize:13,color:G.greyDeep,marginBottom:16,fontWeight:600,borderLeft:`3px solid ${status.ok?P.green:P.pink}` }}>{status.msg}</div>}
- 
-        {/* Export */}
-        <div style={sectionStyle}>
-          <div style={{ fontSize:14,fontWeight:700,color:G.greyDeep,marginBottom:6,display:"flex",alignItems:"center",gap:7 }}><ICONS.dl/> エクスポート</div>
-          <p style={{ fontSize:12,color:G.greyMid,margin:"0 0 6px",lineHeight:1.7 }}>全データをJSONで保存。ファイル名に日時が入ります。</p>
-          <p style={{ fontSize:11,color:G.borderMid,margin:"0 0 14px",fontFamily:"monospace" }}>{exportFilename()}</p>
-          <button onClick={doExport} style={{ ...sBt(G.greyDeep),width:"100%",justifyContent:"center",padding:"12px",marginBottom:exportText?10:0 }}>
-            <ICONS.dl/> JSONをエクスポート（{items.length}件）
-          </button>
-          {exportText && (
-            <>
-              <div style={{ fontSize:11,color:G.greyMid,marginBottom:6,marginTop:8,fontWeight:600 }}>↓ 全選択してコピーしてください</div>
-              <textarea readOnly value={exportText} onClick={e=>e.target.select()} style={{ ...INP,minHeight:90,fontSize:11,fontFamily:"monospace",resize:"none" }}/>
-            </>
-          )}
-        </div>
- 
-        {/* Overwrite import */}
-        <div style={sectionStyle}>
-          <div style={{ fontSize:14,fontWeight:700,color:G.greyDeep,marginBottom:6,display:"flex",alignItems:"center",gap:7 }}><ICONS.ul/> インポート（上書き）</div>
-          <p style={{ fontSize:12,color:G.greyMid,margin:"0 0 14px",lineHeight:1.7 }}>
-            エクスポートしたJSONを読み込みます。<br/>
-            <strong style={{ color:G.greyDeep }}>現在のデータはすべて上書きされます。</strong>
-          </p>
-          <input ref={fileRef} type="file" accept=".json" style={{ display:"none" }} onChange={doOverwrite}/>
-          <button onClick={()=>fileRef.current.click()} style={{ ...oBt(G.grey,G.greyDark),width:"100%",justifyContent:"center",padding:"12px" }}>
-            <ICONS.ul/> ファイルを選択して上書き
-          </button>
-        </div>
- 
-        {/* Merge import */}
-        <div style={{ ...sectionStyle, marginBottom:0 }}>
-          <div style={{ fontSize:14,fontWeight:700,color:G.greyDeep,marginBottom:6,display:"flex",alignItems:"center",gap:7 }}><ICONS.merge/> インポート（マージ）</div>
-          <p style={{ fontSize:12,color:G.greyMid,margin:"0 0 14px",lineHeight:1.7 }}>
-            現在のデータに別ファイルのデータを統合します。<br/>
-            同じIDのアイテムはスキップ、新しいIDのみ追加されます。<br/>
-            <span style={{ color:dk(P.green),fontWeight:600 }}>別端末のデータをまとめるときに便利です。</span>
-          </p>
-          <input ref={mergeRef} type="file" accept=".json" style={{ display:"none" }} onChange={doMerge}/>
-          <button onClick={()=>mergeRef.current.click()} style={{ ...oBt(P.teal,dk(P.teal)),width:"100%",justifyContent:"center",padding:"12px" }}>
-            <ICONS.merge/> ファイルを選択してマージ
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
- 
 // ─── URL Button — opens directly in new tab, no confirmation ─────────────────
 function UrlButton({ url, color, label="URLを開く" }) {
   if (!url) return null;
@@ -1353,6 +1411,7 @@ function UrlButton({ url, color, label="URLを開く" }) {
 function PastRecordModal({ item, onSave, onClose }) {
   const c = CATS[item.category];
   const isBinary = ["youtube","tv","radio","live","article"].includes(item.category);
+  const effectiveUnit = item.category === "manga" ? (item.mangaUnit || "巻") : c.unit;
   // Yesterday as default date
   const yesterday = (() => { const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); })();
   const [date, setDate] = useState(yesterday);
@@ -1392,7 +1451,7 @@ function PastRecordModal({ item, onSave, onClose }) {
  
         {/* Amount — hidden for binary categories */}
         {!isBinary && (
-          <FF label={`記録量 (${c.unit})`}>
+          <FF label={`記録量 (${effectiveUnit})`}>
             <input type="number" style={INP} placeholder={`例: ${item.category==="book"?10:1}`}
               min="1" value={amount} onChange={e=>setAmount(e.target.value)}/>
             {presets.length > 0 && (
@@ -1403,7 +1462,7 @@ function PastRecordModal({ item, onSave, onClose }) {
                       border:`1.5px solid ${amount===p||Number(amount)===p?c.color:G.border}`,
                       background:Number(amount)===p?tint(c.color):G.surfaceAlt,
                       color:Number(amount)===p?dk(c.color):G.greyDark,cursor:"pointer",fontFamily:F }}>
-                    +{p}{c.unit}
+                    +{p}{effectiveUnit}
                   </button>
                 ))}
               </div>
@@ -1459,8 +1518,11 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
     item.category==="youtube"&&item.videoDurationMin ? item.videoDurationMin :
     item.category==="article" ? (item.episodeMin ? item.episodeMin*rem : null) : null;
  
+  // 漫画は mangaUnit フィールドで単位が変わる
+  const effectiveUnit = item.category === "manga" ? (item.mangaUnit || "巻") : c.unit;
+ 
   const qa = (item.category==="anime"||item.category==="drama")?1:item.category==="book"?10:item.category==="manga"?1:item.category==="movie"?10:1;
-  const ql = (item.category==="anime"||item.category==="drama")?"+1話":item.category==="book"?"+10P":item.category==="manga"?"+1巻":item.category==="movie"?"+10分":item.category==="live"?"+1曲":item.category==="youtube"||item.category==="tv"||item.category==="radio"?"視聴済み":"読了";
+  const ql = (item.category==="anime"||item.category==="drama")?"+1話":item.category==="book"?"+10P":item.category==="manga"?`+1${effectiveUnit}`:item.category==="movie"?"+10分":item.category==="live"?"+1曲":item.category==="youtube"||item.category==="tv"||item.category==="radio"?"視聴済み":"読了";
  
   const quickAdd = (amt) => {
     const nx = Math.min(item.total, item.current+amt);
@@ -1468,6 +1530,10 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
     const histEntry = { date:today(), delta:nx-item.current, from:item.current, to:nx };
     const patch = { current:nx, lastUpdated:today(), status:newSt,
       progressHistory:[...(item.progressHistory||[]), histEntry] };
+    // ③ 初めて進行中になった日を記録
+    if (newSt === "active" && item.status === "queue" && !item.firstActiveAt) {
+      patch.firstActiveAt = today();
+    }
     onActivityLog(today(), item.category);
     if (newSt === "active" && item.status === "queue") onStatusChange && onStatusChange(item.id, "active");
     if (nx >= item.total) {
@@ -1485,12 +1551,19 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   };
  
   const completeCelebrate = () => {
-    // ③ 残り全量をその瞬間に終えたとみなす：残り量(rem)回ぶんログ記録
-    // binary(live/article等)はremainder概念がないので1回のみ
+    // ③ 残り全量をその瞬間に終えたとみなす
     const logCount = isBinary ? 1 : Math.max(rem, 1);
     for (let i = 0; i < logCount; i++) {
       onActivityLog(today(), item.category);
     }
+    // progressHistory にも完了エントリを追記
+    const histEntry = { date:today(), delta:rem, from:item.current, to:item.total, completedViaButton:true };
+    const patch = { progressHistory: [...(item.progressHistory||[]), histEntry] };
+    // ③ queue から直接完了にした場合も firstActiveAt を記録
+    if (!item.firstActiveAt && item.status === "queue") {
+      patch.firstActiveAt = today();
+    }
+    onUpdate(item.id, patch);
     onMove(item.id, "done");
     setToast("完了！おめでとうございます 🎉");
     setShowConfetti(true);
@@ -1500,18 +1573,21 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   const isRadio = item.category==="radio";
   const isBinary = ["youtube","tv","radio","live","article"].includes(item.category);
  
-  // Duration label: startedAt → completedAt (or today if active)
+  // ③ Duration label: firstActiveAt（初めて進行中になった日）→ completedAt
+  //    firstActiveAt がない場合は startedAt にフォールバック
   const durationDays = (() => {
-    if (!item.startedAt) return null;
+    const start = item.firstActiveAt || item.startedAt;
+    if (!start) return null;
     const end = item.completedAt || (item.status==="active" ? today() : null);
     if (!end) return null;
-    return daysBetween(item.startedAt, end);
+    return daysBetween(start, end);
   })();
  
   // Streaming service labels to display
+  const streamingOpts = item.category === "movie" ? MOVIE_STREAMING_OPTIONS : STREAMING_OPTIONS;
   const streamingLabels = (item.streamingServices||[]).map(k => {
     if (k === "other") return item.streamingOther || "その他";
-    return STREAMING_OPTIONS.find(o=>o.key===k)?.label || k;
+    return streamingOpts.find(o=>o.key===k)?.label || k;
   }).filter(Boolean);
  
   // Reading method labels to display
@@ -1519,6 +1595,13 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
     if (k === "sub")   return item.readingSubOther || "サブスク";
     if (k === "other") return item.readingOther    || "その他";
     return READING_OPTIONS.find(o=>o.key===k)?.label || k;
+  }).filter(Boolean);
+ 
+  // Genre labels to display
+  const genreOpts = item.category === "youtube" ? YOUTUBE_GENRE_OPTIONS : GENRE_OPTIONS;
+  const genreLabels = (item.genres||[]).map(k => {
+    if (k === "other") return item.genreOther || "その他";
+    return genreOpts.find(o=>o.key===k)?.label || k;
   }).filter(Boolean);
  
   return (
@@ -1603,6 +1686,15 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
             </div>
           )}
  
+          {/* Genre chips */}
+          {genreLabels.length>0&&(
+            <div style={{ display:"flex",flexWrap:"wrap",gap:5,marginTop:8 }}>
+              {genreLabels.map((l,i) => (
+                <span key={i} style={{ fontSize:10,fontWeight:500,color:G.greyDark,background:G.surfaceAlt,border:`1px solid ${G.border}`,borderRadius:5,padding:"2px 7px" }}>{l}</span>
+              ))}
+            </div>
+          )}
+ 
           {/* startedAt + duration */}
           {item.startedAt&&(
             <div style={{ fontSize:11,color:G.greyMid,marginTop:8,display:"flex",alignItems:"center",gap:4 }}>
@@ -1657,7 +1749,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
           </div>
         ) : (
           <div style={{ display:"flex",justifyContent:"space-between",fontSize:13 }}>
-            <span style={{ fontWeight:700,color:G.greyDeep }}>{item.current} / {item.total} {c.unit}</span>
+            <span style={{ fontWeight:700,color:G.greyDeep }}>{item.current} / {item.total} {effectiveUnit}</span>
             <span style={{ fontWeight:800,color:p===100?dk(P.green):dk(c.color) }}>{p}%</span>
           </div>
         )}
@@ -1704,7 +1796,12 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         )}
         {item.category==="live" && item.status==="active" && (
           <>
-            <button onClick={()=>{ removeActivityLog && removeActivityLog(item.lastUpdated||today(), item.category); onMove(item.id,"queue"); }}
+            <button onClick={()=>{
+              removeActivityLog && removeActivityLog(item.lastUpdated||today(), item.category);
+              const hist = [...(item.progressHistory||[])]; hist.pop();
+              onUpdate(item.id, { progressHistory: hist });
+              onMove(item.id,"queue");
+            }}
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからにする
             </button>
@@ -1717,7 +1814,12 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               <ICONS.play/>進行中に戻す
             </button>
-            <button onClick={()=>{ removeActivityLog && removeActivityLog(item.completedAt||today(), item.category); onMove(item.id,"queue"); }}
+            <button onClick={()=>{
+              removeActivityLog && removeActivityLog(item.completedAt||today(), item.category);
+              const hist = [...(item.progressHistory||[])]; hist.pop();
+              onUpdate(item.id, { progressHistory: hist });
+              onMove(item.id,"queue");
+            }}
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからに戻す
             </button>
@@ -1733,7 +1835,12 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         )}
         {item.category==="article" && item.status==="active" && (
           <>
-            <button onClick={()=>{ removeActivityLog && removeActivityLog(item.lastUpdated||today(), item.category); onMove(item.id,"queue"); }}
+            <button onClick={()=>{
+              removeActivityLog && removeActivityLog(item.lastUpdated||today(), item.category);
+              const hist = [...(item.progressHistory||[])]; hist.pop();
+              onUpdate(item.id, { progressHistory: hist });
+              onMove(item.id,"queue");
+            }}
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからにする
             </button>
@@ -1746,7 +1853,12 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               <ICONS.play/>進行中に戻す
             </button>
-            <button onClick={()=>{ removeActivityLog && removeActivityLog(item.completedAt||today(), item.category); onMove(item.id,"queue"); }}
+            <button onClick={()=>{
+              removeActivityLog && removeActivityLog(item.completedAt||today(), item.category);
+              const hist = [...(item.progressHistory||[])]; hist.pop();
+              onUpdate(item.id, { progressHistory: hist });
+              onMove(item.id,"queue");
+            }}
               style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからに戻す
             </button>
@@ -2147,7 +2259,7 @@ function ReportModal({ items, activityLog, onClose }) {
             ].map(({label,val})=>(
               <div key={label} style={{ background:G.surfaceAlt,borderRadius:11,padding:"12px 10px",textAlign:"center" }}>
                 <div style={{ fontSize:10,color:G.greyMid,fontWeight:600,letterSpacing:"0.06em",marginBottom:5 }}>{label}</div>
-                <div style={{ fontSize:20,fontWeight:700,color:G.ink,lineHeight:1 }}>{val}</div>
+                <div style={{ fontSize:20,fontWeight:400,color:G.ink,lineHeight:1 }}>{val}</div>
               </div>
             ))}
           </div>
@@ -2155,13 +2267,16 @@ function ReportModal({ items, activityLog, onClose }) {
           {/* MVP */}
           {stats.mvpCount>0 ? (
             <div style={{ ...SC, borderLeft:`4px solid ${CATS[stats.mvpKey].color}`, marginBottom:12 }}>
-              <div style={{ fontSize:10,fontWeight:700,color:G.greyMid,letterSpacing:"0.09em",textTransform:"uppercase",marginBottom:6 }}>{periodLabel} MVP</div>
-              <div style={{ fontSize:17,fontWeight:700,color:G.ink,display:"flex",alignItems:"center",gap:8 }}>
-                <CatIco cat={stats.mvpKey} color={CATS[stats.mvpKey].color}/>
-                {CATS[stats.mvpKey].label}
-                <span style={{ fontSize:13,color:CATS[stats.mvpKey].color,fontWeight:600 }}>×{stats.mvpCount}作品</span>
+              <div style={{ fontSize:10,fontWeight:700,color:G.greyMid,letterSpacing:"0.09em",textTransform:"uppercase",marginBottom:8 }}>{periodLabel} MVP</div>
+              <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                {/* ③ カテゴリ色背景・枠線なし */}
+                <span style={{ display:"inline-flex",alignItems:"center",gap:5,background:CATS[stats.mvpKey].color,borderRadius:6,padding:"4px 10px" }}>
+                  <CatIco cat={stats.mvpKey} color="#fff"/>
+                  <span style={{ fontSize:12,fontWeight:700,color:"#fff",letterSpacing:"0.03em" }}>{CATS[stats.mvpKey].label}</span>
+                </span>
+                <span style={{ fontSize:13,color:G.greyDark,fontWeight:500 }}>×{stats.mvpCount}作品</span>
               </div>
-              {stats.trendMsg&&<div style={{ fontSize:12,color:G.greyMid,marginTop:4 }}>{stats.trendMsg}</div>}
+              {stats.trendMsg&&<div style={{ fontSize:12,color:G.greyMid,marginTop:6 }}>{stats.trendMsg}</div>}
             </div>
           ) : (
             <div style={{ ...SC, color:G.greyMid, fontSize:13 }}>{periodLabel}の完了記録がありません</div>
@@ -2223,9 +2338,10 @@ function ReportModal({ items, activityLog, onClose }) {
             <div style={SH}>完了までの平均日数（全期間）</div>
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8 }}>
               {CAT_KEYS.filter(k=>stats.avgDays[k]!==null).map(k=>(
-                <div key={k} style={{ background:G.surface,border:`1.5px solid ${G.border}`,borderRadius:10,padding:"10px" }}>
-                  <div style={{ fontSize:9,color:CATS[k].color,fontWeight:700,letterSpacing:"0.06em",marginBottom:4 }}>{CATS[k].label}</div>
-                  <div style={{ fontSize:18,fontWeight:700,color:G.ink,lineHeight:1 }}>{stats.avgDays[k]}<span style={{ fontSize:11,fontWeight:400,color:G.greyMid }}>日</span></div>
+                <div key={k} style={{ background:G.surfaceAlt,borderRadius:10,padding:"10px" }}>
+                  {/* ③ カテゴリ色背景・枠線なし */}
+                  <div style={{ display:"inline-block",background:CATS[k].color,borderRadius:5,padding:"2px 8px",fontSize:9,fontWeight:700,color:"#fff",letterSpacing:"0.06em",marginBottom:6 }}>{CATS[k].label}</div>
+                  <div style={{ fontSize:18,fontWeight:400,color:G.ink,lineHeight:1 }}>{stats.avgDays[k]}<span style={{ fontSize:11,fontWeight:400,color:G.greyMid }}>日</span></div>
                 </div>
               ))}
               {CAT_KEYS.filter(k=>stats.avgDays[k]!==null).length===0&&(
@@ -2290,9 +2406,12 @@ function ReportModal({ items, activityLog, onClose }) {
  
               {/* Item header */}
               <div style={{ ...SC, borderLeft:`4px solid ${CATS[selectedItem.category].color}` }}>
-                <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:4 }}>
-                  <CatIco cat={selectedItem.category} color={dk(CATS[selectedItem.category].color)}/>
-                  <span style={{ fontSize:10,fontWeight:700,color:dk(CATS[selectedItem.category].color) }}>{CATS[selectedItem.category].label}</span>
+                <div style={{ marginBottom:8 }}>
+                  {/* ③ カテゴリ色背景・枠線なし */}
+                  <span style={{ display:"inline-flex",alignItems:"center",gap:5,background:CATS[selectedItem.category].color,borderRadius:6,padding:"4px 10px" }}>
+                    <CatIco cat={selectedItem.category} color="#fff"/>
+                    <span style={{ fontSize:11,fontWeight:700,color:"#fff",letterSpacing:"0.03em" }}>{CATS[selectedItem.category].label}</span>
+                  </span>
                 </div>
                 <div style={{ fontSize:15,fontWeight:800,color:G.greyDeep,lineHeight:1.3 }}>{selectedItem.title}</div>
                 <div style={{ display:"flex",gap:12,marginTop:8,fontSize:11,color:G.greyMid,flexWrap:"wrap" }}>
@@ -2584,40 +2703,120 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const [addOpen,setAddOpen]       = useState(false);
   const [showHeat,setHeat]         = useState(false);
   const [nvOpen,setNvOpen]         = useState(false);
-  const [dataOpen,setData]         = useState(false);
   const [reportOpen,setReport]     = useState(false);
   const [showConfetti,setConfetti] = useState(false);
  
   // ── データ操作コールバック ─────────────────────────────────────────────
   const update     = useCallback((id,patch)=>setItems(p=>p.map(it=>it.id===id?{...it,...patch}:it)),[setItems]);
-  // ② 編集保存：進捗が減少した場合、差分だけアクティビティログを削除
+  // ② 編集保存：進捗の増減をアクティビティログと progressHistory の両方に反映
   const saveEdit = useCallback((updated) => {
-    // アクティビティログの差分削除
     setItemsRaw(prev => {
       const old = prev.find(it => it.id === updated.id);
-      if (old && old.current > updated.current) {
-        const delta = old.current - updated.current;
-        const date  = old.lastUpdated || today();
-        setActivityLog(log => {
-          const day = log[date] && typeof log[date] === "object" ? log[date] : {};
-          const cur = day[updated.category] || 0;
-          const next = Math.max(cur - delta, 0);
-          if (userId && sbOps) sbOps.upsertActivity(userId, date, updated.category, next);
-          if (next <= 0) {
-            const nd = { ...day }; delete nd[updated.category];
-            if (Object.keys(nd).length === 0) { const tl = { ...log }; delete tl[date]; return tl; }
-            return { ...log, [date]: nd };
+      if (old) {
+        const delta = updated.current - old.current; // 正=増加, 負=減少
+ 
+        if (delta > 0) {
+          // ── 増加：ログ記録 + progressHistory 追記 ──
+          for (let i = 0; i < delta; i++) {
+            setActivityLog(log => {
+              const day = log[today()] && typeof log[today()] === "object" ? log[today()] : {};
+              const cur = day[updated.category] || 0;
+              const newCount = cur + 1;
+              if (userId && sbOps) sbOps.upsertActivity(userId, today(), updated.category, newCount);
+              return { ...log, [today()]: { ...day, [updated.category]: newCount } };
+            });
           }
-          return { ...log, [date]: { ...day, [updated.category]: next } };
-        });
+          updated = {
+            ...updated,
+            progressHistory: [
+              ...(old.progressHistory || []),
+              { date: today(), delta, from: old.current, to: updated.current, editedViaModal: true },
+            ],
+          };
+        } else if (delta < 0) {
+          // ── 減少：ログ削除 + progressHistory 末尾から削除 ──
+          const removeDelta = Math.abs(delta);
+          const date = old.lastUpdated || today();
+          setActivityLog(log => {
+            const day = log[date] && typeof log[date] === "object" ? log[date] : {};
+            const cur = day[updated.category] || 0;
+            const next = Math.max(cur - removeDelta, 0);
+            if (userId && sbOps) sbOps.upsertActivity(userId, date, updated.category, next);
+            if (next <= 0) {
+              const nd = { ...day }; delete nd[updated.category];
+              if (Object.keys(nd).length === 0) { const tl = { ...log }; delete tl[date]; return tl; }
+              return { ...log, [date]: nd };
+            }
+            return { ...log, [date]: { ...day, [updated.category]: next } };
+          });
+          // progressHistory 末尾から削除分を取り除く
+          const hist = [...(old.progressHistory || [])];
+          let toRemove = removeDelta;
+          while (toRemove > 0 && hist.length > 0) {
+            const last = hist[hist.length - 1];
+            if (last.delta <= toRemove) {
+              hist.pop(); toRemove -= last.delta;
+            } else {
+              hist[hist.length - 1] = { ...last, delta: last.delta - toRemove, to: last.to - toRemove };
+              toRemove = 0;
+            }
+          }
+          updated = { ...updated, progressHistory: hist };
+        }
       }
       return prev.map(it => it.id === updated.id ? updated : it);
     });
-    // Supabase dirty tracking（setItems ラッパー経由）
+    // Supabase dirty tracking
     setItems(p => p.map(it => it.id === updated.id ? updated : it));
     setEdit(null);
   }, [setItems, userId, sbOps]);
-  const deleteItem = useCallback((id)=>{setItems(p=>p.filter(it=>it.id!==id));setEdit(null);},[setItems]);
+  // ① コンテンツ削除：progressHistory に記録された日付・回数ぶんアクティビティログも削除
+  const deleteItem = useCallback((id) => {
+    setItemsRaw(prev => {
+      const target = prev.find(it => it.id === id);
+      if (target) {
+        // progressHistory から日付×カテゴリごとの記録回数を集計
+        const toRemove = {}; // { "2025-06-01": { anime: 3, ... } }
+        (target.progressHistory || []).forEach(h => {
+          if (!h.date) return;
+          if (!toRemove[h.date]) toRemove[h.date] = {};
+          toRemove[h.date][target.category] = (toRemove[h.date][target.category] || 0) + 1;
+        });
+        // completedAt の記録もバイナリカテゴリのみ1回カウント
+        const isBinaryDel = ["youtube","tv","radio","live","article"].includes(target.category);
+        if (isBinaryDel && target.completedAt) {
+          if (!toRemove[target.completedAt]) toRemove[target.completedAt] = {};
+          toRemove[target.completedAt][target.category] = (toRemove[target.completedAt][target.category] || 0) + 1;
+        }
+ 
+        if (Object.keys(toRemove).length > 0) {
+          setActivityLog(log => {
+            let next = { ...log };
+            for (const [date, cats] of Object.entries(toRemove)) {
+              for (const [cat, removeCount] of Object.entries(cats)) {
+                const day = next[date] && typeof next[date] === "object" ? next[date] : {};
+                const cur = day[cat] || 0;
+                const newCount = Math.max(cur - removeCount, 0);
+                if (userId && sbOps) sbOps.upsertActivity(userId, date, cat, newCount);
+                if (newCount <= 0) {
+                  const nd = { ...day }; delete nd[cat];
+                  if (Object.keys(nd).length === 0) { delete next[date]; }
+                  else { next[date] = nd; }
+                } else {
+                  next[date] = { ...day, [cat]: newCount };
+                }
+              }
+            }
+            return next;
+          });
+        }
+      }
+      return prev.filter(it => it.id !== id);
+    });
+    // Supabase削除もトリガー（setItems ラッパー経由）
+    setItems(p => p.filter(it => it.id !== id));
+    setEdit(null);
+  }, [setItems, userId, sbOps]);
  
   const statusChange = useCallback((id, st) => {
     if (st === "active") {
@@ -2631,7 +2830,24 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   }, []);
  
   const move = useCallback((id, st) => {
-    setItems(p => p.map(it => it.id===id ? {...it, status:st, completedAt:st==="done"?today():null, current:st==="done"?it.total:it.current} : it));
+    setItems(p => p.map(it => {
+      if (it.id !== id) return it;
+      const patch = {
+        ...it,
+        status: st,
+        completedAt: st === "done" ? today() : null,
+        current: st === "done" ? it.total : it.current,
+      };
+      // ③ 初めて進行中になった日を記録（firstActiveAt がまだなく queue→active の場合のみ）
+      if (st === "active" && it.status === "queue" && !it.firstActiveAt) {
+        patch.firstActiveAt = today();
+      }
+      // これからに戻した場合は firstActiveAt をクリア
+      if (st === "queue") {
+        patch.firstActiveAt = null;
+      }
+      return patch;
+    }));
     if (st === "done") setConfetti(true);
     if (st === "active") {
       setWatchQueue(prev => {
@@ -2644,14 +2860,6 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   }, [setItems]);
  
   const addItem  = useCallback((item) => setItems(p=>[...p,item]), [setItems]);
-  const importIt = useCallback((ni)  => { setItems(ni); setData(false); }, [setItems]);
-  const mergeIt  = useCallback((ni)  => {
-    setItems(prev => {
-      const ids = new Set(prev.map(i => i.id));
-      return [...prev, ...ni.filter(i => !ids.has(i.id))];
-    });
-    setData(false);
-  }, [setItems]);
  
   const reorder = useCallback((listItems, idx, dir) => {
     const si = idx+dir; if (si<0||si>=listItems.length) return;
@@ -2791,10 +2999,6 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 style={{ background:"none",border:`1.5px solid ${G.border}`,borderRadius:8,width:34,height:34,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:G.greyMid }}>
                 <ICONS.report/>
               </button>
-              <button onClick={()=>setData(true)} title="データ管理"
-                style={{ background:"none",border:`1.5px solid ${G.border}`,borderRadius:8,width:34,height:34,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:G.greyMid }}>
-                <ICONS.dl/>
-              </button>
               <button onClick={()=>setHeat(s=>!s)} title="アクティビティログ"
                 style={{ background:showHeat?G.surfaceAlt:"none",border:`1.5px solid ${showHeat?G.greyMid:G.border}`,borderRadius:8,width:34,height:34,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:showHeat?G.greyDeep:G.greyMid }}>
                 <ICONS.chart/>
@@ -2901,7 +3105,6 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         {addOpen     && <AddModal onClose={()=>setAddOpen(false)} onAdd={addItem}/>}
         {nvOpen      && <WatchQueuePicker queueItems={queue} watchQueue={wqValid} onSave={wq=>setWatchQueue(wq)} onClose={()=>setNvOpen(false)}/>}
         {nvChooseOpen && <NVChoosePrompt queueItems={queue.filter(i=>!wqValid.includes(i.id))} onSelect={id=>{setWatchQueue(prev=>[id,...prev.filter(x=>x!==id)]);setNvChooseOpen(false);}} onDismiss={()=>setNvChooseOpen(false)}/>}
-        {dataOpen    && <DataModal items={items} onImport={importIt} onMerge={mergeIt} onClose={()=>setData(false)}/>}
         {reportOpen  && <ReportModal items={items} activityLog={activityLog} onClose={()=>setReport(false)}/>}
         {showConfetti && <Confetti onDone={()=>setConfetti(false)}/>}
       </div>
