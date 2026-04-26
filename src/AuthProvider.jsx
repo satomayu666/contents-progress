@@ -98,6 +98,84 @@ export async function sbSaveWatchQueue(userId, queue) {
   if (error) console.error("sbSaveWatchQueue:", error);
 }
  
+// ─── user_progress CRUD ───────────────────────────────────────────────────────
+ 
+/**
+ * DB行 → UserProgress オブジェクトへマッピング
+ */
+function rowToProgress(row) {
+  return {
+    level:          row.level,
+    currentExp:     row.current_exp,
+    totalExp:       row.total_exp,
+    streakDays:     row.streak_days,
+    lastActiveDate: row.last_active_date ?? "",
+    obtainedBadges: row.obtained_badges ?? [],
+  };
+}
+ 
+/**
+ * UserProgress オブジェクト → DB行へマッピング
+ */
+function progressToRow(userId, progress) {
+  return {
+    user_id:          userId,
+    level:            progress.level,
+    current_exp:      progress.currentExp,
+    total_exp:        progress.totalExp,
+    streak_days:      progress.streakDays,
+    last_active_date: progress.lastActiveDate || null,
+    obtained_badges:  progress.obtainedBadges,
+    updated_at:       new Date().toISOString(),
+  };
+}
+ 
+/**
+ * ユーザーのレベル進捗を取得する。
+ * レコードが存在しない場合は null を返す。
+ */
+export async function sbGetUserProgress(userId) {
+  const sb = getSupabase(); if (!sb) return null;
+  const { data, error } = await sb
+    .from("user_progress")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+  if (error) {
+    // PGRST116 = "no rows" → 新規ユーザーなので null を返すだけ
+    if (error.code !== "PGRST116") console.error("sbGetUserProgress:", error);
+    return null;
+  }
+  return rowToProgress(data);
+}
+ 
+/**
+ * 新規ユーザーの初期レコードを INSERT する。
+ * 既にレコードがある場合は何もしない（upsert の onConflict で制御）。
+ */
+export async function sbCreateUserProgress(userId, progress) {
+  const sb = getSupabase(); if (!sb) return;
+  const { error } = await sb
+    .from("user_progress")
+    .insert(progressToRow(userId, progress));
+  // 重複エラー（既に存在）は無視
+  if (error && error.code !== "23505") {
+    console.error("sbCreateUserProgress:", error);
+  }
+}
+ 
+/**
+ * 既存レコードを UPDATE する（楽観更新後の確定保存）。
+ */
+export async function sbUpdateUserProgress(userId, progress) {
+  const sb = getSupabase(); if (!sb) return;
+  const { error } = await sb
+    .from("user_progress")
+    .update(progressToRow(userId, progress))
+    .eq("user_id", userId);
+  if (error) console.error("sbUpdateUserProgress:", error);
+}
+ 
 // ─── デザイン定数（ログイン画面用のみ） ──────────────────────────────────────
 const G_AUTH = {
   surface:    "#FFFFFF",
@@ -225,13 +303,17 @@ export default function AuthProvider() {
       onLogout={handleLogout}
       // ── Supabase DB 操作関数（ContentsProgress はこれを使ってデータを永続化）──
       sbOps={{
-        loadItems:       (uid)           => sbLoadItems(uid),
-        saveItem:        (uid, item)     => sbSaveItem(uid, item),
-        deleteItem:      (uid, itemId)   => sbDeleteItem(uid, itemId),
-        loadActivityLog: (uid)           => sbLoadActivityLog(uid),
-        upsertActivity:  (uid,d,c,n)     => sbUpsertActivityLog(uid,d,c,n),
-        loadWatchQueue:  (uid)           => sbLoadWatchQueue(uid),
-        saveWatchQueue:  (uid, q)        => sbSaveWatchQueue(uid, q),
+        loadItems:          (uid)           => sbLoadItems(uid),
+        saveItem:           (uid, item)     => sbSaveItem(uid, item),
+        deleteItem:         (uid, itemId)   => sbDeleteItem(uid, itemId),
+        loadActivityLog:    (uid)           => sbLoadActivityLog(uid),
+        upsertActivity:     (uid,d,c,n)     => sbUpsertActivityLog(uid,d,c,n),
+        loadWatchQueue:     (uid)           => sbLoadWatchQueue(uid),
+        saveWatchQueue:     (uid, q)        => sbSaveWatchQueue(uid, q),
+        // ── Level / EXP progress ──
+        getUserProgress:    (uid)           => sbGetUserProgress(uid),
+        createUserProgress: (uid, progress) => sbCreateUserProgress(uid, progress),
+        updateUserProgress: (uid, progress) => sbUpdateUserProgress(uid, progress),
       }}
     />
   );
