@@ -522,7 +522,6 @@ function daysBetween(a, b) {
 
 // ─── Multi-Select Chip Picker ─────────────────────────────────────────────────
 function MultiSelect({ options, value, onChange, otherKey, otherValue, onOtherChange }) {
-  // value: string[]   options: {label, key}[]   otherKey: key that triggers free-text
   const toggle = (key) => {
     const next = value.includes(key) ? value.filter(k => k !== key) : [...value, key];
     onChange(next);
@@ -534,7 +533,11 @@ function MultiSelect({ options, value, onChange, otherKey, otherValue, onOtherCh
           const on = value.includes(key);
           return (
             <button key={key} onClick={() => toggle(key)} type="button"
-              style={{ padding:"6px 12px", borderRadius:99, fontSize:12, fontWeight:600, border:`1.5px solid ${on ? G.greyDeep : G.border}`, background:on ? G.greyDeep : G.surfaceAlt, color:on ? "#fff" : G.greyDark, cursor:"pointer", fontFamily:F, transition:"all .15s" }}>
+              style={{ padding:"6px 12px", borderRadius:99, fontSize:12, fontWeight:600,
+                border:`1.5px solid ${on ? "#BFBFBF" : G.border}`,
+                background: on ? "#BFBFBF" : G.surfaceAlt,
+                color: on ? "#fff" : G.greyDark,
+                cursor:"pointer", fontFamily:F, transition:"all .15s" }}>
               {label}
             </button>
           );
@@ -597,6 +600,7 @@ const GENRE_OPTIONS = [
   { key:"documentary",label:"ドキュメンタリー" },
   { key:"music",     label:"音楽" },
   { key:"anime_genre",label:"アニメ" },
+  { key:"magazine",  label:"雑誌" },   // Book向け追加
   { key:"domestic",  label:"国内" },
   { key:"foreign",   label:"海外" },
   { key:"other",     label:"その他" },
@@ -1133,6 +1137,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
       genres:            f.genres||[],
       genreOther:        f.genreOther||"",
       mangaUnit:         f.category==="manga" ? (f.mangaUnit||"巻") : f.mangaUnit,
+      artistName:        f.category==="live" ? (f.artistName||null) : f.artistName,
     });
   };
 
@@ -1184,6 +1189,12 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         {isEpBased&&<FF label="1話の時間 (分)"><input type="number" style={INP} value={f.episodeMin||""} onChange={e=>set("episodeMin",e.target.value)}/></FF>}
         {(isTimed&&!isEpBased)&&f.category!=="youtube"&&f.category!=="movie"&&(
           <FF label="合計時間 (分)"><input type="number" style={INP} placeholder="例: 120" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></FF>
+        )}
+        {/* Live: アーティスト名 */}
+        {f.category==="live"&&(
+          <FF label="アーティスト名（任意）">
+            <input style={INP} placeholder="例: TK from 凛として時雨" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
+          </FF>
         )}
         {f.category==="movie"&&(
           <>
@@ -1316,6 +1327,35 @@ function EditModal({ item, onClose, onSave, onDelete }) {
 
         <button onClick={save} style={{ ...sBt(c.color),width:"100%",justifyContent:"center",padding:"14px",fontSize:15 }}>保存する</button>
 
+        {/* ── ステータスを戻す（完了ステータスのみ表示） ── */}
+        {item.status === "done" && (
+          <div style={{ marginTop:14, padding:"14px 16px", borderRadius:12,
+            background:G.surfaceAlt, border:`1px solid ${G.border}` }}>
+            <div style={{ fontSize:11, fontWeight:600, color:G.greyMid,
+              letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:10 }}>
+              ステータスを戻す
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>{ onSave({ ...f, status:"active", completedAt:null }); }}
+                style={{ flex:1, padding:"11px 6px", borderRadius:9, border:`1px solid ${G.border}`,
+                  background:G.surface, color:G.greyDark, fontSize:12, fontWeight:600,
+                  cursor:"pointer", fontFamily:F, letterSpacing:"0.03em",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                進行中にする
+              </button>
+              <button onClick={()=>{ onSave({ ...f, status:"queue", completedAt:null, current:0 }); }}
+                style={{ flex:1, padding:"11px 6px", borderRadius:9, border:`1px solid ${G.border}`,
+                  background:G.surface, color:G.greyDark, fontSize:12, fontWeight:600,
+                  cursor:"pointer", fontFamily:F, letterSpacing:"0.03em",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 8 8 12 12 16"/><line x1="16" y1="12" x2="8" y2="12"/></svg>
+                これからにする
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Delete section */}
         <div style={{ marginTop:20, paddingTop:18, borderTop:`1.5px solid ${G.border}` }}>
           {!confirmDelete ? (
@@ -1347,7 +1387,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
 
 // ─── Add Modal ────────────────────────────────────────────────────────────────
 function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime" }) {
-  const [f,setF] = useState({ title:"",category:defaultCategory,total:"",episodeMin:"",totalDurationMin:"",videoDurationMin:"",videoUrl:"",articleUrl:"",contentUrl:"",station:"",tvStation:"",tvViewMethod:[],tvViewOther:"",airDate:"",streamingServices:[],streamingOther:"",readingMethod:[],readingSubOther:"",readingOther:"",startedAt:"",notes:"",genres:[],genreOther:"",mangaUnit:"巻" });
+  const [f,setF] = useState({ title:"",category:defaultCategory,total:"",episodeMin:"",totalDurationMin:"",videoDurationMin:"",videoUrl:"",articleUrl:"",contentUrl:"",station:"",tvStation:"",tvViewMethod:[],tvViewOther:"",airDate:"",streamingServices:[],streamingOther:"",readingMethod:[],readingSubOther:"",readingOther:"",startedAt:"",notes:"",genres:[],genreOther:"",mangaUnit:"巻",artistName:"" });
   const set = (k,v) => setF(p=>({...p,[k]:v}));
   const c = CATS[f.category];
 
@@ -1409,6 +1449,7 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
       genreOther:       f.genreOther||"",
       firstActiveAt:    null,
       mangaUnit:        f.category==="manga" ? (f.mangaUnit||"巻") : undefined,
+      artistName:       f.category==="live" ? (f.artistName||null) : undefined,
     });
     onClose();
   };
@@ -1526,6 +1567,11 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
             </div>
             <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl} onChange={e=>set("contentUrl",e.target.value)}/></FF>
           </>
+        )}
+        {f.category==="live"&&(
+          <FF label="アーティスト名（任意）">
+            <input style={INP} placeholder="例: TK from 凛として時雨" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
+          </FF>
         )}
         {f.category==="tv"&&(
           <>
@@ -3169,6 +3215,9 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
     return { label:"完了", color:"#7C8F5E" };
   };
 
+  // Activity Log date tap popup
+  const [actLogPopup, setActLogPopup] = useState(null); // { ymd, label, date }
+
   return (
     <div style={{ background:"#FFFFFF", minHeight:"100vh", fontFamily:FC,
       display:"flex", flexDirection:"column", padding:"0 0 100px" }}>
@@ -3205,17 +3254,16 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
           textTransform:"uppercase", marginBottom:12 }}>Activity Log</div>
         <div style={{ background:"#F6F6F6", borderRadius:20, padding:"14px 10px 12px" }}>
           <div style={{ display:"flex", justifyContent:"space-around", alignItems:"flex-start" }}>
-            {weekDays.map(({ date, label, dotColor }) => (
-              <div key={label} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5 }}>
-                {/* Date number — smaller */}
+            {weekDays.map(({ date, label, ymd, dotColor }) => (
+              <div key={label} onClick={()=>activityLog[ymd] ? setActLogPopup({ ymd, label, date }) : null}
+                style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5,
+                  cursor: activityLog[ymd] ? "pointer" : "default" }}>
                 <div style={{ fontSize:12, fontWeight:600, color:"#2A2A2A", letterSpacing:"-0.02em", lineHeight:1 }}>
                   {date}
                 </div>
-                {/* Day label */}
                 <div style={{ fontSize:9, fontWeight:400, color:"#A0A0A0", letterSpacing:"0.04em" }}>
                   {label}
                 </div>
-                {/* Activity dot — smaller */}
                 <div style={{
                   width:16, height:16, borderRadius:"50%",
                   background: dotColor || "transparent",
@@ -3227,6 +3275,95 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
           </div>
         </div>
       </div>
+
+      {/* Activity Log date detail popup */}
+      {actLogPopup && (
+        <div onClick={()=>setActLogPopup(null)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.32)", zIndex:600,
+            display:"flex", alignItems:"flex-end" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#FFFFFF", borderRadius:"20px 20px 0 0",
+              width:"100%", maxHeight:"70vh", overflowY:"auto",
+              padding:"22px 20px 48px",
+              boxShadow:"0 -6px 30px rgba(0,0,0,0.12)", fontFamily:FC }}>
+            <div style={{ display:"flex", justifyContent:"space-between",
+              alignItems:"center", marginBottom:16 }}>
+              <span style={{ fontSize:13, fontWeight:700, color:"#1A1A1A", letterSpacing:"0.04em" }}>
+                {actLogPopup.date}日 ({actLogPopup.label}) の記録
+              </span>
+              <button onClick={()=>setActLogPopup(null)}
+                style={{ background:"none", border:"none", cursor:"pointer",
+                  color:"#A0A0A0", fontSize:18, lineHeight:1, padding:4 }}>×</button>
+            </div>
+            {(() => {
+              const ymd = actLogPopup.ymd;
+              // progressHistoryからその日の記録を収集
+              const entries = [];
+              items.forEach(item => {
+                (item.progressHistory||[]).forEach(h => {
+                  if (h.date !== ymd) return;
+                  const cat = CATS[item.category];
+                  const effectiveUnit = item.category==="manga" ? (item.mangaUnit||"巻") : cat?.unit || "";
+                  let amountStr;
+                  if (h.delta > 0) {
+                    amountStr = `+${h.delta}${effectiveUnit}（${h.from}→${h.to}）`;
+                  } else if (h.completedViaButton) {
+                    amountStr = `完了にした`;
+                  } else {
+                    // status change only
+                    amountStr = h.from===0 && h.to===0 ? "開始した" : `記録`;
+                  }
+                  // binary categories: show status change
+                  const isBin = ["youtube","tv","radio","live","article"].includes(item.category);
+                  if (isBin) amountStr = "記録あり";
+                  entries.push({ item, amountStr });
+                });
+              });
+              if (entries.length === 0) {
+                // fallback: just show category counts
+                const log = activityLog[ymd];
+                if (!log) return <div style={{ fontSize:12, color:"#A0A0A0", padding:"10px 0" }}>詳細データなし</div>;
+                return Object.entries(log).filter(([,v])=>v>0).map(([cat, count]) => {
+                  const catInfo = CATS[cat];
+                  const badge = CAT_CARD[cat] || { bg:"#EBEBEB", fg:"#666" };
+                  return (
+                    <div key={cat} style={{ display:"flex", alignItems:"center", gap:10,
+                      padding:"10px 0", borderBottom:"1px solid #F0EEEC" }}>
+                      <span style={{ display:"inline-flex", alignItems:"center", gap:4,
+                        background:badge.bg, borderRadius:7, padding:"3px 9px", flexShrink:0 }}>
+                        <CatIco cat={cat} color={badge.fg}/>
+                        <span style={{ fontSize:10, fontWeight:600, color:badge.fg, letterSpacing:"0.04em" }}>{catInfo?.label}</span>
+                      </span>
+                      <span style={{ fontSize:12, fontWeight:500, color:"#3A3A3A", letterSpacing:"0.03em" }}>{count}回記録</span>
+                    </div>
+                  );
+                });
+              }
+              return entries.map(({ item, amountStr }, idx) => {
+                const cat = CATS[item.category];
+                const badge = CAT_CARD[item.category] || { bg:"#EBEBEB", fg:"#666" };
+                return (
+                  <div key={idx} style={{ display:"flex", alignItems:"center", gap:10,
+                    padding:"10px 0", borderBottom:"1px solid #F0EEEC" }}>
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:4,
+                      background:badge.bg, borderRadius:7, padding:"3px 9px", flexShrink:0 }}>
+                      <CatIco cat={item.category} color={badge.fg}/>
+                      <span style={{ fontSize:10, fontWeight:600, color:badge.fg, letterSpacing:"0.04em" }}>{cat?.label}</span>
+                    </span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:"#1A1A1A",
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                        letterSpacing:"0.03em" }}>{item.title}</div>
+                      <div style={{ fontSize:11, fontWeight:400, color:"#A0A0A0",
+                        letterSpacing:"0.03em", marginTop:1 }}>{amountStr}</div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* ③ Today's Focus */}
       <div style={{ padding:"0 20px 20px" }}>
@@ -3654,31 +3791,31 @@ function ContentsScreen({
         )}
         {filtered.map((item, idx) => (
           <div key={item.id} style={{ position:"relative" }}>
-            {/* Reorder arrows for 進行中 tab */}
-            {tab===0 && (
-              <div style={{ position:"absolute", top:10, right:10, zIndex:2,
-                display:"flex", flexDirection:"column", gap:2 }}
-                onClick={e=>e.stopPropagation()}>
-                <button
-                  onClick={()=>onReorder(active, active.findIndex(i=>i.id===item.id), -1)}
-                  disabled={active.findIndex(i=>i.id===item.id)===0}
-                  style={{ width:22, height:22, borderRadius:6, border:`1px solid ${NEW_G.border}`,
-                    background:NEW_G.surface, cursor:"pointer", display:"flex",
-                    alignItems:"center", justifyContent:"center", padding:0,
-                    opacity:active.findIndex(i=>i.id===item.id)===0 ? 0.3 : 1 }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={NEW_G.greyDark} strokeWidth="2.5" strokeLinecap="round"><path d="M18 15l-6-6-6 6"/></svg>
-                </button>
-                <button
-                  onClick={()=>onReorder(active, active.findIndex(i=>i.id===item.id), 1)}
-                  disabled={active.findIndex(i=>i.id===item.id)===active.length-1}
-                  style={{ width:22, height:22, borderRadius:6, border:`1px solid ${NEW_G.border}`,
-                    background:NEW_G.surface, cursor:"pointer", display:"flex",
-                    alignItems:"center", justifyContent:"center", padding:0,
-                    opacity:active.findIndex(i=>i.id===item.id)===active.length-1 ? 0.3 : 1 }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={NEW_G.greyDark} strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
-                </button>
-              </div>
-            )}
+        {/* Reorder arrows for 進行中 tab — 円グラフの右に重ならないよう right:4px */}
+        {tab===0 && (
+          <div style={{ position:"absolute", top:10, right:4, zIndex:2,
+            display:"flex", flexDirection:"column", gap:2 }}
+            onClick={e=>e.stopPropagation()}>
+            <button
+              onClick={()=>onReorder(active, active.findIndex(i=>i.id===item.id), -1)}
+              disabled={active.findIndex(i=>i.id===item.id)===0}
+              style={{ width:20, height:20, borderRadius:5, border:`1px solid ${NEW_G.border}`,
+                background:NEW_G.surface, cursor:"pointer", display:"flex",
+                alignItems:"center", justifyContent:"center", padding:0,
+                opacity:active.findIndex(i=>i.id===item.id)===0 ? 0.3 : 1 }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={NEW_G.greyDark} strokeWidth="2.5" strokeLinecap="round"><path d="M18 15l-6-6-6 6"/></svg>
+            </button>
+            <button
+              onClick={()=>onReorder(active, active.findIndex(i=>i.id===item.id), 1)}
+              disabled={active.findIndex(i=>i.id===item.id)===active.length-1}
+              style={{ width:20, height:20, borderRadius:5, border:`1px solid ${NEW_G.border}`,
+                background:NEW_G.surface, cursor:"pointer", display:"flex",
+                alignItems:"center", justifyContent:"center", padding:0,
+                opacity:active.findIndex(i=>i.id===item.id)===active.length-1 ? 0.3 : 1 }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={NEW_G.greyDark} strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+          </div>
+        )}
             <NewItemCard
               item={item}
               onUpdate={onUpdate}
@@ -3714,9 +3851,11 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
   const [timerOpen, setTimerOpen] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [pastRecordOpen, setPastRecord] = useState(false);
+  const [memoOpen, setMemoOpen] = useState(false);  // メモポップアップ
 
   // ① フォント: Inter + Noto Sans JP（細め・クリーン）
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
+  const hasNotes = item.notes && item.notes.trim().length > 0;
 
   const isBinary = ["youtube","tv","radio","live","article"].includes(item.category);
   const isYT    = item.category === "youtube";
@@ -3907,6 +4046,13 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
               })}
             </div>
           )}
+          {/* Live: アーティスト名 */}
+          {item.category==="live" && item.artistName && (
+            <div style={{ fontSize:11, fontWeight:500, color:NEW_G.greyDark,
+              letterSpacing:"0.03em", marginBottom:6 }}>
+              {item.artistName}
+            </div>
+          )}
           {isYT && item.videoUrl && (
             <div style={{ marginBottom:6 }}><UrlButton url={item.videoUrl} color={c.color} label="URLを開く"/></div>
           )}
@@ -3958,14 +4104,28 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
             <div style={{ marginBottom:7 }}>
               <div style={{ display:"flex", alignItems:"center",
                 gap:8, fontSize:11, color:NEW_G.greyMid, flexWrap:"wrap" }}>
-                <span style={{ display:"flex", alignItems:"center", gap:4,
-                  fontWeight:500, color:item.status==="done"?accentDk:NEW_G.greyDark,
-                  letterSpacing:"0.04em", fontFamily:FC }}>
-                  {item.category==="live"
-                    ? (item.status==="done"?<><ICONS.check/> 視聴済み</>:item.status==="active"?<><ICONS.music/> 進行中</>:<><ICONS.hourglass/> これから</>)
-                    : item.status==="done" ? <><ICONS.check/> 完了済み</> : "未視聴・未読"
-                  }
-                </span>
+                {/* ステータスラベル */}
+                {item.status === "done" && (
+                  <span style={{ display:"flex", alignItems:"center", gap:4,
+                    fontWeight:500, color:accentDk, letterSpacing:"0.04em", fontFamily:FC }}>
+                    {item.category==="live"
+                      ? <><ICONS.check/> 視聴済み</>
+                      : <><ICONS.check/> 完了済み</>
+                    }
+                  </span>
+                )}
+                {item.status === "queue" && (
+                  <span style={{ fontWeight:500, color:NEW_G.greyDark,
+                    letterSpacing:"0.04em", fontFamily:FC, fontSize:11 }}>
+                    {item.category==="article" ? "未読"
+                      : item.category==="live" ? "未視聴"
+                      : item.category==="youtube" ? "未視聴"
+                      : item.category==="radio" ? "未視聴"
+                      : item.category==="tv" ? "未視聴"
+                      : "未視聴・未読"}
+                  </span>
+                )}
+                {/* active時は未視聴/未読テキストなし。残り時間など補足のみ */}
                 {item.category==="article" && item.episodeMin && (
                   <span style={{ fontSize:10, fontWeight:400, color:NEW_G.greyMid,
                     letterSpacing:"0.04em", fontFamily:FC }}>
@@ -4057,21 +4217,56 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
           )}
 
           {/* Row 7: Footer meta — 追加/更新/完了日 */}
-          {/* ① 9px / ④ 300 / ② letter-spacing 0.03em */}
           <div style={{ display:"flex", gap:10, fontSize:9, fontWeight:300,
             color:NEW_G.greyLight, flexWrap:"wrap",
             marginTop:4, lineHeight:1.6, letterSpacing:"0.03em", fontFamily:FC }}>
             <span>追加: {item.addedAt}</span>
             {item.lastUpdated && <span>更新: {item.lastUpdated}</span>}
             {item.completedAt && <span>完了: {item.completedAt}</span>}
+            {/* メモあり表示 */}
+            {hasNotes && (
+              <span onClick={e=>{ e.stopPropagation(); setMemoOpen(true); }}
+                style={{ display:"inline-flex", alignItems:"center", gap:3,
+                  color:NEW_G.greyMid, fontWeight:500, cursor:"pointer",
+                  fontSize:9, letterSpacing:"0.04em",
+                  textDecoration:"underline", textDecorationStyle:"dotted",
+                  textUnderlineOffset:2 }}>
+                <ICONS.memo/> メモあり
+              </span>
+            )}
           </div>
         </div>
 
-        {/* ── Right: progress ring ── */}
-        <div style={{ flexShrink:0, paddingTop:2 }}>
-          <ProgressRing pct={ringPct} color={c.color} size={60} stroke={4.5}/>
+        {/* ── Right column: progress ring ── */}
+        <div style={{ flexShrink:0, paddingTop:2, paddingRight:28 }}>
+          <ProgressRing pct={ringPct} color={c.color} size={56} stroke={4.5}/>
         </div>
       </div>
+
+      {/* Memo popup */}
+      {memoOpen && (
+        <div onClick={e=>{ e.stopPropagation(); setMemoOpen(false); }}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)",
+            zIndex:600, display:"flex", alignItems:"flex-end" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#FFFFFF", borderRadius:"20px 20px 0 0",
+              width:"100%", padding:"22px 20px 48px",
+              boxShadow:"0 -6px 30px rgba(0,0,0,0.12)", fontFamily:FC }}>
+            <div style={{ display:"flex", justifyContent:"space-between",
+              alignItems:"center", marginBottom:14 }}>
+              <span style={{ fontSize:13, fontWeight:700, color:"#1A1A1A",
+                letterSpacing:"0.04em" }}>メモ</span>
+              <button onClick={()=>setMemoOpen(false)}
+                style={{ background:"none", border:"none", cursor:"pointer",
+                  color:"#A0A0A0", fontSize:18, lineHeight:1, padding:4 }}>×</button>
+            </div>
+            <div style={{ fontSize:13, fontWeight:400, color:"#3A3A3A",
+              lineHeight:1.8, letterSpacing:"0.03em", whiteSpace:"pre-wrap" }}>
+              {item.notes}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Timer */}
       {timerOpen && (
@@ -4101,13 +4296,41 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
 }
 
 // ─── Settings Screen ──────────────────────────────────────────────────────
-function SettingsScreen({ user, onLogout, syncStatus }) {
+function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
   const F2 = "'Outfit','Hiragino Sans','Noto Sans JP',sans-serif";
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [deleteStep, setDeleteStep] = useState(0); // 0=none,1=first,2=second
+
+  // 利用開始日を計算（最古のコンテンツ追加日 or localStorage初回保存日）
+  const startDate = (() => {
+    if (items && items.length > 0) {
+      const dates = items.map(i => i.addedAt).filter(Boolean).sort();
+      if (dates.length > 0) return dates[0];
+    }
+    return null;
+  })();
+  const daysSinceStart = (() => {
+    if (!startDate) return null;
+    const diff = new Date(today()) - new Date(startDate);
+    return Math.max(0, Math.floor(diff / 86400000));
+  })();
 
   return (
-    <div style={{ padding:"24px 18px 40px", fontFamily:F2 }}>
+    <div style={{ padding:"24px 18px 60px", fontFamily:F2 }}>
       <div style={{ fontSize:22, fontWeight:700, color:NEW_G.ink, letterSpacing:"0.1em", marginBottom:24 }}>Settings</div>
+
+      {/* Usage stats */}
+      {daysSinceStart !== null && (
+        <div style={{ background:NEW_G.surface, borderRadius:18, padding:"18px", marginBottom:14 }}>
+          <div style={{ fontSize:10, fontWeight:700, color:NEW_G.greyMid, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>利用状況</div>
+          <div style={{ fontSize:24, fontWeight:700, color:NEW_G.ink, letterSpacing:"-0.02em", marginBottom:4 }}>
+            {daysSinceStart}<span style={{ fontSize:14, fontWeight:500, color:NEW_G.greyMid, marginLeft:4 }}>日</span>
+          </div>
+          <div style={{ fontSize:12, color:NEW_G.greyMid }}>
+            利用開始から {daysSinceStart} 日（{startDate} 〜）
+          </div>
+        </div>
+      )}
 
       {/* Account */}
       <div style={{ background:NEW_G.surface, borderRadius:18, padding:"18px", marginBottom:14 }}>
@@ -4144,11 +4367,10 @@ function SettingsScreen({ user, onLogout, syncStatus }) {
         </div>
       </div>
 
-      {/* Logout — only shown when logged in */}
+      {/* Logout */}
       {user && onLogout && (
-        <div style={{ background:NEW_G.surface, borderRadius:18, padding:"18px" }}>
+        <div style={{ background:NEW_G.surface, borderRadius:18, padding:"18px", marginBottom:14 }}>
           <div style={{ fontSize:10, fontWeight:700, color:NEW_G.greyMid, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>Account Actions</div>
-
           {!confirmLogout ? (
             <button onClick={()=>setConfirmLogout(true)}
               style={{ width:"100%", padding:"13px", borderRadius:12,
@@ -4159,29 +4381,59 @@ function SettingsScreen({ user, onLogout, syncStatus }) {
             </button>
           ) : (
             <div>
-              <div style={{ fontSize:13, color:NEW_G.greyDeep, fontWeight:600, marginBottom:12, textAlign:"center", lineHeight:1.6 }}>
-                ログアウトしますか？
-              </div>
+              <div style={{ fontSize:13, color:NEW_G.greyDeep, fontWeight:600, marginBottom:12, textAlign:"center", lineHeight:1.6 }}>ログアウトしますか？</div>
               <div style={{ display:"flex", gap:10 }}>
                 <button onClick={()=>setConfirmLogout(false)}
-                  style={{ flex:1, padding:"12px", borderRadius:12,
-                    border:`1.5px solid ${NEW_G.border}`, background:"transparent",
-                    color:NEW_G.greyDark, fontSize:13, fontWeight:600,
-                    cursor:"pointer", fontFamily:F2 }}>
-                  キャンセル
-                </button>
+                  style={{ flex:1, padding:"12px", borderRadius:12, border:`1.5px solid ${NEW_G.border}`, background:"transparent", color:NEW_G.greyDark, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F2 }}>キャンセル</button>
                 <button onClick={()=>{ setConfirmLogout(false); onLogout(); }}
-                  style={{ flex:1, padding:"12px", borderRadius:12,
-                    border:"none", background:"#767676",
-                    color:"#fff", fontSize:13, fontWeight:700,
-                    cursor:"pointer", fontFamily:F2 }}>
-                  ログアウト
-                </button>
+                  style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#767676", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F2 }}>ログアウト</button>
               </div>
             </div>
           )}
         </div>
       )}
+
+      {/* ── 全データ削除 ── */}
+      <div style={{ background:NEW_G.surface, borderRadius:18, padding:"18px" }}>
+        <div style={{ fontSize:10, fontWeight:700, color:NEW_G.greyMid, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>データ管理</div>
+        {deleteStep === 0 && (
+          <button onClick={()=>setDeleteStep(1)}
+            style={{ width:"100%", padding:"13px", borderRadius:12,
+              border:"1.5px solid #E8DADA", background:"transparent",
+              color:"#B05A5A", fontSize:13, fontWeight:600,
+              cursor:"pointer", fontFamily:F2, letterSpacing:"0.02em" }}>
+            全てのデータを削除
+          </button>
+        )}
+        {deleteStep === 1 && (
+          <div>
+            <div style={{ fontSize:13, color:NEW_G.greyDeep, fontWeight:600, marginBottom:8, textAlign:"center" }}>本当に削除しますか？</div>
+            <div style={{ fontSize:11, color:NEW_G.greyMid, marginBottom:16, textAlign:"center", lineHeight:1.7 }}>
+              全てのコンテンツ・進捗・記録が削除されます
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>setDeleteStep(0)}
+                style={{ flex:1, padding:"12px", borderRadius:12, border:`1.5px solid ${NEW_G.border}`, background:"transparent", color:NEW_G.greyDark, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F2 }}>キャンセル</button>
+              <button onClick={()=>setDeleteStep(2)}
+                style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#D05050", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F2 }}>次へ</button>
+            </div>
+          </div>
+        )}
+        {deleteStep === 2 && (
+          <div>
+            <div style={{ fontSize:13, color:"#B05050", fontWeight:700, marginBottom:8, textAlign:"center" }}>最終確認</div>
+            <div style={{ fontSize:11, color:NEW_G.greyMid, marginBottom:16, textAlign:"center", lineHeight:1.7 }}>
+              一度削除したデータは復元できません。<br/>本当にデータを削除しますか？
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>setDeleteStep(0)}
+                style={{ flex:1, padding:"12px", borderRadius:12, border:`1.5px solid ${NEW_G.border}`, background:"transparent", color:NEW_G.greyDark, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F2 }}>キャンセル</button>
+              <button onClick={()=>{ setDeleteStep(0); onDeleteAll&&onDeleteAll(); }}
+                style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#B03030", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F2 }}>削除する</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -4521,40 +4773,145 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       const old = prev.find(it=>it.id===updated.id);
       if (old) {
         const delta = updated.current - old.current;
+
+        // ── progress delta (currentの増減) ──
         if (delta > 0) {
           for (let i=0;i<delta;i++) setActivityLog(log => { const day=log[today()]&&typeof log[today()]==="object"?log[today()]:{};const cur=day[updated.category]||0;const newCount=cur+1;if(userId&&sbOps)sbOps.upsertActivity(userId,today(),updated.category,newCount);return {...log,[today()]:{...day,[updated.category]:newCount}}; });
+          grantExp(EXP_REWARDS.ACTION * delta);
           updated = { ...updated, progressHistory:[...(old.progressHistory||[]), {date:today(),delta,from:old.current,to:updated.current,editedViaModal:true}] };
         } else if (delta < 0) {
           const removeDelta=Math.abs(delta), date=old.lastUpdated||today();
           setActivityLog(log => { const day=log[date]&&typeof log[date]==="object"?log[date]:{};const cur=day[updated.category]||0;const next=Math.max(cur-removeDelta,0);if(userId&&sbOps)sbOps.upsertActivity(userId,date,updated.category,next);if(next<=0){const nd={...day};delete nd[updated.category];if(Object.keys(nd).length===0){const tl={...log};delete tl[date];return tl;}return{...log,[date]:nd};}return{...log,[date]:{...day,[updated.category]:next}};});
+          // EXP差し引き
+          setUserProgress(p2 => {
+            const newTotal = Math.max(0, p2.totalExp - EXP_REWARDS.ACTION * removeDelta);
+            const { level:lv, currentExp:ce } = calculateLevel(newTotal);
+            const np = { ...p2, level:lv, currentExp:ce, totalExp:newTotal };
+            saveProgress(np);
+            if(userId&&sbOps?.updateUserProgress) sbOps.updateUserProgress(userId,np).catch(()=>{});
+            return np;
+          });
           const hist=[...(old.progressHistory||[])];let toRemove=removeDelta;
           while(toRemove>0&&hist.length>0){const last=hist[hist.length-1];if(last.delta<=toRemove){hist.pop();toRemove-=last.delta;}else{hist[hist.length-1]={...last,delta:last.delta-toRemove,to:last.to-toRemove};toRemove=0;}}
           updated = { ...updated, progressHistory: hist };
+        }
+
+        // ── status revert: done → queue/active（進捗・EXP・ログを差し引く）──
+        const wasCompleted = old.status==="done" && (updated.status==="queue"||updated.status==="active");
+        if (wasCompleted) {
+          // 完了EXP -100 + progressHistory全件のactionEXP差し引き
+          const totalActions = (old.progressHistory||[]).reduce((s,h)=>s+(h.delta||1),0);
+          const expToRemove = EXP_REWARDS.COMPLETE + EXP_REWARDS.ACTION * totalActions;
+          setUserProgress(p2 => {
+            const newTotal = Math.max(0, p2.totalExp - expToRemove);
+            const { level:lv, currentExp:ce } = calculateLevel(newTotal);
+            const np = { ...p2, level:lv, currentExp:ce, totalExp:newTotal };
+            saveProgress(np);
+            if(userId&&sbOps?.updateUserProgress) sbOps.updateUserProgress(userId,np).catch(()=>{});
+            return np;
+          });
+          // progressHistory全件をactivityLogから差し引く
+          const toRemoveLog = {};
+          (old.progressHistory||[]).forEach(h => {
+            if(!h.date) return;
+            if(!toRemoveLog[h.date]) toRemoveLog[h.date]={};
+            toRemoveLog[h.date][old.category]=(toRemoveLog[h.date][old.category]||0)+(h.delta||1);
+          });
+          if(old.completedAt) {
+            if(!toRemoveLog[old.completedAt]) toRemoveLog[old.completedAt]={};
+            toRemoveLog[old.completedAt][old.category]=(toRemoveLog[old.completedAt][old.category]||0)+1;
+          }
+          setActivityLog(log => {
+            let next={...log};
+            Object.entries(toRemoveLog).forEach(([date,cats]) => {
+              Object.entries(cats).forEach(([cat,cnt]) => {
+                const day=next[date]&&typeof next[date]==="object"?next[date]:{};
+                const cur=day[cat]||0;const nc=Math.max(cur-cnt,0);
+                if(userId&&sbOps) sbOps.upsertActivity(userId,date,cat,nc);
+                if(nc<=0){const nd={...day};delete nd[cat];if(!Object.keys(nd).length){delete next[date];}else{next[date]=nd;}}
+                else{next[date]={...day,[cat]:nc};}
+              });
+            });
+            return next;
+          });
+          updated = { ...updated, progressHistory:[], firstActiveAt:null, completedAt:null };
         }
       }
       return prev.map(it=>it.id===updated.id?updated:it);
     });
     setItems(p=>p.map(it=>it.id===updated.id?updated:it));
     setEdit(null);
-  }, [setItems, userId, sbOps]);
+  }, [setItems, userId, sbOps, grantExp]);
 
   const deleteItem = useCallback((id) => {
+    // アクティビティログのクリーンアップ（削除前のitem情報を使う）
     setItemsRaw(prev => {
       const target = prev.find(it=>it.id===id);
       if (target) {
-        const toRemove={};
-        (target.progressHistory||[]).forEach(h=>{if(!h.date)return;if(!toRemove[h.date])toRemove[h.date]={};toRemove[h.date][target.category]=(toRemove[h.date][target.category]||0)+1;});
-        const isBinaryDel=["youtube","tv","radio","live","article"].includes(target.category);
-        if(isBinaryDel&&target.completedAt){if(!toRemove[target.completedAt])toRemove[target.completedAt]={};toRemove[target.completedAt][target.category]=(toRemove[target.completedAt][target.category]||0)+1;}
-        if(Object.keys(toRemove).length>0){
-          setActivityLog(log=>{let next={...log};for(const[date,cats]of Object.entries(toRemove)){for(const[cat,removeCount]of Object.entries(cats)){const day=next[date]&&typeof next[date]==="object"?next[date]:{};const cur=day[cat]||0;const newCount=Math.max(cur-removeCount,0);if(userId&&sbOps)sbOps.upsertActivity(userId,date,cat,newCount);if(newCount<=0){const nd={...day};delete nd[cat];if(Object.keys(nd).length===0){delete next[date];}else{next[date]=nd;}}else{next[date]={...day,[cat]:newCount};}}}return next;});
+        // progressHistoryに基づきアクティビティログから差し引く
+        const toRemove = {};
+        (target.progressHistory||[]).forEach(h=>{
+          if(!h.date) return;
+          if(!toRemove[h.date]) toRemove[h.date]={};
+          toRemove[h.date][target.category]=(toRemove[h.date][target.category]||0)+1;
+        });
+        const isBin = ["youtube","tv","radio","live","article"].includes(target.category);
+        if(isBin && target.completedAt){
+          if(!toRemove[target.completedAt]) toRemove[target.completedAt]={};
+          toRemove[target.completedAt][target.category]=(toRemove[target.completedAt][target.category]||0)+1;
+        }
+        if(Object.keys(toRemove).length > 0){
+          setActivityLog(log=>{
+            let next={...log};
+            for(const [date,cats] of Object.entries(toRemove)){
+              for(const [cat,cnt] of Object.entries(cats)){
+                const day=next[date]&&typeof next[date]==="object"?next[date]:{};
+                const cur=day[cat]||0;
+                const newCount=Math.max(cur-cnt,0);
+                if(userId&&sbOps) sbOps.upsertActivity(userId,date,cat,newCount);
+                if(newCount<=0){
+                  const nd={...day}; delete nd[cat];
+                  if(Object.keys(nd).length===0){delete next[date];}
+                  else{next[date]=nd;}
+                }else{next[date]={...day,[cat]:newCount};}
+              }
+            }
+            // localStorage更新（activityLog）
+            try { localStorage.setItem(LS_DATES, JSON.stringify(next)); } catch {}
+            return next;
+          });
+        }
+
+        // EXPの取り消し: progressHistoryの件数分 -10 EXP
+        const totalActions = (target.progressHistory||[]).reduce((sum,h)=>sum+(h.delta||1),0);
+        const expToRemove = totalActions * EXP_REWARDS.ACTION
+          + (target.status==="done" ? EXP_REWARDS.COMPLETE : 0);
+        if (expToRemove > 0) {
+          setUserProgress(prev2 => {
+            const newTotal = Math.max(0, prev2.totalExp - expToRemove);
+            const { level: newLevel, currentExp: newCurrentExp } = calculateLevel(newTotal);
+            const updated = { ...prev2, level:newLevel, currentExp:newCurrentExp, totalExp:newTotal };
+            saveProgress(updated);
+            if(userId && sbOps?.updateUserProgress)
+              sbOps.updateUserProgress(userId, updated).catch(e=>console.error("progress delete sync:", e));
+            return updated;
+          });
         }
       }
-      return prev.filter(it=>it.id!==id);
+
+      const next = prev.filter(it=>it.id!==id);
+
+      // ── 重要: localStorage と Supabase を即座に更新 ──
+      try { localStorage.setItem(LS_ITEMS, JSON.stringify(next)); } catch {}
+      if (userId && sbOps) {
+        // debounceを経由せず即時削除
+        sbOps.deleteItem(userId, id).catch(e=>console.error("sbDeleteItem:", e));
+      }
+
+      return next;
     });
-    setItems(p=>p.filter(it=>it.id!==id));
     setEdit(null);
-  }, [setItems, userId, sbOps]);
+  }, [userId, sbOps]);
 
   const statusChange = useCallback((id,st)=>{
     if(st==="active"){setWatchQueue(prev=>{const idx=prev.indexOf(id);if(idx===-1)return prev;const next=prev.filter(x=>x!==id);if(idx===0&&next.length===0)setTimeout(()=>setNvChooseOpen(true),50);return next;});}
@@ -4621,7 +4978,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         paddingBottom:90 }}>
 
         {/* ── Page content ── */}
-        <div style={{ overflowY:"auto", height:"100vh", paddingBottom:90 }}>
+        <div style={{ overflowY:"auto", height:"100vh", paddingBottom:"calc(90px + env(safe-area-inset-bottom, 0px))" }}>
           {navTab===0 && (
             <HomeScreen
               items={items}
@@ -4668,8 +5025,10 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           width:"100%", maxWidth:480,
           background:NEW_G.nav,
           borderTop:`1px solid ${NEW_G.border}`,
-          display:"flex", alignItems:"center", justifyContent:"space-around",
-          padding:"8px 0 calc(8px + env(safe-area-inset-bottom, 0px))",
+          display:"flex", alignItems:"flex-start", justifyContent:"space-around",
+          /* 上部にアイコン表示領域 + 下部にsafe-area */
+          paddingTop:10,
+          paddingBottom:"calc(16px + env(safe-area-inset-bottom, 16px))",
           zIndex:200,
           boxShadow:"0 -4px 20px rgba(0,0,0,0.06)",
         }}>
@@ -4677,9 +5036,11 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             if (item.isAdd) {
               return (
                 <button key={i} onClick={()=>handleNavTab(2)}
-                  style={{ width:44, height:44, borderRadius:"50%", background:accentColor, border:"none",
+                  style={{ width:48, height:48, borderRadius:"50%", background:accentColor, border:"none",
                     display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
-                    boxShadow:`0 2px 10px rgba(118,118,118,0.35)`, flexShrink:0 }}>
+                    boxShadow:`0 2px 10px rgba(118,118,118,0.35)`, flexShrink:0,
+                    /* タップ領域を広げるためにpaddingを使う */
+                    padding:0, margin:"0 4px" }}>
                   <NAV_ICONS.add/>
                 </button>
               );
@@ -4687,8 +5048,14 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             const isActive = navTab === i || (i===3 && showReport);
             return (
               <button key={i} onClick={()=>handleNavTab(i)}
-                style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4,
-                  background:"none", border:"none", cursor:"pointer", padding:"4px 8px", minWidth:44 }}>
+                style={{
+                  display:"flex", flexDirection:"column", alignItems:"center", gap:4,
+                  background:"none", border:"none", cursor:"pointer",
+                  /* タップ領域を広げる */
+                  padding:"6px 12px 4px",
+                  minWidth:48,
+                  /* -webkit-tap-highlight-color は global CSS で設定済み */
+                }}>
                 <item.icon active={isActive} col={accentColor}/>
                 <span style={{ fontSize:9, fontWeight:isActive?700:500,
                   color:isActive?accentColor:NEW_G.greyMid, letterSpacing:"0.08em" }}>
