@@ -267,10 +267,10 @@ function saveProgress(p) {
 
 const CATS = {
   article: { label:"Web",    unit:"件",  color:"#9EA89A", order:0 },
-  live:    { label:"Live",   unit:"曲",  color:"#BDAF98", order:1 },
-  youtube: { label:"YouTube",unit:"本",  color:"#B8A99C", order:2 },
-  radio:   { label:"Radio",  unit:"本",  color:"#A0AAAA", order:3 },
-  tv:      { label:"TV",     unit:"本",  color:"#A8A29F", order:4 },
+  live:    { label:"Live",   unit:"分",  color:"#BDAF98", order:1 },
+  youtube: { label:"YouTube",unit:"分",  color:"#B8A99C", order:2 },
+  radio:   { label:"Radio",  unit:"分",  color:"#A0AAAA", order:3 },
+  tv:      { label:"TV",     unit:"分",  color:"#A8A29F", order:4 },
   book:    { label:"Book",   unit:"P",   color:"#9EA89A", order:5 },
   anime:   { label:"Anime",  unit:"話",  color:"#BDAF98", order:6 },
   drama:   { label:"Drama",  unit:"話",  color:"#B8A99C", order:7 },
@@ -1127,10 +1127,19 @@ function EditModal({ item, onClose, onSave, onDelete }) {
 
   const save = () => {
     const cur  = Number(f.current)||0;
-    const tot  = Number(f.total)||1;
     const isBinaryCat = ["youtube","tv","radio","live","article"].includes(f.category);
-    const newStatus = isBinaryCat ? f.status : resolveStatus(cur, tot);
-    const newCompletedAt = resolveCompletedAt(cur, tot, f.completedAt, f.status);
+    const isTimedProgress = ["youtube","tv","radio","live"].includes(f.category);
+    // For timed categories, total = totalDurationMin (or videoDurationMin for YouTube)
+    const tot = isTimedProgress
+      ? (f.category==="youtube"
+          ? (Number(f.videoDurationMin)||0)
+          : (Number(f.totalDurationMin)||0))
+      : (Number(f.total)||1);
+    const newStatus = isBinaryCat
+      ? (tot > 0 && cur >= tot && cur > 0 ? "done" : f.status)
+      : resolveStatus(cur, tot);
+    const newCompletedAt = (newStatus==="done" && f.status!=="done")
+      ? (f.completedAt||today()) : (newStatus!=="done" ? null : f.completedAt);
     onSave({
       ...f,
       current:           cur,
@@ -1149,7 +1158,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
       readingMethod:     f.readingMethod||[],
       startedAt:         f.startedAt||null,
       status:            newStatus,
-      completedAt:       isBinaryCat ? f.completedAt : newCompletedAt,
+      completedAt:       newCompletedAt,
       genres:            f.genres||[],
       genreOther:        f.genreOther||"",
       mangaUnit:         f.category==="manga" ? (f.mangaUnit||"巻") : f.mangaUnit,
@@ -1206,11 +1215,17 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         {(isTimed&&!isEpBased)&&f.category!=="youtube"&&f.category!=="movie"&&(
           <FF label="合計時間 (分)"><input type="number" style={INP} placeholder="例: 120" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></FF>
         )}
-        {/* Live: アーティスト名 */}
+        {/* Live: アーティスト名 + 現在(分) */}
         {f.category==="live"&&(
-          <FF label="アーティスト名（任意）">
-            <input style={INP} placeholder="例: TK from 凛として時雨" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
-          </FF>
+          <>
+            <FF label="アーティスト名（任意）">
+              <input style={INP} placeholder="例: TK from 凛として時雨" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
+            </FF>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+              <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+              <div><label style={LBL}>合計時間 (分)</label><input type="number" style={INP} placeholder="例: 120" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></div>
+            </div>
+          </>
         )}
         {f.category==="movie"&&(
           <>
@@ -1222,7 +1237,10 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         )}
         {f.category==="youtube"&&(
           <>
-            <FF label="動画の長さ (分)"><input type="number" style={INP} placeholder="例: 15" value={f.videoDurationMin||""} onChange={e=>set("videoDurationMin",e.target.value)}/></FF>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+              <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+              <div><label style={LBL}>動画の長さ (分)</label><input type="number" style={INP} placeholder="例: 15" value={f.videoDurationMin||""} onChange={e=>set("videoDurationMin",e.target.value)}/></div>
+            </div>
             <FF label="URL"><input style={INP} placeholder="https://youtube.com/watch?v=..." value={f.videoUrl||""} onChange={e=>set("videoUrl",e.target.value)}/></FF>
           </>
         )}
@@ -1250,6 +1268,10 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         )}
         {f.category==="radio"&&(
           <>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+              <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+              <div><label style={LBL}>合計時間 (分)</label><input type="number" style={INP} placeholder="例: 60" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></div>
+            </div>
             <FF label="ラジオ局"><input style={INP} placeholder="例: NHK FM" value={f.station||""} onChange={e=>set("station",e.target.value)}/></FF>
             <div style={{ marginBottom:14 }}>
               <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
@@ -1263,6 +1285,10 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         )}
         {f.category==="tv"&&(
           <>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+              <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+              <div><label style={LBL}>合計時間 (分)</label><input type="number" style={INP} placeholder="例: 30" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></div>
+            </div>
             <FF label="テレビ局"><input style={INP} placeholder="例: NHK" value={f.tvStation||""} onChange={e=>set("tvStation",e.target.value)}/></FF>
             <FF label="視聴方法">
               <MultiSelect options={TV_VIEW_OPTIONS} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/>
@@ -1792,8 +1818,20 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   // 漫画は mangaUnit フィールドで単位が変わる
   const effectiveUnit = item.category === "manga" ? (item.mangaUnit || "巻") : c.unit;
 
-  const qa = (item.category==="anime"||item.category==="drama")?1:item.category==="book"?10:item.category==="manga"?1:item.category==="movie"?10:1;
-  const ql = (item.category==="anime"||item.category==="drama")?"+1話":item.category==="book"?"+10P":item.category==="manga"?`+1${effectiveUnit}`:item.category==="movie"?"+10分":item.category==="live"?"+1曲":item.category==="youtube"||item.category==="tv"||item.category==="radio"?"視聴済み":"読了";
+  const isTimedProgress = ["youtube","tv","radio","live"].includes(item.category);
+  const qa = (item.category==="anime"||item.category==="drama") ? 1
+    : item.category==="book" ? 10
+    : item.category==="manga" ? 1
+    : isTimedProgress ? 10  // +10分
+    : item.category==="movie" ? 10
+    : 1;
+  const ql = (item.category==="anime"||item.category==="drama") ? "+1話"
+    : item.category==="book" ? "+10P"
+    : item.category==="manga" ? `+1${effectiveUnit}`
+    : isTimedProgress ? "+10分"
+    : item.category==="movie" ? "+10分"
+    : item.category==="live" ? "+1曲"
+    : "読了";
 
   const quickAdd = (amt) => {
     const nx = Math.min(item.total, item.current+amt);
@@ -1816,7 +1854,12 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
       onUpdate(item.id,patch);
       if((item.category==="anime"||item.category==="drama")&&item.episodeMin) setToast(`次は第${Math.floor(nx)+1}話。今から始めると ${finAt(item.episodeMin)} に終わります`);
       else if(item.category==="article") setToast("読了を記録しました");
-      else if(["youtube","tv","radio"].includes(item.category)) setToast("視聴を記録しました！");
+      else if(["youtube","tv","radio"].includes(item.category)) {
+        const newMin = nx;
+        const totalMin2 = item.total;
+        if (totalMin2 > 0) setToast(`${newMin}分 / ${totalMin2}分 記録しました`);
+        else setToast(`+${qa}分 記録しました`);
+      }
       else setToast(`${ql} を記録しました`);
     }
   };
@@ -2011,22 +2054,34 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               ) : item.category==="article" ? (
                 item.status==="done" ? <><ICONS.check/> 読了済み</> : "未読"
               ) : (
-                item.status==="done" ? <><ICONS.check/> 視聴済み</> : "未視聴"
+                item.status==="done" ? <><ICONS.check/> 視聴済み</> :
+                // Show current/total minutes when available
+                (item.total > 0
+                  ? <span style={{ fontWeight:700,color:G.greyDeep }}>{item.current||0} / {item.total} 分</span>
+                  : "未視聴")
               )}
             </span>
+            {/* % when total is set */}
+            {isTimedProgress && item.total > 0 && item.status !== "done" && (
+              <span style={{ fontWeight:800,color:dk(c.color) }}>
+              </span>
+            )}
             {item.category==="article"&&item.episodeMin&&item.articleUrl&&<span>約{item.episodeMin}分で読了</span>}
-            {isTV&&item.totalDurationMin&&<span>約{fmtGap(item.totalDurationMin)}</span>}
-            {isRadio&&item.totalDurationMin&&<span>約{fmtGap(item.totalDurationMin)}</span>}
+            {isTV&&item.total>0&&!isTimedProgress&&<span>約{fmtGap(item.total)}</span>}
+            {isRadio&&item.total>0&&!isTimedProgress&&<span>約{fmtGap(item.total)}</span>}
           </div>
         ) : (
           <div style={{ display:"flex",justifyContent:"space-between",fontSize:13 }}>
             <span style={{ fontWeight:700,color:G.greyDeep }}>{item.current} / {item.total} {effectiveUnit}</span>
-            <span style={{ fontWeight:800,color:p===100?dk(P.green):dk(c.color) }}>{p}%</span>
           </div>
         )}
-        {/* ProgressBar: live uses status-based value (0/50/100) */}
+        {/* ProgressBar: timed binary use actual %, live uses status-based */}
         <ProgressBar
-          value={item.category==="live" ? (item.status==="done"?100:item.status==="active"?50:0) : p}
+          value={item.category==="live"
+            ? (item.status==="done"?100:item.status==="active"?50:0)
+            : isTimedProgress && item.total > 0
+              ? Math.round((item.current||0)/item.total*100)
+              : p}
           color={c.color}
         />
         {totalMin!=null&&rem>0&&!["live","tv","radio","youtube"].includes(item.category)&&(
@@ -2040,9 +2095,13 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
 
       {/* Actions */}
       <div style={{ display:"flex",gap:6,marginTop:9,flexWrap:"wrap" }}>
-        {/* Primary quick-add — hidden for live and binary-done categories */}
+        {/* Primary quick-add — +10分 for timed binary, +1話 etc for others */}
         {item.status!=="done" && item.category!=="live" && (
           <button onClick={()=>quickAdd(qa)} style={sBt(c.color)}>{ql}</button>
+        )}
+        {/* +10分 for live too (was previously no quickAdd for live) */}
+        {item.status!=="done" && item.category==="live" && item.total > 0 && (
+          <button onClick={()=>quickAdd(10)} style={sBt(c.color)}>+10分</button>
         )}
         {/* 5min timer — not for binary-quick categories */}
         {item.status!=="done" && !["youtube","article","tv","radio","live"].includes(item.category) && (
@@ -2668,18 +2727,21 @@ function DonutChart({ catCounts, completedCount }) {
         );
       })}
       {/* Center text */}
-      <text x={cx} y={cy-8} textAnchor="middle" fontSize="10" fontWeight="500" fill="#A09890" fontFamily={FC}>完了数</text>
-      <text x={cx} y={cy+11} textAnchor="middle" fontSize="20" fontWeight="700" fill="#1A1A1A" fontFamily={FC}>{completedCount}</text>
+      <text x={cx} y={cy-12} textAnchor="middle" fontSize="10" fontWeight="500" fill="#A09890" fontFamily={FC}>完了数</text>
+      <text x={cx} y={cy+13} textAnchor="middle" fontSize="20" fontWeight="700" fill="#1A1A1A" fontFamily={FC}>{completedCount}</text>
     </svg>
   );
 }
 
 // ─── PeriodReport — 画面1 ────────────────────────────────────────────────────
-function PeriodReport({ items, activityLog, year, month, setYear, setMonth, exportImage, exportDone }) {
+function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
   const now = new Date();
   const years  = Array.from({length:5},(_,i)=>now.getFullYear()-i);
   const months = Array.from({length:12},(_,i)=>i+1);
+
+  // Activity Log date tap popup
+  const [actLogPopup, setActLogPopup] = useState(null); // { ymd, day }
 
   // ── Month navigation ─────────────────────────────────────────────────────
   const prevMonth = () => { if(month===1){setYear(y=>y-1);setMonth(12);}else setMonth(m=>m-1); };
@@ -2804,8 +2866,10 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth, expo
               const isToday = day.ymd === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
               const hasActivity = !!day.dotColor;
               return (
-                <div key={day.ymd} style={{ display:"flex", justifyContent:"center", alignItems:"center" }}>
-                  {/* 丸 + 数字を重ねた1つのセル */}
+                <div key={day.ymd}
+                  onClick={() => hasActivity && setActLogPopup({ ymd: day.ymd, day: day.day })}
+                  style={{ display:"flex", justifyContent:"center", alignItems:"center",
+                    cursor: hasActivity ? "pointer" : "default" }}>
                   <div style={{
                     width:22, height:22, borderRadius:"50%", flexShrink:0,
                     background: hasActivity ? day.dotColor : "transparent",
@@ -2813,11 +2877,9 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth, expo
                     display:"flex", alignItems:"center", justifyContent:"center",
                   }}>
                     <span style={{
-                      fontSize:9,
-                      fontWeight: isToday ? 700 : 500,
+                      fontSize:9, fontWeight: isToday ? 700 : 500,
                       color: hasActivity ? "#fff" : isToday ? "#3A3A3A" : "#6A6A6A",
-                      lineHeight:1, letterSpacing:"-0.02em",
-                      userSelect:"none",
+                      lineHeight:1, letterSpacing:"-0.02em", userSelect:"none",
                     }}>
                       {day.day}
                     </span>
@@ -2860,87 +2922,25 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth, expo
       </div>
 
       {/* ── 統計カード ── */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:16 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
         {/* アクティブ日 */}
-        <div style={{ background:"#F6F6F6", borderRadius:14, padding:"12px 10px", textAlign:"center" }}>
+        <div style={{ background:"#F6F6F6", borderRadius:14, padding:"16px 14px", textAlign:"center" }}>
           <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
-            letterSpacing:"0.06em", marginBottom:6, lineHeight:1.4 }}>アクティブ日</div>
-          <div style={{ fontSize:16, fontWeight:700, color:"#1A1A1A", lineHeight:1 }}>
+            letterSpacing:"0.12em", marginBottom:8, lineHeight:1.4 }}>アクティブ日</div>
+          <div style={{ fontSize:20, fontWeight:700, color:"#1A1A1A", lineHeight:1, letterSpacing:"0.12em" }}>
             {stats.activeDays}
-            <span style={{ fontSize:11, fontWeight:400, color:"#A0A0A0" }}>/{stats.daysInMonth}</span>
+            <span style={{ fontSize:13, fontWeight:400, color:"#A0A0A0", letterSpacing:"0.12em" }}>/{stats.daysInMonth}</span>
           </div>
         </div>
         {/* 記録回数 */}
-        <div style={{ background:"#F6F6F6", borderRadius:14, padding:"12px 10px", textAlign:"center" }}>
+        <div style={{ background:"#F6F6F6", borderRadius:14, padding:"16px 14px", textAlign:"center" }}>
           <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
-            letterSpacing:"0.06em", marginBottom:6, lineHeight:1.4 }}>記録回数</div>
-          <div style={{ fontSize:16, fontWeight:700, color:"#1A1A1A", lineHeight:1 }}>
+            letterSpacing:"0.12em", marginBottom:8, lineHeight:1.4 }}>記録回数</div>
+          <div style={{ fontSize:20, fontWeight:700, color:"#1A1A1A", lineHeight:1, letterSpacing:"0.12em" }}>
             {stats.totalActions}
-            <span style={{ fontSize:11, fontWeight:400, color:"#A0A0A0" }}>回</span>
+            <span style={{ fontSize:13, fontWeight:400, color:"#A0A0A0", letterSpacing:"0.12em" }}>回</span>
           </div>
         </div>
-        {/* 時間帯 */}
-        {(()=>{
-          // progressHistoryの日付から時間帯推定（addedAt/lastUpdatedのHH:MM情報がない場合はactivityLog登録時刻なので仮）
-          // 実装：completedAtやlastUpdatedにtime部分があればそこから、なければ夜で固定
-          const timeZoneCounts = { morning:0, afternoon:0, night:0 };
-          items.forEach(it => {
-            (it.progressHistory||[]).forEach(h => {
-              if (!h.date || !h.date.startsWith(`${year}-${String(month).padStart(2,"0")}`)) return;
-              const timeStr = h.recordedAt || h.date;
-              if (timeStr && timeStr.length > 10) {
-                const hour = parseInt(timeStr.slice(11,13));
-                if (hour >= 5 && hour < 11) timeZoneCounts.morning++;
-                else if (hour >= 11 && hour < 18) timeZoneCounts.afternoon++;
-                else timeZoneCounts.night++;
-              } else {
-                timeZoneCounts.night++; // デフォルト
-              }
-            });
-          });
-          const topZone = Object.entries(timeZoneCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "night";
-          const zoneData = {
-            morning:   { icon:"☀️", label:"朝",  sub:"5〜11時" },
-            afternoon: { icon:"🌤",  label:"昼",  sub:"11〜18時" },
-            night:     { icon:"🌙",  label:"夜",  sub:"18〜5時" },
-          };
-          const zd = zoneData[topZone];
-          const zoneColor = "#A09890";
-          const ZoneIcon = () => {
-            if (topZone === "morning") return (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M4 14a8 8 0 0 1 16 0" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
-                <line x1="6" y1="18" x2="18" y2="18" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            );
-            if (topZone === "afternoon") return (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="4" stroke={zoneColor} strokeWidth="1.5"/>
-                <line x1="12" y1="2" x2="12" y2="5" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
-                <line x1="12" y1="19" x2="12" y2="22" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
-                <line x1="2" y1="12" x2="5" y2="12" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
-                <line x1="19" y1="12" x2="22" y2="12" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            );
-            // night
-            return (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="M21 12a9 9 0 1 1-9-9 7 7 0 0 0 9 9z" stroke={zoneColor} strokeWidth="1.5"/>
-                <circle cx="17" cy="6" r="1" fill={zoneColor}/>
-              </svg>
-            );
-          };
-          return (
-            <div style={{ background:"#F6F6F6", borderRadius:14, padding:"12px 10px", textAlign:"center" }}>
-              <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
-                letterSpacing:"0.06em", marginBottom:8, lineHeight:1.4 }}>時間帯</div>
-              <div style={{ display:"flex", justifyContent:"center", marginBottom:4 }}>
-                <ZoneIcon/>
-              </div>
-              <div style={{ fontSize:10, color:"#3A3A3A", marginTop:2, fontWeight:500 }}>{zd.label}</div>
-            </div>
-          );
-        })()}
       </div>
 
       {/* ── 完了コンテンツ一覧 ── */}
@@ -2969,24 +2969,113 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth, expo
         </div>
       )}
 
-      {/* ── 共有ボタン ── */}
-      <button onClick={exportImage}
-        style={{ width:"100%", padding:"12px", borderRadius:12, border:"1px solid #E8E2DA",
-          background:"#FFFFFF", color:"#6A625A", fontSize:12, fontWeight:600,
-          cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em",
-          display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
-        </svg>
-        {exportDone ? "ダウンロードしました ✓" : "このレポートを共有"}
-      </button>
+      {/* ── Activity Log date detail popup ── */}
+      {actLogPopup && (
+        <div onClick={()=>setActLogPopup(null)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.32)", zIndex:600,
+            display:"flex", alignItems:"flex-end" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#FFFFFF", borderRadius:"20px 20px 0 0",
+              width:"100%", maxHeight:"70vh", overflowY:"auto",
+              padding:"22px 20px 48px",
+              boxShadow:"0 -6px 30px rgba(0,0,0,0.12)", fontFamily:FC }}>
+            {/* Header */}
+            <div style={{ display:"flex", justifyContent:"space-between",
+              alignItems:"center", marginBottom:16 }}>
+              <span style={{ fontSize:13, fontWeight:700, color:"#1A1A1A",
+                letterSpacing:"0.04em" }}>
+                {year}年{month}月{actLogPopup.day}日 の記録
+              </span>
+              <button onClick={()=>setActLogPopup(null)}
+                style={{ background:"none", border:"none", cursor:"pointer",
+                  color:"#A0A0A0", fontSize:18, lineHeight:1, padding:4 }}>×</button>
+            </div>
+            {/* Content list */}
+            {(() => {
+              const ymd = actLogPopup.ymd;
+              const CAT_BADGE_BG = { article:"#DADCD1",live:"#EDE6D6",youtube:"#EBE1D8",radio:"#DCE1DF",tv:"#DFDAD7",book:"#DADCD1",anime:"#EDE6D6",drama:"#EBE1D8",movie:"#DCE1DF",manga:"#DFDAD7" };
+              const CAT_BADGE_FG = { article:"#465135",live:"#806C47",youtube:"#7A624C",radio:"#485950",tv:"#534946",book:"#465135",anime:"#806C47",drama:"#7A624C",movie:"#485950",manga:"#534946" };
+
+              // progressHistoryからその日の記録を収集
+              const entries = [];
+              items.forEach(item => {
+                (item.progressHistory||[]).forEach(h => {
+                  if (h.date !== ymd) return;
+                  const cat = CATS[item.category];
+                  const effectiveUnit = item.category==="manga" ? (item.mangaUnit||"巻") : cat?.unit||"";
+                  const isBin = ["youtube","tv","radio","live","article"].includes(item.category);
+                  let amountStr;
+                  if (isBin && h.delta > 0) {
+                    amountStr = `+${h.delta}${effectiveUnit}`;
+                  } else if (h.delta > 0) {
+                    amountStr = `+${h.delta}${effectiveUnit}（${h.from}→${h.to}）`;
+                  } else if (h.completedViaButton) {
+                    amountStr = "完了にした";
+                  } else {
+                    amountStr = "記録あり";
+                  }
+                  entries.push({ item, amountStr });
+                });
+              });
+
+              if (entries.length === 0) {
+                const log = activityLog[ymd];
+                if (!log) return (
+                  <div style={{ fontSize:12, color:"#A0A0A0", padding:"10px 0" }}>
+                    詳細データなし
+                  </div>
+                );
+                return Object.entries(log).filter(([,v])=>v>0).map(([cat, count]) => (
+                  <div key={cat} style={{ display:"flex", alignItems:"center", gap:10,
+                    padding:"10px 0", borderBottom:"1px solid #F0EEEC" }}>
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:4,
+                      background: CAT_BADGE_BG[cat]||"#EBEBEB", borderRadius:7,
+                      padding:"3px 9px", flexShrink:0 }}>
+                      <CatIco cat={cat} color={CAT_BADGE_FG[cat]||"#555"}/>
+                      <span style={{ fontSize:10, fontWeight:600,
+                        color:CAT_BADGE_FG[cat]||"#555", letterSpacing:"0.04em" }}>
+                        {CATS[cat]?.label}
+                      </span>
+                    </span>
+                    <span style={{ fontSize:12, fontWeight:500, color:"#3A3A3A",
+                      letterSpacing:"0.03em" }}>{count}回記録</span>
+                  </div>
+                ));
+              }
+
+              return entries.map(({ item, amountStr }, idx) => (
+                <div key={idx} style={{ display:"flex", alignItems:"center", gap:10,
+                  padding:"10px 0", borderBottom:"1px solid #F0EEEC" }}>
+                  <span style={{ display:"inline-flex", alignItems:"center", gap:4,
+                    background: CAT_BADGE_BG[item.category]||"#EBEBEB", borderRadius:7,
+                    padding:"3px 9px", flexShrink:0 }}>
+                    <CatIco cat={item.category} color={CAT_BADGE_FG[item.category]||"#555"}/>
+                    <span style={{ fontSize:10, fontWeight:600,
+                      color:CAT_BADGE_FG[item.category]||"#555", letterSpacing:"0.04em" }}>
+                      {CATS[item.category]?.label}
+                    </span>
+                  </span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:"#1A1A1A",
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                      letterSpacing:"0.03em" }}>{item.title}</div>
+                    <div style={{ fontSize:11, fontWeight:400, color:"#A0A0A0",
+                      letterSpacing:"0.03em", marginTop:1 }}>{amountStr}</div>
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── ReportModal ──────────────────────────────────────────────────────────────
 function ReportModal({ items, activityLog, onClose, inlineMode = false,
-  onUpdate, onActivityLog, removeActivityLog, grantExp }) {
+  onUpdate, onActivityLog, removeActivityLog, grantExp,
+  onModeChange, exportRef }) {
   const now = new Date();
   const [reportMode, setReportMode] = useState("period");   // "period" | "content"
   const [year,  setYear]  = useState(now.getFullYear());
@@ -3284,6 +3373,9 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }
 
+  // Expose export functions to parent via ref (runs after both are defined)
+  if (exportRef) exportRef.current = { exportImage, exportAllItems };
+
   const reportInner = (
     <div style={{ background:"#FFFFFF", ...(inlineMode ? { borderRadius:0, padding:"20px 18px 60px" } : { borderRadius:"24px 24px 0 0", width:"100%", padding:"26px 20px 52px", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -10px 50px rgba(0,0,0,0.15)" }) }}>
 
@@ -3299,8 +3391,8 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
 
         {/* Mode toggle — pill style matching Contents tab */}
         <div style={{ display:"flex", background:"#F6F6F6", borderRadius:11, padding:3, gap:2, marginBottom:18 }}>
-          {[["period","期間で振り返る"],["content","コンテンツ別"]].map(([mode,label])=>(
-            <button key={mode} onClick={()=>{ setReportMode(mode); setSelectedItemId(null); }}
+          {[["period","期間別"],["content","コンテンツ別"]].map(([mode,label])=>(
+            <button key={mode} onClick={()=>{ setReportMode(mode); setSelectedItemId(null); onModeChange&&onModeChange(mode); }}
               style={{ flex:1, padding:"7px 4px", borderRadius:9, border:"none",
                 fontSize:12, fontWeight:reportMode===mode?700:500,
                 background: reportMode===mode ? "#FFFFFF" : "transparent",
@@ -3319,8 +3411,6 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
           activityLog={activityLog}
           year={year} month={month}
           setYear={setYear} setMonth={setMonth}
-          exportImage={exportImage}
-          exportDone={exportDone}
         />}
 
 
@@ -3793,7 +3883,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
 
   // ── Count all items per category (status-agnostic) ───────────────────
   const catAllCounts = Object.fromEntries(
-    Object.entries(CATS).map(([k]) => [k, items.filter(i=>i.category===k).length])
+    Object.entries(CATS).map(([k]) => [k, items.filter(i=>i.category===k && i.status!=="done").length])
   );
 
   // ── Status info ───────────────────────────────────────────────────────
@@ -3811,10 +3901,10 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
       display:"flex", flexDirection:"column", padding:"0 0 100px" }}>
 
       {/* ① Header */}
-      <div style={{ padding:"28px 20px 20px", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+      <div style={{ padding:"24px 20px 20px", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
         <div>
           <div style={{ fontSize:22, fontWeight:700, color:NEW_G.ink, letterSpacing:"0.1em",
-            fontFamily:"'Inter','Noto Sans JP','Hiragino Sans',sans-serif" }}>Home</div>
+            fontFamily:"'Outfit','Hiragino Sans','Noto Sans JP',sans-serif" }}>Home</div>
           <div style={{ fontSize:13, fontWeight:400, color:"#8A8A8A", marginTop:4, letterSpacing:"0.04em" }}>{dateStr}</div>
         </div>
         {/* Level icon — tappable, opens LevelPage */}
@@ -3967,7 +4057,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
               <div style={{ flex:1, minWidth:0 }}>
                 {/* Title */}
                 <div style={{ fontSize:15, fontWeight:700, color:"#1A1A1A",
-                  letterSpacing:"0.01em", lineHeight:1.3, marginBottom:4,
+                  letterSpacing:"0.06em", lineHeight:1.3, marginBottom:4,
                   overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                   {focusItem.title}
                 </div>
@@ -4100,68 +4190,150 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
       </div>
 
       {/* Category Detail Sheet */}
-      {selectedCat && (
-        <div onClick={()=>setSelectedCat(null)}
-          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.28)", zIndex:500,
-            display:"flex", alignItems:"flex-end" }}>
-          <div onClick={e=>e.stopPropagation()} style={{
-            background:"#FFFFFF", borderRadius:"22px 22px 0 0",
-            width:"100%", maxHeight:"80vh", overflowY:"auto",
-            padding:"22px 18px 48px",
-            boxShadow:"0 -8px 36px rgba(0,0,0,0.10)",
-          }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <div style={{ width:32, height:32, borderRadius:"50%",
-                  background: CAT_CARD[selectedCat].bg,
-                  display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <CatIco cat={selectedCat} color={CAT_CARD[selectedCat].fg}/>
-                </div>
-                <span style={{ fontSize:15, fontWeight:700, color:"#1A1A1A",
-                  letterSpacing:"0.04em", fontFamily:FC }}>
-                  {CATS[selectedCat].label}
-                </span>
-                <span style={{ fontSize:12, color:"#A0A0A0", fontWeight:400 }}>
-                  {items.filter(i=>i.category===selectedCat).length}件
-                </span>
+      {selectedCat && (() => {
+        const FC2 = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
+        const allInCat = items.filter(i => i.category === selectedCat);
+        const STATUS_TABS = [
+          { key:"all",    label:"すべて" },
+          { key:"active", label:"進行中" },
+          { key:"queue",  label:"これから" },
+          { key:"done",   label:"完了" },
+        ];
+        return (
+          <CatDetailSheet
+            key={selectedCat}
+            cat={selectedCat}
+            items={allInCat}
+            statusInfo={statusInfo}
+            CAT_CARD={CAT_CARD}
+            FC={FC2}
+            STATUS_TABS={STATUS_TABS}
+            onClose={()=>setSelectedCat(null)}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
+// ── Category Detail Sheet (sub-component) ────────────────────────────────────
+function CatDetailSheet({ cat, items, statusInfo, CAT_CARD, FC, STATUS_TABS, onClose }) {
+  const [statusTab, setStatusTab] = React.useState("all");
+
+  const filtered = statusTab === "all"
+    ? items
+    : items.filter(i => i.status === statusTab);
+
+  // Count per status for badge
+  const counts = {
+    all:    items.length,
+    active: items.filter(i=>i.status==="active").length,
+    queue:  items.filter(i=>i.status==="queue").length,
+    done:   items.filter(i=>i.status==="done").length,
+  };
+
+  const bg  = CAT_CARD[cat]?.bg  || "#EBEBEB";
+  const fg  = CAT_CARD[cat]?.fg  || "#555";
+
+  return (
+    <div onClick={onClose}
+      style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.28)", zIndex:500,
+        display:"flex", alignItems:"flex-end" }}>
+      <div onClick={e=>e.stopPropagation()} style={{
+        background:"#FFFFFF", borderRadius:"22px 22px 0 0",
+        width:"100%", maxHeight:"82vh", display:"flex", flexDirection:"column",
+        boxShadow:"0 -8px 36px rgba(0,0,0,0.10)",
+      }}>
+        {/* Header */}
+        <div style={{ padding:"20px 18px 0", flexShrink:0 }}>
+          <div style={{ display:"flex", justifyContent:"space-between",
+            alignItems:"center", marginBottom:14 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ width:32, height:32, borderRadius:"50%",
+                background:bg, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <CatIco cat={cat} color={fg}/>
               </div>
-              <button onClick={()=>setSelectedCat(null)}
-                style={{ background:"none", border:"none", cursor:"pointer",
-                  color:"#A0A0A0", fontSize:20, padding:4, lineHeight:1 }}>×</button>
+              <span style={{ fontSize:15, fontWeight:700, color:"#1A1A1A",
+                letterSpacing:"0.04em", fontFamily:FC }}>
+                {CATS[cat].label}
+              </span>
+              <span style={{ fontSize:12, color:"#A0A0A0", fontWeight:400 }}>
+                {items.length}件
+              </span>
             </div>
-            {items.filter(i=>i.category===selectedCat).length === 0 ? (
-              <div style={{ fontSize:13, color:"#A0A0A0", textAlign:"center",
-                padding:"24px 0", letterSpacing:"0.04em" }}>
-                登録されているコンテンツがありません
-              </div>
-            ) : (
-              items.filter(i=>i.category===selectedCat)
-                .sort((a,b) => ({active:0,queue:1,done:2}[a.status]??3) - ({active:0,queue:1,done:2}[b.status]??3))
-                .map(item => {
-                  const st = statusInfo(item.status);
-                  return (
-                    <div key={item.id} style={{
-                      display:"flex", alignItems:"center", justifyContent:"space-between",
-                      padding:"11px 0", borderBottom:"1px solid #F0EEEC",
-                    }}>
-                      <span style={{ fontSize:13, fontWeight:500, color:"#1A1A1A",
-                        flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis",
-                        whiteSpace:"nowrap", letterSpacing:"0.03em", lineHeight:1.5 }}>
-                        {item.title}
-                      </span>
-                      <span style={{ flexShrink:0, marginLeft:10,
-                        fontSize:10, fontWeight:500, color:st.color,
-                        border:`1px solid ${st.color}`, borderRadius:6,
-                        padding:"2px 8px", letterSpacing:"0.05em", lineHeight:1.6 }}>
-                        {st.label}
-                      </span>
-                    </div>
-                  );
-                })
-            )}
+            <button onClick={onClose}
+              style={{ background:"none", border:"none", cursor:"pointer",
+                color:"#A0A0A0", fontSize:20, padding:4, lineHeight:1 }}>×</button>
+          </div>
+
+          {/* Status filter tabs */}
+          <div style={{ display:"flex", background:"#F6F6F6", borderRadius:11,
+            padding:3, gap:2, marginBottom:14 }}>
+            {STATUS_TABS.map(({ key, label }) => {
+              const isAct = statusTab === key;
+              const cnt = counts[key];
+              return (
+                <button key={key} onClick={()=>setStatusTab(key)}
+                  style={{ flex:1, padding:"6px 4px", borderRadius:9, border:"none",
+                    fontSize:11, fontWeight:isAct?700:500,
+                    background: isAct ? "#FFFFFF" : "transparent",
+                    color: isAct ? "#1A1A1A" : "#A0A0A0",
+                    cursor:"pointer", fontFamily:FC, transition:"all .15s",
+                    boxShadow: isAct ? "0 1px 4px rgba(0,0,0,0.07)" : "none",
+                    letterSpacing:"0.02em",
+                    display:"flex", alignItems:"center", justifyContent:"center", gap:3 }}>
+                  {label}
+                  {cnt > 0 && (
+                    <span style={{ fontSize:9, fontWeight:600,
+                      color: isAct ? "#767676" : "#C0C0C0" }}>
+                      {cnt}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
-      )}
+
+        {/* List */}
+        <div style={{ overflowY:"auto", padding:"0 18px 48px", flex:1 }}>
+          {filtered.length === 0 ? (
+            <div style={{ fontSize:13, color:"#A0A0A0", textAlign:"center",
+              padding:"28px 0", letterSpacing:"0.04em" }}>
+              {statusTab === "all" ? "登録されているコンテンツがありません"
+                : statusTab === "active" ? "進行中のコンテンツがありません"
+                : statusTab === "queue"  ? "「これから」のコンテンツがありません"
+                : "完了したコンテンツがありません"}
+            </div>
+          ) : (
+            filtered.map((item, idx) => {
+              const st = statusInfo(item.status);
+              const catFg = CAT_CARD[cat]?.fg || "#555";
+              return (
+                <div key={item.id} style={{
+                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                  padding:"11px 0",
+                  borderBottom: idx < filtered.length-1 ? "1px solid #F0EEEC" : "none",
+                }}>
+                  <span style={{ fontSize:13, fontWeight:500, color:"#1A1A1A",
+                    flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis",
+                    whiteSpace:"nowrap", letterSpacing:"0.03em", lineHeight:1.5,
+                    fontFamily:FC }}>
+                    {item.title}
+                  </span>
+                  <span style={{ flexShrink:0, marginLeft:10,
+                    fontSize:10, fontWeight:500, color:catFg,
+                    border:`1px solid ${catFg}`, borderRadius:6,
+                    padding:"2px 8px", letterSpacing:"0.05em", lineHeight:1.6,
+                    fontFamily:FC }}>
+                    {st.label}
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -4449,10 +4621,18 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
   const isYT    = item.category === "youtube";
   const isTV    = item.category === "tv";
   const isRadio = item.category === "radio";
+  const isTimedProgress = ["youtube","tv","radio","live"].includes(item.category);
   const effectiveUnit = item.category === "manga" ? (item.mangaUnit || "巻") : c.unit;
 
-  const qa = item.category==="book"?10:item.category==="manga"?1:(item.category==="anime"||item.category==="drama")?1:item.category==="movie"?10:1;
-  const ql = item.category==="book"?"+10P":item.category==="manga"?`+1${effectiveUnit}`:(item.category==="anime"||item.category==="drama")?"+1話":item.category==="movie"?"+10分":item.category==="live"?"+1曲":(isYT||isTV||isRadio)?"視聴済み":"読了";
+  const qa = item.category==="book"?10:item.category==="manga"?1
+    :(item.category==="anime"||item.category==="drama")?1
+    :isTimedProgress?10   // +10分
+    :item.category==="movie"?10:1;
+  const ql = item.category==="book"?"+10P":item.category==="manga"?`+1${effectiveUnit}`
+    :(item.category==="anime"||item.category==="drama")?"+1話"
+    :isTimedProgress?"+10分"
+    :item.category==="movie"?"+10分"
+    :"読了";
 
   const isNext = nvIndex === 0;
   const isWQ   = nvIndex > 0;
@@ -4478,7 +4658,12 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
   }).filter(Boolean);
 
   const ringPct = isBinary
-    ? (item.status==="done" ? 100 : item.status==="active" ? 50 : 0)
+    ? (item.status==="done" ? 100
+      : item.status==="active"
+        ? (isTimedProgress && item.total > 0
+            ? Math.round((item.current||0) / item.total * 100)
+            : 50)
+      : 0)
     : p;
 
   const accentDk = dk(c.color);
@@ -4596,7 +4781,7 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
           <div style={{
             fontSize:12, fontWeight:600, color:NEW_G.ink,
             lineHeight:1.4, marginBottom:6,
-            letterSpacing:"0.02em", fontFamily:FC,
+            letterSpacing:"0.06em", fontFamily:FC,
             overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
           }}>
             {item.title}
@@ -4692,38 +4877,48 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
             <div style={{ marginBottom:7 }}>
               <div style={{ display:"flex", alignItems:"center",
                 gap:8, fontSize:11, color:NEW_G.greyMid, flexWrap:"wrap" }}>
-                {/* ステータスラベル */}
+
+                {/* 分単位進捗（Live/YouTube/Radio/TV かつ total設定あり） */}
+                {isTimedProgress && item.total > 0 && item.status !== "done" && (
+                  <div style={{ display:"flex", alignItems:"baseline", gap:0 }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:NEW_G.ink,
+                      letterSpacing:"-0.01em", fontFamily:FC }}>
+                      {item.current || 0}
+                    </span>
+                    <span style={{ fontSize:12, fontWeight:400, color:NEW_G.greyMid,
+                      margin:"0 4px", fontFamily:FC }}>/</span>
+                    <span style={{ fontSize:13, fontWeight:700, color:NEW_G.ink,
+                      letterSpacing:"-0.01em", fontFamily:FC }}>
+                      {item.total}
+                    </span>
+                    <span style={{ fontSize:11, fontWeight:400, color:NEW_G.greyMid,
+                      marginLeft:4, letterSpacing:"0.04em", fontFamily:FC }}>
+                      分
+                    </span>
+                  </div>
+                )}
+
+                {/* ステータスラベル（done時） */}
                 {item.status === "done" && (
                   <span style={{ display:"flex", alignItems:"center", gap:4,
                     fontWeight:500, color:accentDk, letterSpacing:"0.04em", fontFamily:FC }}>
-                    {item.category==="live"
-                      ? <><ICONS.check/> 視聴済み</>
-                      : <><ICONS.check/> 完了済み</>
-                    }
+                    <ICONS.check/> 完了済み
                   </span>
                 )}
-                {item.status === "queue" && (
+
+                {/* これから（total未設定 or article） */}
+                {item.status === "queue" && !(isTimedProgress && item.total > 0) && (
                   <span style={{ fontWeight:500, color:NEW_G.greyDark,
                     letterSpacing:"0.04em", fontFamily:FC, fontSize:11 }}>
-                    {item.category==="article" ? "未読"
-                      : item.category==="live" ? "未視聴"
-                      : item.category==="youtube" ? "未視聴"
-                      : item.category==="radio" ? "未視聴"
-                      : item.category==="tv" ? "未視聴"
-                      : "未視聴・未読"}
+                    {item.category==="article" ? "未読" : "未視聴"}
                   </span>
                 )}
-                {/* active時は未視聴/未読テキストなし。残り時間など補足のみ */}
+
+                {/* article: 読了時間 */}
                 {item.category==="article" && item.episodeMin && (
                   <span style={{ fontSize:10, fontWeight:400, color:NEW_G.greyMid,
                     letterSpacing:"0.04em", fontFamily:FC }}>
                     約{item.episodeMin}分で読了
-                  </span>
-                )}
-                {(isTV||isRadio) && item.totalDurationMin && (
-                  <span style={{ fontSize:10, fontWeight:400, color:NEW_G.greyMid,
-                    letterSpacing:"0.04em", fontFamily:FC }}>
-                    約{fmtGap(item.totalDurationMin)}
                   </span>
                 )}
               </div>
@@ -4734,7 +4929,12 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
           {item.status !== "done" && (
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:6 }}
               onClick={e=>e.stopPropagation()}>
-              {!isBinary && item.category!=="live" && (
+              {/* +10分 for timed binary (live/yt/radio/tv) */}
+              {isTimedProgress && (
+                <button onClick={()=>quickAdd(10)} style={btn(c.color,"#fff",false)}>+10分</button>
+              )}
+              {/* non-binary non-timed categories */}
+              {!isBinary && (
                 <button onClick={()=>quickAdd(qa)} style={btn(c.color,"#fff",false)}>{ql}</button>
               )}
               {!["youtube","article","tv","radio","live"].includes(item.category) && (
@@ -5050,10 +5250,10 @@ function AddPageScreen({ onAdd, onDone, F2 }) {
   // ── Step 1: Category selection ────────────────────────────────────────
   if (step === 1) return (
     <div style={{ minHeight:"100vh", background:NEW_G.surface, fontFamily:FC }}>
-      <div style={{ padding:"28px 20px 18px", position:"sticky", top:0, zIndex:10,
+      <div style={{ padding:"24px 20px 18px", position:"sticky", top:0, zIndex:10,
         background:NEW_G.surface, borderBottom:`1px solid ${NEW_G.border}` }}>
       <div style={{ fontSize:22, fontWeight:700, color:NEW_G.ink, letterSpacing:"0.1em",
-        fontFamily:"'Inter','Noto Sans JP','Hiragino Sans',sans-serif" }}>
+        fontFamily:"'Outfit','Hiragino Sans','Noto Sans JP',sans-serif" }}>
         New Content
       </div>
         <div style={{ fontSize:12, fontWeight:400, color:NEW_G.greyMid, marginTop:4,
@@ -5146,17 +5346,60 @@ function AddPageScreen({ onAdd, onDone, F2 }) {
 
 // ─── Report Page Screen (full-page) ───────────────────────────────────────
 function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, removeActivityLog, grantExp }) {
+  const [currentMode, setCurrentMode] = React.useState("period");
+  const exportRef = React.useRef(null); // { exportImage, exportAllItems }
+  const [exportDoneHdr, setExportDoneHdr] = React.useState(false);
+
+  const handleExport = () => {
+    if (!exportRef.current) return;
+    if (currentMode === "period") {
+      exportRef.current.exportImage();
+    } else {
+      exportRef.current.exportAllItems();
+    }
+    setExportDoneHdr(true);
+    setTimeout(() => setExportDoneHdr(false), 2500);
+  };
+
   return (
     <div style={{ minHeight:"100vh", background:"#FFFFFF", fontFamily:F2 }}>
+      {/* Header */}
       <div style={{ padding:"24px 18px 14px", background:NEW_G.surface,
-        borderBottom:`1px solid ${NEW_G.border}`, position:"sticky", top:0, zIndex:10 }}>
+        borderBottom:`1px solid ${NEW_G.border}`, position:"sticky", top:0, zIndex:10,
+        display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ fontSize:22, fontWeight:700, color:NEW_G.ink, letterSpacing:"0.1em" }}>
           Report
         </div>
+        {/* Share icon */}
+        <button onClick={handleExport}
+          style={{ background:"none", border:"none", cursor:"pointer",
+            padding:"6px 8px", borderRadius:8, display:"flex", alignItems:"center",
+            color: exportDoneHdr ? "#7C8F5E" : NEW_G.greyDark,
+            transition:"color .2s" }}
+          title={currentMode === "period" ? "期間別レポートを出力" : "コンテンツ別レポートを出力"}>
+          {exportDoneHdr ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+              <polyline points="16 6 12 2 8 6"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+          )}
+        </button>
       </div>
-      <ReportModal items={items} activityLog={activityLog} onClose={()=>{}} inlineMode={true}
+
+      <ReportModal
+        items={items} activityLog={activityLog} onClose={()=>{}} inlineMode={true}
         onUpdate={onUpdate} onActivityLog={onActivityLog}
-        removeActivityLog={removeActivityLog} grantExp={grantExp}/>
+        removeActivityLog={removeActivityLog} grantExp={grantExp}
+        onModeChange={setCurrentMode}
+        exportRef={exportRef}
+      />
     </div>
   );
 }
@@ -5568,7 +5811,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         paddingBottom:90 }}>
 
         {/* ── Page content ── */}
-        <div style={{ overflowY:"auto", height:"100vh", paddingBottom:"calc(100px + env(safe-area-inset-bottom, 0px))" }}>
+        <div style={{ overflowY:"auto", height:"100vh", paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
           {navTab===0 && (
             <HomeScreen
               items={items}
@@ -5651,29 +5894,43 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           width:"100%", maxWidth:480,
           background:NEW_G.nav,
           borderTop:`1px solid ${NEW_G.border}`,
+          /* alignItems:flex-start でアイコンを上寄りに配置 */
           display:"flex", alignItems:"flex-start", justifyContent:"space-around",
-          paddingTop:12,
-          paddingBottom:"calc(20px + env(safe-area-inset-bottom, 20px))",
+          /* paddingTop を大きくしてアイコンを上に浮かせる */
+          paddingTop:16,
+          /* safe-area を多めに確保（デフォルト34px + 余裕分）*/
+          paddingBottom:"calc(34px + env(safe-area-inset-bottom, 34px))",
           zIndex:200,
           boxShadow:"0 -4px 20px rgba(0,0,0,0.06)",
         }}>
           {NAV_ITEMS.map((item, i) => {
             if (item.isAdd) {
               return (
-                <button key={i} onClick={()=>handleNavTab(2)}
-                  style={{ width:50, height:50, borderRadius:"50%", background:accentColor, border:"none",
-                    display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
-                    boxShadow:`0 2px 10px rgba(118,118,118,0.35)`, flexShrink:0, padding:0 }}>
-                  <NAV_ICONS.add/>
-                </button>
+                /* + ボタンは大きめのタップ領域でラップ */
+                <div key={i}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"center",
+                    padding:"0 12px", minWidth:64, cursor:"pointer" }}
+                  onClick={()=>handleNavTab(2)}>
+                  <div style={{ width:52, height:52, borderRadius:"50%",
+                    background:accentColor, border:"none",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    boxShadow:`0 2px 12px rgba(118,118,118,0.40)`, flexShrink:0 }}>
+                    <NAV_ICONS.add/>
+                  </div>
+                </div>
               );
             }
             const isActive = navTab === i || (i===3 && showReport);
             return (
               <button key={i} onClick={()=>handleNavTab(i)}
-                style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4,
+                style={{
+                  display:"flex", flexDirection:"column", alignItems:"center", gap:5,
                   background:"none", border:"none", cursor:"pointer",
-                  padding:"4px 14px 8px", minWidth:52, minHeight:44 }}>
+                  /* 広いタップ領域: 横16px×縦12px+8px */
+                  padding:"12px 16px 8px",
+                  minWidth:60, minHeight:52,
+                  WebkitTapHighlightColor:"transparent",
+                }}>
                 <item.icon active={isActive} col={accentColor}/>
                 <span style={{ fontSize:9, fontWeight:isActive?700:500,
                   color:isActive?accentColor:NEW_G.greyMid, letterSpacing:"0.08em" }}>
