@@ -35,23 +35,39 @@ function dk(hex) {
 
 // ─── localStorage ────────────────────────────────────────────────────────────
 const LS_ITEMS = "cp_items_v5";
-const LS_WQ    = "cp_wq_v1";   // watch queue: string[] of item IDs (max 5)
+const LS_WQ    = "cp_wq_v1";
 const LS_DATES = "cp_dates_v6";
 
 // ─── Persistent storage ────────────────────────────────────────────────────────
-// Primary: localStorage (works in browser / GitHub Pages)
-// Fallback: window.storage (Claude Artifact environment)
-async function wsGet(key, fallback) {
-  // 1) localStorage (browser / URL版)
+// localStorage を最優先（PWA / ブラウザ両対応）
+// window.storage は Claude Artifact 環境のみのフォールバック
+
+function lsGet(key) {
   try {
     const raw = localStorage.getItem(key);
     if (raw != null) return JSON.parse(raw);
   } catch {}
-  // 2) window.storage (Claude Artifact)
+  return null;
+}
+
+function lsSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) { console.warn("lsSet failed:", key, e); }
+}
+
+async function wsGet(key, fallback) {
+  // 1) localStorage 優先（PWA含む通常ブラウザ）
+  const ls = lsGet(key);
+  if (ls != null) return ls;
+  // 2) window.storage（Claude Artifact 環境のみ）
   try {
     if (window.storage) {
       const res = await window.storage.get(key);
-      if (res && res.value != null) return JSON.parse(res.value);
+      if (res && res.value != null) {
+        const val = JSON.parse(res.value);
+        // localStorage に書き戻してキャッシュ
+        lsSet(key, val);
+        return val;
+      }
     }
   } catch {}
   return fallback;
@@ -2157,8 +2173,820 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   );
 }
 
-// ─── Report Modal ─────────────────────────────────────────────────────────────
-function ReportModal({ items, activityLog, onClose, inlineMode = false }) {
+// ─── ContentDetail — 画面2-② コンテンツ詳細（進捗履歴）─────────────────────
+function ContentDetail({ item, items, activityLog, onBack,
+  onUpdate, onActivityLog, removeActivityLog, grantExp }) {
+  const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
+  const [actionSheet, setActionSheet] = useState(null); // { histIdx, hist }
+  const [toast, setToast] = useState(null);
+
+  if (!item) return (
+    <div style={{ textAlign:"center", padding:"40px 20px", color:"#A0A0A0",
+      fontFamily:FC, fontSize:13 }}>
+      コンテンツが見つかりません
+      <br/>
+      <button onClick={onBack}
+        style={{ marginTop:16, background:"none", border:"1px solid #E0DEDC",
+          borderRadius:10, padding:"8px 18px", cursor:"pointer",
+          fontFamily:FC, fontSize:12, color:"#6A625A" }}>
+        戻る
+      </button>
+    </div>
+  );
+
+  const c    = CATS[item.category];
+  const unit = item.category === "manga" ? (item.mangaUnit || "巻") : c?.unit || "";
+  const pct  = item.total > 0 ? Math.round(item.current / item.total * 100) : 0;
+
+  // 履歴を昇順（古い→新しい）
+  const history = [...(item.progressHistory || [])].sort((a,b) =>
+    (a.date||"").localeCompare(b.date||"")
+  );
+
+  // Category badge colors
+  const CAT_BADGE_BG = {
+    article:"#DADCD1",live:"#EDE6D6",youtube:"#EBE1D8",radio:"#DCE1DF",
+    tv:"#DFDAD7",book:"#DADCD1",anime:"#EDE6D6",drama:"#EBE1D8",
+    movie:"#DCE1DF",manga:"#DFDAD7",
+  };
+  const CAT_BADGE_FG = {
+    article:"#465135",live:"#806C47",youtube:"#7A624C",radio:"#485950",
+    tv:"#534946",book:"#465135",anime:"#806C47",drama:"#7A624C",
+    movie:"#485950",manga:"#534946",
+  };
+  const badgeBg = CAT_BADGE_BG[item.category] || "#EBEBEB";
+  const badgeFg = CAT_BADGE_FG[item.category] || "#555";
+
+  // ── 履歴1件を削除 ──────────────────────────────────────────────────────────
+  const deleteHistEntry = (histIdx) => {
+    const h = history[histIdx]; // 昇順インデックス
+    if (!h) return;
+
+    const newHistory = item.progressHistory.filter((_, i) => {
+      // item.progressHistory は未ソートなので、date+from+toで一致するものを1件削除
+      return !(item.progressHistory[i].date === h.date &&
+               item.progressHistory[i].from === h.from &&
+               item.progressHistory[i].to   === h.to   &&
+               item.progressHistory[i].delta === h.delta);
+    });
+
+    // current を差し引いて更新（削除した進捗分だけ戻す）
+    const newCurrent = Math.max(0, item.current - (h.delta || 0));
+    const newStatus  = newCurrent >= item.total && item.total > 0 ? "done"
+                     : newCurrent > 0 ? "active" : item.status === "done" ? "queue" : item.status;
+
+    const patch = {
+      progressHistory: newHistory,
+      current:         newCurrent,
+      status:          newStatus,
+      lastUpdated:     today(),
+      completedAt:     newStatus === "done" ? item.completedAt : null,
+    };
+    onUpdate && onUpdate(item.id, patch);
+
+    // アクティビティログから差し引く
+    if (removeActivityLog && h.date) {
+      removeActivityLog(h.date, item.category);
+    }
+
+    // EXP差し引き
+    if (grantExp && h.delta > 0) {
+      grantExp(-(EXP_REWARDS.ACTION * (h.delta || 1)));
+    }
+
+    setActionSheet(null);
+    setToast("記録を削除しました");
+  };
+
+  return (
+    <div style={{ fontFamily:FC }}>
+      {/* 戻るボタン */}
+      <button onClick={onBack}
+        style={{ display:"flex", alignItems:"center", gap:5,
+          background:"none", border:"none", cursor:"pointer",
+          color:"#6A625A", fontSize:12, fontWeight:500,
+          fontFamily:FC, padding:"0 0 14px", letterSpacing:"0.03em" }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+        戻る
+      </button>
+
+      {/* ── コンテンツ情報カード ── */}
+      <div style={{ background:"#F6F6F6", borderRadius:16, padding:"16px",
+        marginBottom:20 }}>
+        {/* Category badge */}
+        <span style={{ display:"inline-flex", alignItems:"center", gap:4,
+          background:badgeBg, borderRadius:7, padding:"3px 9px",
+          marginBottom:10 }}>
+          <CatIco cat={item.category} color={badgeFg}/>
+          <span style={{ fontSize:10, fontWeight:600, color:badgeFg,
+            letterSpacing:"0.04em" }}>{c?.label}</span>
+        </span>
+
+        {/* Title */}
+        <div style={{ fontSize:16, fontWeight:700, color:"#1A1A1A",
+          letterSpacing:"0.02em", lineHeight:1.4, marginBottom:10 }}>
+          {item.title}
+        </div>
+
+        {/* Progress / dates */}
+        <div style={{ display:"flex", gap:16, flexWrap:"wrap",
+          fontSize:11, fontWeight:400, color:"#6A625A", letterSpacing:"0.04em" }}>
+          {item.total > 0 && (
+            <span>
+              <span style={{ fontWeight:700, fontSize:13, color:"#1A1A1A" }}>
+                {item.current}
+              </span>
+              /{item.total} {unit}
+            </span>
+          )}
+          {item.startedAt && (
+            <span>開始日 {item.firstActiveAt || item.startedAt}</span>
+          )}
+          {item.status === "done" && item.completedAt && (
+            <span>完了日 {item.completedAt}</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── 記録履歴カード ── */}
+      <div style={{ background:"#F6F6F6", borderRadius:16, padding:"16px" }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"#1A1A1A",
+          letterSpacing:"0.06em", marginBottom:14 }}>記録履歴</div>
+
+        {history.length === 0 ? (
+          <div style={{ fontSize:12, color:"#A0A0A0", letterSpacing:"0.04em",
+            lineHeight:1.8, padding:"8px 0" }}>
+            記録がありません。<br/>
+            +1話などのボタンで進捗を記録すると、ここに表示されます。
+          </div>
+        ) : (
+          history.map((h, idx) => {
+            const isLast  = idx === history.length - 1;
+            const pctAfter = item.total > 0
+              ? Math.round(h.to / item.total * 100) : null;
+
+            return (
+              <div key={idx}>
+                {/* History row — tappable */}
+                <button onClick={()=>setActionSheet({ histIdx:idx, hist:h })}
+                  style={{ width:"100%", background:"transparent", border:"none",
+                    cursor:"pointer", padding:"10px 0", textAlign:"left",
+                    fontFamily:FC, display:"flex", alignItems:"flex-start", gap:12 }}>
+
+                  {/* Timeline dot + line */}
+                  <div style={{ display:"flex", flexDirection:"column",
+                    alignItems:"center", flexShrink:0, width:16 }}>
+                    <div style={{ width:10, height:10, borderRadius:"50%",
+                      background:c?.color || "#B0A898", marginTop:3, flexShrink:0 }}/>
+                    {!isLast && (
+                      <div style={{ width:1, flex:1, minHeight:20,
+                        background:"#DEDAD5", marginTop:3 }}/>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ flex:1, minWidth:0, paddingBottom: isLast ? 0 : 8 }}>
+                    {/* Top row: delta + date */}
+                    <div style={{ display:"flex", justifyContent:"space-between",
+                      alignItems:"baseline", marginBottom:4 }}>
+                      <span style={{ fontSize:14, fontWeight:700, color:"#1A1A1A",
+                        letterSpacing:"0.01em" }}>
+                        {h.delta > 0 ? `+${h.delta}${unit}` :
+                         h.completedViaButton ? "完了にした" :
+                         h.editedViaModal ? "編集" : "記録"}
+                      </span>
+                      <span style={{ fontSize:10, fontWeight:400, color:"#A0A0A0",
+                        letterSpacing:"0.03em", flexShrink:0, marginLeft:8 }}>
+                        {h.date}
+                      </span>
+                    </div>
+                    {/* Progress change */}
+                    <div style={{ fontSize:11, fontWeight:400, color:"#8A8A8A",
+                      letterSpacing:"0.03em" }}>
+                      {h.from !== undefined && h.to !== undefined && (
+                        <>
+                          {h.from}{unit} → {h.to}{unit}
+                          {pctAfter !== null && ` (${pctAfter}%)`}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {!isLast && (
+                  <div style={{ height:1, background:"#ECEAE7", margin:"0 0 0 28px" }}/>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Toast */}
+      {toast && <Toast msg={toast} onHide={()=>setToast(null)}/>}
+
+      {/* ── Action Sheet (編集 / 削除) ── */}
+      {actionSheet && (
+        <div onClick={()=>setActionSheet(null)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)",
+            zIndex:700, display:"flex", alignItems:"flex-end" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#FFFFFF", borderRadius:"20px 20px 0 0",
+              width:"100%", padding:"22px 20px 48px",
+              boxShadow:"0 -6px 30px rgba(0,0,0,0.12)", fontFamily:FC }}>
+
+            {/* Record summary */}
+            <div style={{ fontSize:12, fontWeight:600, color:"#1A1A1A",
+              marginBottom:18, letterSpacing:"0.04em" }}>
+              {actionSheet.hist.date} ／ {
+                actionSheet.hist.delta > 0
+                  ? `+${actionSheet.hist.delta}${unit}`
+                  : "記録"
+              }
+            </div>
+
+            {/* Delete */}
+            <button onClick={()=>deleteHistEntry(actionSheet.histIdx)}
+              style={{ width:"100%", padding:"14px", borderRadius:12,
+                border:"1.5px solid #E8E2DA", background:"transparent",
+                color:"#B05050", fontSize:13, fontWeight:600,
+                cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em",
+                marginBottom:10 }}>
+              この記録を削除する
+            </button>
+
+            {/* Cancel */}
+            <button onClick={()=>setActionSheet(null)}
+              style={{ width:"100%", padding:"14px", borderRadius:12,
+                border:"1.5px solid #E8E2DA", background:"transparent",
+                color:"#6A625A", fontSize:13, fontWeight:500,
+                cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em" }}>
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ContentReport — 画面2-① コンテンツ一覧 ─────────────────────────────────
+function ContentReport({ items, onSelectItem }) {
+  const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
+
+  // カテゴリフィルター（single select、ContentsタブのALL定数を流用）
+  const [catFilter, setCatFilter] = useState(ALL);
+
+  // セクションの開閉状態
+  const [activeOpen, setActiveOpen]   = useState(true);
+  const [doneOpen,   setDoneOpen]     = useState(false);
+
+  // フィルタ適用
+  const applyFilter = (list) => {
+    if (catFilter === ALL) return list;
+    const k = BY_LABEL[catFilter];
+    return k ? list.filter(i => i.category === k) : list;
+  };
+
+  const activeItems = applyFilter(items.filter(i => i.status === "active"));
+  const doneItems   = applyFilter(
+    items.filter(i => i.status === "done")
+         .sort((a,b) => (b.completedAt||"").localeCompare(a.completedAt||""))
+  );
+
+  // カテゴリフィルターのカラー
+  const CAT_BADGE = {
+    article:"#DADCD1", live:"#EDE6D6", youtube:"#EBE1D8",
+    radio:"#DCE1DF", tv:"#DFDAD7", book:"#DADCD1",
+    anime:"#EDE6D6", drama:"#EBE1D8", movie:"#DCE1DF", manga:"#DFDAD7",
+  };
+  const CAT_FG = {
+    article:"#465135", live:"#806C47", youtube:"#7A624C",
+    radio:"#485950", tv:"#534946", book:"#465135",
+    anime:"#806C47", drama:"#7A624C", movie:"#485950", manga:"#534946",
+  };
+
+  // Section component (toggle)
+  function Section({ title, items: list, defaultOpen, onToggle, isOpen }) {
+    const effectiveUnit = (item) =>
+      item.category === "manga" ? (item.mangaUnit || "巻") : CATS[item.category]?.unit || "";
+
+    return (
+      <div style={{ marginBottom: 20 }}>
+        {/* Section header — tappable toggle */}
+        <button onClick={onToggle}
+          style={{ width:"100%", display:"flex", alignItems:"center",
+            justifyContent:"space-between", background:"none", border:"none",
+            cursor:"pointer", padding:"4px 0 10px", fontFamily:FC }}>
+          <span style={{ fontSize:14, fontWeight:700, color:"#1A1A1A",
+            letterSpacing:"0.04em" }}>{title}</span>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:11, color:"#A0A0A0",
+              letterSpacing:"0.04em" }}>{list.length}件</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="#A0A0A0" strokeWidth="2" strokeLinecap="round"
+              style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition:"transform .2s" }}>
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </div>
+        </button>
+
+        {isOpen && (
+          <div>
+            {list.length === 0 ? (
+              <div style={{ fontSize:12, color:"#A0A0A0", padding:"12px 0",
+                letterSpacing:"0.04em" }}>
+                {title === "進行中"
+                  ? "進行中のコンテンツがありません"
+                  : "完了したコンテンツがありません"}
+              </div>
+            ) : (
+              list.map((item, idx) => {
+                const bg  = CAT_BADGE[item.category] || "#EBEBEB";
+                const fg  = CAT_FG[item.category]   || "#555";
+                const unit = effectiveUnit(item);
+
+                return (
+                  <button key={item.id}
+                    onClick={() => onSelectItem && onSelectItem(item.id)}
+                    style={{ width:"100%", display:"flex", alignItems:"center",
+                      gap:12, padding:"12px 14px",
+                      marginBottom: idx < list.length-1 ? 8 : 0,
+                      borderRadius:14, border:"1px solid #ECEAE7",
+                      background:"#FAFAFA", cursor:"pointer",
+                      textAlign:"left", fontFamily:FC,
+                      transition:"background .15s" }}>
+
+                    {/* Category badge */}
+                    <span style={{ display:"inline-flex", alignItems:"center",
+                      gap:4, background:bg, borderRadius:7,
+                      padding:"3px 9px", flexShrink:0 }}>
+                      <CatIco cat={item.category} color={fg}/>
+                      <span style={{ fontSize:10, fontWeight:600, color:fg,
+                        letterSpacing:"0.04em" }}>
+                        {CATS[item.category]?.label}
+                      </span>
+                    </span>
+
+                    {/* Text block */}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      {/* Title */}
+                      <div style={{ fontSize:13, fontWeight:600, color:"#1A1A1A",
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                        letterSpacing:"0.03em", marginBottom:3 }}>
+                        {item.title}
+                      </div>
+                      {/* Sub info */}
+                      <div style={{ fontSize:10, fontWeight:400, color:"#A0A0A0",
+                        letterSpacing:"0.03em", display:"flex", gap:8, flexWrap:"wrap" }}>
+                        {/* 進行中: 進捗 + 更新日 */}
+                        {item.status === "active" && (
+                          <>
+                            {item.total > 0 && (
+                              <span>{item.current}/{item.total} {unit}</span>
+                            )}
+                            {item.lastUpdated && (
+                              <span>更新日 {item.lastUpdated}</span>
+                            )}
+                            <span>{(item.progressHistory||[]).length}回記録</span>
+                          </>
+                        )}
+                        {/* 完了: 完了日 */}
+                        {item.status === "done" && (
+                          <>
+                            {item.completedAt && (
+                              <span>完了日 {item.completedAt}</span>
+                            )}
+                            <span>{(item.progressHistory||[]).length}回記録</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Chevron */}
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="#C8C4BE" strokeWidth="2" strokeLinecap="round"
+                      style={{ flexShrink:0 }}>
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ fontFamily:FC }}>
+      {/* ── カテゴリフィルター ── */}
+      <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:12,
+        scrollbarWidth:"none", marginBottom:8 }}>
+        {FILTER_OPTS.map(label => {
+          const k = BY_LABEL[label];
+          const isAct = catFilter === label;
+          const bg  = k ? (CAT_BADGE[k] || "#BFBFBF") : "#BFBFBF";
+          const fg2 = k ? (CAT_FG[k]   || "#555")     : "#fff";
+          return (
+            <button key={label} onClick={() => setCatFilter(label)}
+              style={{ display:"inline-flex", alignItems:"center", gap:4,
+                padding:"5px 13px", borderRadius:99, fontSize:11, fontWeight:600,
+                border: "none", cursor:"pointer", whiteSpace:"nowrap",
+                flexShrink:0, fontFamily:FC,
+                background: isAct ? (k ? bg : "#BFBFBF") : "#F6F6F6",
+                color: isAct ? (k ? fg2 : "#fff") : "#6A625A",
+                transition:"all .15s" }}>
+              {k && <CatIco cat={k} color={isAct ? fg2 : "#A0A0A0"}/>}
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── 進行中セクション ── */}
+      <Section
+        title="進行中"
+        items={activeItems}
+        isOpen={activeOpen}
+        onToggle={() => setActiveOpen(o => !o)}
+      />
+
+      {/* 区切り線 */}
+      <div style={{ height:1, background:"#ECEAE7", marginBottom:20 }}/>
+
+      {/* ── 完了セクション ── */}
+      <Section
+        title="完了"
+        items={doneItems}
+        isOpen={doneOpen}
+        onToggle={() => setDoneOpen(o => !o)}
+      />
+    </div>
+  );
+}
+
+// ─── DonutChart — カテゴリ別進捗ドーナツグラフ ───────────────────────────────
+function DonutChart({ catCounts, completedCount }) {
+  const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
+  const size = 140, stroke = 26, r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const cx = size / 2, cy = size / 2;
+  const segments = CAT_KEYS
+    .map(k => ({ key:k, count:catCounts[k]||0, color:CATS[k].color, label:CATS[k].label }))
+    .filter(s => s.count > 0);
+  const total = segments.reduce((s,seg)=>s+seg.count, 0);
+
+  if (total === 0) return (
+    <svg width={size} height={size}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EEECE9" strokeWidth={stroke}/>
+      <text x={cx} y={cy-5} textAnchor="middle" fontSize="11" fill="#A09890" fontFamily={FC}>記録</text>
+      <text x={cx} y={cy+10} textAnchor="middle" fontSize="11" fill="#A09890" fontFamily={FC}>なし</text>
+    </svg>
+  );
+
+  let cumAngle = -90; // start from top
+  return (
+    <svg width={size} height={size}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EEECE9" strokeWidth={stroke}/>
+      {segments.map((seg) => {
+        const dashLen = seg.count / total * circ;
+        const gap = circ - dashLen;
+        const rotation = cumAngle;
+        cumAngle += seg.count / total * 360;
+        return (
+          <circle key={seg.key} cx={cx} cy={cy} r={r} fill="none"
+            stroke={seg.color} strokeWidth={stroke}
+            strokeDasharray={`${dashLen} ${gap}`}
+            strokeDashoffset={0}
+            style={{ transform:`rotate(${rotation}deg)`, transformOrigin:`${cx}px ${cy}px` }}/>
+        );
+      })}
+      {/* Center text */}
+      <text x={cx} y={cy-8} textAnchor="middle" fontSize="10" fontWeight="500" fill="#A09890" fontFamily={FC}>完了数</text>
+      <text x={cx} y={cy+11} textAnchor="middle" fontSize="20" fontWeight="700" fill="#1A1A1A" fontFamily={FC}>{completedCount}</text>
+    </svg>
+  );
+}
+
+// ─── PeriodReport — 画面1 ────────────────────────────────────────────────────
+function PeriodReport({ items, activityLog, year, month, setYear, setMonth, exportImage, exportDone }) {
+  const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
+  const now = new Date();
+  const years  = Array.from({length:5},(_,i)=>now.getFullYear()-i);
+  const months = Array.from({length:12},(_,i)=>i+1);
+
+  // ── Month navigation ─────────────────────────────────────────────────────
+  const prevMonth = () => { if(month===1){setYear(y=>y-1);setMonth(12);}else setMonth(m=>m-1); };
+  const nextMonth = () => {
+    const isCurrentMonth = year===now.getFullYear() && month===now.getMonth()+1;
+    if(isCurrentMonth) return;
+    if(month===12){setYear(y=>y+1);setMonth(1);}else setMonth(m=>m+1);
+  };
+  const isCurrentMonth = year===now.getFullYear() && month===now.getMonth()+1;
+
+  // ── Calendar grid (月間) ──────────────────────────────────────────────────
+  const calendarDays = React.useMemo(() => {
+    const days = [];
+    const firstDay = new Date(year, month-1, 1);
+    // 月曜始まり (0=Mon ... 6=Sun)
+    const startDow = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    // Blank cells before the 1st
+    for (let i = 0; i < startDow; i++) days.push(null);
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ymd = `${year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      const log = activityLog[ymd];
+      let dotColor = null;
+      let totalCount = 0;
+      if (log && typeof log === "object") {
+        const entries = Object.entries(log).filter(([,v])=>v>0);
+        totalCount = entries.reduce((s,[,v])=>s+v,0);
+        if (entries.length > 0) {
+          const top = entries.sort((a,b)=>b[1]-a[1])[0][0];
+          dotColor = CATS[top]?.color || "#B0A898";
+        }
+      }
+      days.push({ day:d, ymd, dotColor, totalCount });
+    }
+    return days;
+  }, [year, month, activityLog]);
+
+  // ── Stats ────────────────────────────────────────────────────────────────
+  const stats = React.useMemo(() => {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const prefix = `${year}-${String(month).padStart(2,"0")}`;
+
+    // Activity counts
+    let activeDays = 0, totalActions = 0;
+    for (let d=1; d<=daysInMonth; d++) {
+      const ymd = `${prefix}-${String(d).padStart(2,"0")}`;
+      const log = activityLog[ymd];
+      if (log && typeof log==="object") {
+        const cnt = Object.values(log).reduce((a,b)=>a+b,0);
+        if (cnt > 0) { activeDays++; totalActions += cnt; }
+      }
+    }
+
+    // 完了コンテンツ
+    const completedItems = items.filter(i =>
+      i.status==="done" && i.completedAt && i.completedAt.startsWith(prefix)
+    ).sort((a,b)=>(b.completedAt||"").localeCompare(a.completedAt||""));
+
+    // カテゴリ別ドーナツグラフ用カウント（進捗記録件数ベース）
+    const catCounts = {};
+    CAT_KEYS.forEach(k => { catCounts[k] = 0; });
+    for (let d=1; d<=daysInMonth; d++) {
+      const ymd = `${prefix}-${String(d).padStart(2,"0")}`;
+      const log = activityLog[ymd];
+      if (log && typeof log==="object") {
+        Object.entries(log).forEach(([cat,cnt]) => {
+          if (catCounts[cat] !== undefined) catCounts[cat] += cnt;
+        });
+      }
+    }
+    const totalCatCount = Object.values(catCounts).reduce((a,b)=>a+b,0);
+
+    return { activeDays, daysInMonth, totalActions, completedItems, catCounts, totalCatCount };
+  }, [items, activityLog, year, month]);
+
+  // ── Donut chart: use standalone DonutChart component above ───────────────
+
+  const DAY_LABELS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+  return (
+    <div style={{ fontFamily:FC }}>
+      {/* Month nav */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+        <button onClick={prevMonth}
+          style={{ background:"none", border:"1px solid #E8E2DA", borderRadius:8,
+            width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center",
+            justifyContent:"center", color:"#6A625A" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div style={{ fontSize:15, fontWeight:700, color:"#1A1A1A", letterSpacing:"0.04em" }}>
+          {year}年{month}月
+        </div>
+        <button onClick={nextMonth} disabled={isCurrentMonth}
+          style={{ background:"none", border:"1px solid #E8E2DA", borderRadius:8,
+            width:32, height:32, cursor:isCurrentMonth?"not-allowed":"pointer",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            color:isCurrentMonth?"#D0CCC8":"#6A625A", opacity:isCurrentMonth?0.4:1 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+
+      {/* ── Activity Log (月間カレンダー) ── */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:"#8A8A8A",
+          letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
+          Activity Log
+        </div>
+        <div style={{ background:"#F6F6F6", borderRadius:16, padding:"14px 10px" }}>
+          {/* 曜日ヘッダー */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:6 }}>
+            {DAY_LABELS.map(d => (
+              <div key={d} style={{ textAlign:"center", fontSize:8, fontWeight:600,
+                color:"#B0B0B0", letterSpacing:"0.04em" }}>{d}</div>
+            ))}
+          </div>
+          {/* 日付グリッド — 丸の上に日付数字を重ねて表示 */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:"4px 2px" }}>
+            {calendarDays.map((day, i) => {
+              if (!day) return <div key={`blank-${i}`}/>;
+              const isToday = day.ymd === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+              const hasActivity = !!day.dotColor;
+              return (
+                <div key={day.ymd} style={{ display:"flex", justifyContent:"center", alignItems:"center" }}>
+                  {/* 丸 + 数字を重ねた1つのセル */}
+                  <div style={{
+                    width:22, height:22, borderRadius:"50%", flexShrink:0,
+                    background: hasActivity ? day.dotColor : "transparent",
+                    border: hasActivity ? "none" : `1px solid ${isToday ? "#9A9A9A" : "#D8D4CE"}`,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>
+                    <span style={{
+                      fontSize:9,
+                      fontWeight: isToday ? 700 : 500,
+                      color: hasActivity ? "#fff" : isToday ? "#3A3A3A" : "#6A6A6A",
+                      lineHeight:1, letterSpacing:"-0.02em",
+                      userSelect:"none",
+                    }}>
+                      {day.day}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Analysis (ドーナツ + 凡例) ── */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:"#8A8A8A",
+          letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
+          Analysis
+        </div>
+        <div style={{ background:"#F6F6F6", borderRadius:16, padding:"16px",
+          display:"flex", alignItems:"center", gap:20 }}>
+          <DonutChart catCounts={stats.catCounts} completedCount={stats.completedItems.length}/>
+          {/* 凡例 */}
+          <div style={{ flex:1, minWidth:0 }}>
+            {CAT_KEYS.filter(k=>stats.catCounts[k]>0).map(k => (
+              <div key={k} style={{ display:"flex", alignItems:"center", gap:7,
+                marginBottom:6 }}>
+                <div style={{ width:10, height:10, borderRadius:"50%",
+                  background:CATS[k].color, flexShrink:0 }}/>
+                <span style={{ fontSize:11, fontWeight:500, color:"#3A3A3A",
+                  letterSpacing:"0.03em" }}>{CATS[k].label}</span>
+                <span style={{ fontSize:10, color:"#A0A0A0", marginLeft:"auto" }}>
+                  {stats.catCounts[k]}回
+                </span>
+              </div>
+            ))}
+            {stats.totalCatCount === 0 && (
+              <div style={{ fontSize:11, color:"#A0A0A0" }}>記録なし</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 統計カード ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:16 }}>
+        {/* アクティブ日 */}
+        <div style={{ background:"#F6F6F6", borderRadius:14, padding:"12px 10px", textAlign:"center" }}>
+          <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
+            letterSpacing:"0.06em", marginBottom:6, lineHeight:1.4 }}>アクティブ日</div>
+          <div style={{ fontSize:16, fontWeight:700, color:"#1A1A1A", lineHeight:1 }}>
+            {stats.activeDays}
+            <span style={{ fontSize:11, fontWeight:400, color:"#A0A0A0" }}>/{stats.daysInMonth}</span>
+          </div>
+        </div>
+        {/* 記録回数 */}
+        <div style={{ background:"#F6F6F6", borderRadius:14, padding:"12px 10px", textAlign:"center" }}>
+          <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
+            letterSpacing:"0.06em", marginBottom:6, lineHeight:1.4 }}>記録回数</div>
+          <div style={{ fontSize:16, fontWeight:700, color:"#1A1A1A", lineHeight:1 }}>
+            {stats.totalActions}
+            <span style={{ fontSize:11, fontWeight:400, color:"#A0A0A0" }}>回</span>
+          </div>
+        </div>
+        {/* 時間帯 */}
+        {(()=>{
+          // progressHistoryの日付から時間帯推定（addedAt/lastUpdatedのHH:MM情報がない場合はactivityLog登録時刻なので仮）
+          // 実装：completedAtやlastUpdatedにtime部分があればそこから、なければ夜で固定
+          const timeZoneCounts = { morning:0, afternoon:0, night:0 };
+          items.forEach(it => {
+            (it.progressHistory||[]).forEach(h => {
+              if (!h.date || !h.date.startsWith(`${year}-${String(month).padStart(2,"0")}`)) return;
+              const timeStr = h.recordedAt || h.date;
+              if (timeStr && timeStr.length > 10) {
+                const hour = parseInt(timeStr.slice(11,13));
+                if (hour >= 5 && hour < 11) timeZoneCounts.morning++;
+                else if (hour >= 11 && hour < 18) timeZoneCounts.afternoon++;
+                else timeZoneCounts.night++;
+              } else {
+                timeZoneCounts.night++; // デフォルト
+              }
+            });
+          });
+          const topZone = Object.entries(timeZoneCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "night";
+          const zoneData = {
+            morning:   { icon:"☀️", label:"朝",  sub:"5〜11時" },
+            afternoon: { icon:"🌤",  label:"昼",  sub:"11〜18時" },
+            night:     { icon:"🌙",  label:"夜",  sub:"18〜5時" },
+          };
+          const zd = zoneData[topZone];
+          const zoneColor = "#A09890";
+          const ZoneIcon = () => {
+            if (topZone === "morning") return (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M4 14a8 8 0 0 1 16 0" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="6" y1="18" x2="18" y2="18" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            );
+            if (topZone === "afternoon") return (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="4" stroke={zoneColor} strokeWidth="1.5"/>
+                <line x1="12" y1="2" x2="12" y2="5" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="12" y1="19" x2="12" y2="22" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="2" y1="12" x2="5" y2="12" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
+                <line x1="19" y1="12" x2="22" y2="12" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            );
+            // night
+            return (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12a9 9 0 1 1-9-9 7 7 0 0 0 9 9z" stroke={zoneColor} strokeWidth="1.5"/>
+                <circle cx="17" cy="6" r="1" fill={zoneColor}/>
+              </svg>
+            );
+          };
+          return (
+            <div style={{ background:"#F6F6F6", borderRadius:14, padding:"12px 10px", textAlign:"center" }}>
+              <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
+                letterSpacing:"0.06em", marginBottom:8, lineHeight:1.4 }}>時間帯</div>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:4 }}>
+                <ZoneIcon/>
+              </div>
+              <div style={{ fontSize:10, color:"#3A3A3A", marginTop:2, fontWeight:500 }}>{zd.label}</div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* ── 完了コンテンツ一覧 ── */}
+      {stats.completedItems.length > 0 && (
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#8A8A8A",
+            letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
+            完了コンテンツ
+          </div>
+          <div style={{ background:"#F6F6F6", borderRadius:16, overflow:"hidden" }}>
+            {stats.completedItems.map((it, i, arr) => (
+              <div key={it.id} style={{ display:"flex", alignItems:"center",
+                padding:"11px 14px",
+                borderBottom: i<arr.length-1 ? "1px solid #ECEAE7" : "none" }}>
+                {/* カテゴリカラーの ● */}
+                <div style={{ width:8, height:8, borderRadius:"50%",
+                  background:CATS[it.category].color, flexShrink:0, marginRight:10 }}/>
+                <span style={{ flex:1, fontSize:12, fontWeight:500, color:"#1A1A1A",
+                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                  letterSpacing:"0.03em" }}>{it.title}</span>
+                <span style={{ fontSize:10, fontWeight:400, color:"#A0A0A0",
+                  flexShrink:0, marginLeft:8 }}>{it.completedAt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 共有ボタン ── */}
+      <button onClick={exportImage}
+        style={{ width:"100%", padding:"12px", borderRadius:12, border:"1px solid #E8E2DA",
+          background:"#FFFFFF", color:"#6A625A", fontSize:12, fontWeight:600,
+          cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em",
+          display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+        </svg>
+        {exportDone ? "ダウンロードしました ✓" : "このレポートを共有"}
+      </button>
+    </div>
+  );
+}
+
+// ─── ReportModal ──────────────────────────────────────────────────────────────
+function ReportModal({ items, activityLog, onClose, inlineMode = false,
+  onUpdate, onActivityLog, removeActivityLog, grantExp }) {
   const now = new Date();
   const [reportMode, setReportMode] = useState("period");   // "period" | "content"
   const [year,  setYear]  = useState(now.getFullYear());
@@ -2485,276 +3313,36 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false }) {
           ))}
         </div>
 
-        {/* ── PERIOD VIEW ── */}
-        {reportMode==="period" && <>
-          {/* Period selector */}
-          <div style={{ display:"flex",gap:6,marginBottom:16,flexWrap:"wrap",alignItems:"center" }}>
-            {["month","year","alltime"].map(v=>(
-              <button key={v} onClick={()=>setView(v)}
-                style={{ padding:"6px 14px",borderRadius:99,fontSize:12,fontWeight:600,border:`1.5px solid ${view===v?G.greyDeep:G.border}`,background:view===v?G.greyDeep:"transparent",color:view===v?"#fff":G.greyDark,cursor:"pointer",fontFamily:F,transition:"all .15s" }}>
-                {v==="month"?"月別":v==="year"?"年別":"全期間"}
-              </button>
-            ))}
-            {view!=="alltime"&&(
-              <select value={year} onChange={e=>setYear(Number(e.target.value))}
-                style={{ padding:"6px 10px",borderRadius:8,fontSize:12,background:G.surfaceAlt,border:`1.5px solid ${G.border}`,color:G.greyDeep,fontFamily:F,cursor:"pointer",outline:"none" }}>
-                {years.map(y=><option key={y} value={y}>{y}年</option>)}
-              </select>
-            )}
-            {view==="month"&&(
-              <select value={month} onChange={e=>setMonth(Number(e.target.value))}
-                style={{ padding:"6px 10px",borderRadius:8,fontSize:12,background:G.surfaceAlt,border:`1.5px solid ${G.border}`,color:G.greyDeep,fontFamily:F,cursor:"pointer",outline:"none" }}>
-                {months.map(m=><option key={m} value={m}>{m}月</option>)}
-              </select>
-            )}
-          </div>
+        {/* ── PERIOD VIEW (新デザイン) ── */}
+        {reportMode==="period" && <PeriodReport
+          items={items}
+          activityLog={activityLog}
+          year={year} month={month}
+          setYear={setYear} setMonth={setMonth}
+          exportImage={exportImage}
+          exportDone={exportDone}
+        />}
 
-          {/* Summary numbers */}
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12 }}>
-            {[
-              {label:"完了作品",  val:stats.periodItems.length},
-              {label:"アクティブ日", val:`${stats.activeDayCount}日`},
-              {label:"記録回数",  val:`${stats.totalActions}回`},
-            ].map(({label,val})=>(
-              <div key={label} style={{ background:G.surfaceAlt,borderRadius:11,padding:"12px 10px",textAlign:"center" }}>
-                <div style={{ fontSize:10,color:G.greyMid,fontWeight:600,letterSpacing:"0.06em",marginBottom:5 }}>{label}</div>
-                <div style={{ fontSize:20,fontWeight:400,color:G.ink,lineHeight:1 }}>{val}</div>
-              </div>
-            ))}
-          </div>
 
-          {/* MVP */}
-          {stats.mvpCount>0 ? (
-            <div style={{ ...SC, borderLeft:`4px solid ${CATS[stats.mvpKey].color}`, marginBottom:12 }}>
-              <div style={{ fontSize:10,fontWeight:700,color:G.greyMid,letterSpacing:"0.09em",textTransform:"uppercase",marginBottom:8 }}>{periodLabel} MVP</div>
-              <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                {/* ③ カテゴリ色背景・枠線なし */}
-                <span style={{ display:"inline-flex",alignItems:"center",gap:5,background:CATS[stats.mvpKey].color,borderRadius:6,padding:"4px 10px" }}>
-                  <CatIco cat={stats.mvpKey} color="#fff"/>
-                  <span style={{ fontSize:12,fontWeight:700,color:"#fff",letterSpacing:"0.03em" }}>{CATS[stats.mvpKey].label}</span>
-                </span>
-                <span style={{ fontSize:13,color:G.greyDark,fontWeight:500 }}>×{stats.mvpCount}作品</span>
-              </div>
-              {stats.trendMsg&&<div style={{ fontSize:12,color:G.greyMid,marginTop:6 }}>{stats.trendMsg}</div>}
-            </div>
-          ) : (
-            <div style={{ ...SC, color:G.greyMid, fontSize:13 }}>{periodLabel}の完了記録がありません</div>
-          )}
-
-          {/* Category breakdown */}
-          <div style={SC}>
-            <div style={SH}>カテゴリ別 完了数</div>
-            {CAT_KEYS.filter(k=>stats.catCounts[k]>0).length===0
-              ? <div style={{ fontSize:12,color:G.greyMid }}>記録なし</div>
-              : CAT_KEYS.map(k=>{
-                const cnt=stats.catCounts[k]; if(!cnt) return null;
-                const max=Math.max(...Object.values(stats.catCounts),1);
-                return (
-                  <div key={k} style={{ marginBottom:8,display:"flex",alignItems:"center",gap:8 }}>
-                    <span style={{ fontSize:11,color:G.greyMid,width:62,flexShrink:0,textAlign:"right" }}>{CATS[k].label}</span>
-                    <div style={{ flex:1,background:G.border,borderRadius:99,height:8,overflow:"hidden" }}>
-                      <div style={{ width:`${cnt/max*100}%`,height:"100%",background:CATS[k].color,borderRadius:99,transition:"width .4s" }}/>
-                    </div>
-                    <span style={{ fontSize:12,fontWeight:700,color:G.ink,width:20,textAlign:"right" }}>{cnt}</span>
-                  </div>
-                );
-              })
-            }
-          </div>
-
-          {/* Completed items list */}
-          <div style={SC}>
-            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
-              <div style={SH}>完了コンテンツ一覧</div>
-              <span style={{ fontSize:11,color:G.greyMid,fontWeight:600 }}>{stats.periodItems.length}件</span>
-            </div>
-            {stats.periodItems.length===0 ? (
-              <div style={{ fontSize:12,color:G.greyMid }}>完了したコンテンツがありません</div>
-            ) : (
-              <>
-                {(showAllItems ? stats.periodItems : stats.periodItems.slice(0,ITEM_PREVIEW)).map(it=>(
-                  <div key={it.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderBottom:`1px solid ${G.border}` }}>
-                    <CatIco cat={it.category} color={CATS[it.category].color}/>
-                    <div style={{ flex:1,minWidth:0 }}>
-                      <div style={{ fontSize:13,fontWeight:700,color:G.greyDeep,lineHeight:1.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{it.title}</div>
-                      <div style={{ fontSize:10,color:G.greyMid,marginTop:2 }}>{CATS[it.category].label}</div>
-                    </div>
-                    {it.completedAt&&<div style={{ fontSize:10,color:G.greyMid,flexShrink:0 }}>{it.completedAt}</div>}
-                  </div>
-                ))}
-                {stats.periodItems.length > ITEM_PREVIEW && (
-                  <button onClick={()=>setShowAllItems(s=>!s)}
-                    style={{ width:"100%",marginTop:8,padding:"7px",background:"none",border:`1px solid ${G.border}`,borderRadius:8,fontSize:12,color:G.greyMid,cursor:"pointer",fontFamily:F,fontWeight:600 }}>
-                    {showAllItems ? "折りたたむ ↑" : `残り${stats.periodItems.length-ITEM_PREVIEW}件を表示 ↓`}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Avg days */}
-          <div style={{ ...SC, marginBottom:16 }}>
-            <div style={SH}>完了までの平均日数（全期間）</div>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8 }}>
-              {CAT_KEYS.filter(k=>stats.avgDays[k]!==null).map(k=>(
-                <div key={k} style={{ background:G.surfaceAlt,borderRadius:10,padding:"10px" }}>
-                  {/* ③ カテゴリ色背景・枠線なし */}
-                  <div style={{ display:"inline-block",background:CATS[k].color,borderRadius:5,padding:"2px 8px",fontSize:9,fontWeight:700,color:"#fff",letterSpacing:"0.06em",marginBottom:6 }}>{CATS[k].label}</div>
-                  <div style={{ fontSize:18,fontWeight:400,color:G.ink,lineHeight:1 }}>{stats.avgDays[k]}<span style={{ fontSize:11,fontWeight:400,color:G.greyMid }}>日</span></div>
-                </div>
-              ))}
-              {CAT_KEYS.filter(k=>stats.avgDays[k]!==null).length===0&&(
-                <div style={{ gridColumn:"1/-1",fontSize:12,color:G.greyMid }}>開始日・完了日が記録されたコンテンツがありません</div>
-              )}
-            </div>
-          </div>
-
-          <button onClick={exportImage}
-            style={{ ...sBt(exportDone?G.greyDeep:G.greyDeep,"#fff"),width:"100%",justifyContent:"center",padding:"13px",fontSize:13,opacity:exportDone?0.7:1 }}>
-            <ICONS.dl/> {exportDone?"ダウンロードしました ✓":"画像としてエクスポート (.png)"}
-          </button>
-        </>}
-
-        {/* ── CONTENT VIEW ── */}
-        {reportMode==="content" && <>
-          {!selectedItem ? (
-            <>
-              <div style={{ fontSize:12,color:G.greyMid,marginBottom:14,lineHeight:1.6 }}>
-                コンテンツを選択すると、いつどれだけ進めたかを確認できます。
-              </div>
-              {itemsWithHistory.length===0 && (
-                <div style={{ ...SC, color:G.greyMid, fontSize:13 }}>記録があるコンテンツがありません。<br/>+1話などのボタンで進捗を記録すると履歴が表示されます。</div>
-              )}
-              {/* Group by status */}
-              {["active","queue","done"].map(st => {
-                const group = itemsWithHistory.filter(i=>i.status===st);
-                if (!group.length) return null;
-                const stLabel = st==="active"?"進行中":st==="queue"?"これから":"完了";
-                return (
-                  <div key={st} style={{ marginBottom:14 }}>
-                    <div style={{ fontSize:10,fontWeight:700,color:G.greyMid,letterSpacing:"0.09em",textTransform:"uppercase",marginBottom:8 }}>{stLabel}</div>
-                    {group.map(it => {
-                      const cat = CATS[it.category];
-                      const hist = it.progressHistory||[];
-                      return (
-                        <button key={it.id} onClick={()=>setSelectedItemId(it.id)}
-                          style={{ width:"100%",display:"flex",alignItems:"center",gap:10,padding:"11px 12px",marginBottom:6,borderRadius:11,border:`1.5px solid ${G.border}`,background:G.surfaceAlt,cursor:"pointer",textAlign:"left",fontFamily:F,transition:"background .15s" }}>
-                          <CatIco cat={it.category} color={dk(cat.color)}/>
-                          <div style={{ flex:1,minWidth:0 }}>
-                            <div style={{ fontSize:13,fontWeight:700,color:G.greyDeep,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{it.title}</div>
-                            <div style={{ fontSize:10,color:G.greyMid,marginTop:2 }}>
-                              {hist.length>0 ? `${hist.length}回記録` : "記録なし"}
-                              {it.completedAt ? ` · 完了: ${it.completedAt}` : ""}
-                            </div>
-                          </div>
-                          <span style={{ fontSize:11,color:G.greyMid }}>›</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </>
-          ) : (
-            <>
-              {/* Back button */}
-              <button onClick={()=>setSelectedItemId(null)}
-                style={{ display:"flex",alignItems:"center",gap:5,background:"none",border:"none",cursor:"pointer",color:G.greyDark,fontSize:12,fontWeight:700,fontFamily:F,marginBottom:14,padding:0 }}>
-                ‹ 戻る
-              </button>
-
-              {/* Item header */}
-              <div style={{ ...SC, borderLeft:`4px solid ${CATS[selectedItem.category].color}` }}>
-                <div style={{ marginBottom:8 }}>
-                  {/* ③ カテゴリ色背景・枠線なし */}
-                  <span style={{ display:"inline-flex",alignItems:"center",gap:5,background:CATS[selectedItem.category].color,borderRadius:6,padding:"4px 10px" }}>
-                    <CatIco cat={selectedItem.category} color="#fff"/>
-                    <span style={{ fontSize:11,fontWeight:700,color:"#fff",letterSpacing:"0.03em" }}>{CATS[selectedItem.category].label}</span>
-                  </span>
-                </div>
-                <div style={{ fontSize:15,fontWeight:800,color:G.greyDeep,lineHeight:1.3 }}>{selectedItem.title}</div>
-                <div style={{ display:"flex",gap:12,marginTop:8,fontSize:11,color:G.greyMid,flexWrap:"wrap" }}>
-                  <span>進捗: {selectedItem.current}/{selectedItem.total} {CATS[selectedItem.category].unit}</span>
-                  {selectedItem.startedAt&&<span>開始: {selectedItem.startedAt}</span>}
-                  {selectedItem.completedAt&&<span>完了: {selectedItem.completedAt}</span>}
-                </div>
-              </div>
-
-              {/* Progress history timeline */}
-              <div style={SC}>
-                <div style={SH}>記録履歴</div>
-                {(selectedItem.progressHistory||[]).length===0 ? (
-                  <div style={{ fontSize:12,color:G.greyMid }}>
-                    記録がありません。<br/>
-                    <span style={{ fontSize:11,color:G.borderMid }}>+1話などのクイックボタン、または「過去の記録」ボタンで進捗を記録すると、ここに表示されます。</span>
-                  </div>
-                ) : (
-                  // Sort history by date desc
-                  [...(selectedItem.progressHistory||[])].sort((a,b)=>b.date.localeCompare(a.date)).map((h,i,arr)=>{
-                    const cat = CATS[selectedItem.category];
-                    const isLast = i===arr.length-1;
-                    return (
-                      <div key={i} style={{ display:"flex",gap:10,paddingBottom:isLast?0:12,marginBottom:isLast?0:12,borderBottom:isLast?"none":`1px solid ${G.border}` }}>
-                        {/* Timeline dot */}
-                        <div style={{ display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0,width:14 }}>
-                          <div style={{ width:10,height:10,borderRadius:"50%",background:cat.color,flexShrink:0,marginTop:2 }}/>
-                          {!isLast&&<div style={{ width:1,flex:1,background:G.border,marginTop:4 }}/>}
-                        </div>
-                        <div style={{ flex:1 }}>
-                          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline" }}>
-                            <div style={{ fontSize:13,fontWeight:700,color:G.greyDeep }}>
-                              +{h.delta} {cat.unit}
-                            </div>
-                            <div style={{ fontSize:10,color:G.greyMid }}>{h.date}</div>
-                          </div>
-                          <div style={{ fontSize:11,color:G.greyMid,marginTop:2 }}>
-                            {h.from}{cat.unit} → {h.to}{cat.unit}
-                            {selectedItem.total > 0 && <span style={{ marginLeft:6,color:G.borderMid }}>({Math.round(h.to/selectedItem.total*100)}%)</span>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Mini activity calendar for this item */}
-              {(selectedItem.progressHistory||[]).length > 0 && (() => {
-                const dates = (selectedItem.progressHistory||[]).map(h=>h.date);
-                const uniqueDates = [...new Set(dates)];
-                const countByDate = {};
-                dates.forEach(d=>{ countByDate[d]=(countByDate[d]||0)+1; });
-                return (
-                  <div style={SC}>
-                    <div style={SH}>記録した日（{uniqueDates.length}日）</div>
-                    <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-                      {uniqueDates.sort().map(d=>(
-                        <span key={d} style={{ fontSize:11,background:tint(CATS[selectedItem.category].color),color:dk(CATS[selectedItem.category].color),borderRadius:7,padding:"3px 9px",fontWeight:600 }}>
-                          {d}
-                          {countByDate[d]>1&&<span style={{ marginLeft:4,opacity:.7 }}>×{countByDate[d]}</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Export: single item */}
-              <button onClick={()=>exportSingleItem(selectedItem)}
-                style={{ ...sBt(G.greyDeep,"#fff"),width:"100%",justifyContent:"center",padding:"13px",fontSize:13,marginTop:4 }}>
-                <ICONS.dl/> このコンテンツをPNGで出力
-              </button>
-            </>
-          )}
-
-          {/* Export: all items with history (shown in list view) */}
-          {!selectedItem && itemsWithHistory.length > 0 && (
-            <button onClick={exportAllItems}
-              style={{ ...sBt(G.greyDeep,"#fff"),width:"100%",justifyContent:"center",padding:"13px",fontSize:13,marginTop:8 }}>
-              <ICONS.dl/> 全コンテンツまとめてPNGで出力（{itemsWithHistory.length}件）
-            </button>
-          )}
-        </>}
+        {/* ── CONTENT VIEW (画面2) ── */}
+        {reportMode==="content" && !selectedItemId && (
+          <ContentReport
+            items={items}
+            onSelectItem={setSelectedItemId}
+          />
+        )}
+        {reportMode==="content" && selectedItemId && (
+          <ContentDetail
+            item={items.find(i=>i.id===selectedItemId)}
+            items={items}
+            activityLog={activityLog}
+            onBack={()=>setSelectedItemId(null)}
+            onUpdate={onUpdate}
+            onActivityLog={onActivityLog}
+            removeActivityLog={removeActivityLog}
+            grantExp={grantExp}
+          />
+        )}
 
       </div>
   );
@@ -3791,9 +4379,9 @@ function ContentsScreen({
         )}
         {filtered.map((item, idx) => (
           <div key={item.id} style={{ position:"relative" }}>
-        {/* Reorder arrows for 進行中 tab — 円グラフの右に重ならないよう right:4px */}
+        {/* Reorder arrows for 進行中 tab — 枠線から離して、ring との間隔を詰める */}
         {tab===0 && (
-          <div style={{ position:"absolute", top:10, right:4, zIndex:2,
+          <div style={{ position:"absolute", top:10, right:10, zIndex:2,
             display:"flex", flexDirection:"column", gap:2 }}
             onClick={e=>e.stopPropagation()}>
             <button
@@ -4238,7 +4826,7 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
         </div>
 
         {/* ── Right column: progress ring ── */}
-        <div style={{ flexShrink:0, paddingTop:2, paddingRight:28 }}>
+        <div style={{ flexShrink:0, paddingTop:2, paddingRight:20 }}>
           <ProgressRing pct={ringPct} color={c.color} size={56} stroke={4.5}/>
         </div>
       </div>
@@ -4399,8 +4987,8 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
         {deleteStep === 0 && (
           <button onClick={()=>setDeleteStep(1)}
             style={{ width:"100%", padding:"13px", borderRadius:12,
-              border:"1.5px solid #E8DADA", background:"transparent",
-              color:"#B05A5A", fontSize:13, fontWeight:600,
+              border:"1.5px solid #E8E2DA", background:"transparent",
+              color:"#767676", fontSize:13, fontWeight:600,
               cursor:"pointer", fontFamily:F2, letterSpacing:"0.02em" }}>
             全てのデータを削除
           </button>
@@ -4415,7 +5003,7 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
               <button onClick={()=>setDeleteStep(0)}
                 style={{ flex:1, padding:"12px", borderRadius:12, border:`1.5px solid ${NEW_G.border}`, background:"transparent", color:NEW_G.greyDark, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F2 }}>キャンセル</button>
               <button onClick={()=>setDeleteStep(2)}
-                style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#D05050", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F2 }}>次へ</button>
+                style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#BFBFBF", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F2 }}>次へ</button>
             </div>
           </div>
         )}
@@ -4429,7 +5017,7 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
               <button onClick={()=>setDeleteStep(0)}
                 style={{ flex:1, padding:"12px", borderRadius:12, border:`1.5px solid ${NEW_G.border}`, background:"transparent", color:NEW_G.greyDark, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F2 }}>キャンセル</button>
               <button onClick={()=>{ setDeleteStep(0); onDeleteAll&&onDeleteAll(); }}
-                style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#B03030", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F2 }}>削除する</button>
+                style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#BFBFBF", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F2 }}>削除する</button>
             </div>
           </div>
         )}
@@ -4557,7 +5145,7 @@ function AddPageScreen({ onAdd, onDone, F2 }) {
 }
 
 // ─── Report Page Screen (full-page) ───────────────────────────────────────
-function ReportPageScreen({ items, activityLog, F2 }) {
+function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, removeActivityLog, grantExp }) {
   return (
     <div style={{ minHeight:"100vh", background:"#FFFFFF", fontFamily:F2 }}>
       <div style={{ padding:"24px 18px 14px", background:NEW_G.surface,
@@ -4566,7 +5154,9 @@ function ReportPageScreen({ items, activityLog, F2 }) {
           Report
         </div>
       </div>
-      <ReportModal items={items} activityLog={activityLog} onClose={()=>{}} inlineMode={true}/>
+      <ReportModal items={items} activityLog={activityLog} onClose={()=>{}} inlineMode={true}
+        onUpdate={onUpdate} onActivityLog={onActivityLog}
+        removeActivityLog={removeActivityLog} grantExp={grantExp}/>
     </div>
   );
 }
@@ -4739,7 +5329,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
 
   useEffect(() => {
     if (!loaded) return;
-    try { localStorage.setItem(LS_DATES, JSON.stringify(activityLog)); } catch {}
+    lsSet(LS_DATES, activityLog);
     try { if (window.storage) window.storage.set(LS_DATES, JSON.stringify(activityLog)); } catch {}
   }, [activityLog, loaded]);
 
@@ -4978,7 +5568,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         paddingBottom:90 }}>
 
         {/* ── Page content ── */}
-        <div style={{ overflowY:"auto", height:"100vh", paddingBottom:"calc(90px + env(safe-area-inset-bottom, 0px))" }}>
+        <div style={{ overflowY:"auto", height:"100vh", paddingBottom:"calc(100px + env(safe-area-inset-bottom, 0px))" }}>
           {navTab===0 && (
             <HomeScreen
               items={items}
@@ -5012,10 +5602,46 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             <AddPageScreen onAdd={(item)=>{ addItem(item); setGlobalToast("コンテンツを追加しました！"); }} onDone={()=>setNavTab(1)} F2={F2}/>
           )}
           {navTab===3 && (
-            <ReportPageScreen items={items} activityLog={activityLog} F2={F2}/>
+            <ReportPageScreen items={items} activityLog={activityLog} F2={F2}
+              onUpdate={update} onActivityLog={logActivity}
+              removeActivityLog={removeActivity} grantExp={grantExp}/>
           )}
           {navTab===4 && (
-            <SettingsScreen user={user} onLogout={onLogout} syncStatus={syncStatus}/>
+            <SettingsScreen
+              user={user}
+              onLogout={onLogout}
+              syncStatus={syncStatus}
+              items={items}
+              onDeleteAll={async () => {
+                // 全データ削除: items/activityLog/watchQueue/progress をリセット
+                setItems([]);
+                setActivityLog({});
+                setWatchQueue([]);
+                setUserProgress(createInitialProgress());
+                lsSet(LS_ITEMS, []);
+                lsSet(LS_DATES, {});
+                lsSet(LS_WQ, []);
+                saveProgress(createInitialProgress());
+                // Supabase側も削除
+                if (userId && sbOps) {
+                  try {
+                    // アイテム全削除
+                    const allItems = items;
+                    await Promise.all(allItems.map(it => sbOps.deleteItem(userId, it.id)));
+                    // activityLog全削除（全カテゴリ×全日付を0に）
+                    const dates = Object.keys(activityLog);
+                    for (const date of dates) {
+                      const cats = Object.keys(activityLog[date]||{});
+                      for (const cat of cats) {
+                        await sbOps.upsertActivity(userId, date, cat, 0);
+                      }
+                    }
+                    if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, []);
+                    if (sbOps.updateUserProgress) await sbOps.updateUserProgress(userId, createInitialProgress());
+                  } catch(e) { console.error("deleteAll error:", e); }
+                }
+              }}
+            />
           )}
         </div>
 
@@ -5026,9 +5652,8 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           background:NEW_G.nav,
           borderTop:`1px solid ${NEW_G.border}`,
           display:"flex", alignItems:"flex-start", justifyContent:"space-around",
-          /* 上部にアイコン表示領域 + 下部にsafe-area */
-          paddingTop:10,
-          paddingBottom:"calc(16px + env(safe-area-inset-bottom, 16px))",
+          paddingTop:12,
+          paddingBottom:"calc(20px + env(safe-area-inset-bottom, 20px))",
           zIndex:200,
           boxShadow:"0 -4px 20px rgba(0,0,0,0.06)",
         }}>
@@ -5036,11 +5661,9 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             if (item.isAdd) {
               return (
                 <button key={i} onClick={()=>handleNavTab(2)}
-                  style={{ width:48, height:48, borderRadius:"50%", background:accentColor, border:"none",
+                  style={{ width:50, height:50, borderRadius:"50%", background:accentColor, border:"none",
                     display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
-                    boxShadow:`0 2px 10px rgba(118,118,118,0.35)`, flexShrink:0,
-                    /* タップ領域を広げるためにpaddingを使う */
-                    padding:0, margin:"0 4px" }}>
+                    boxShadow:`0 2px 10px rgba(118,118,118,0.35)`, flexShrink:0, padding:0 }}>
                   <NAV_ICONS.add/>
                 </button>
               );
@@ -5048,14 +5671,9 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             const isActive = navTab === i || (i===3 && showReport);
             return (
               <button key={i} onClick={()=>handleNavTab(i)}
-                style={{
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:4,
+                style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4,
                   background:"none", border:"none", cursor:"pointer",
-                  /* タップ領域を広げる */
-                  padding:"6px 12px 4px",
-                  minWidth:48,
-                  /* -webkit-tap-highlight-color は global CSS で設定済み */
-                }}>
+                  padding:"4px 14px 8px", minWidth:52, minHeight:44 }}>
                 <item.icon active={isActive} col={accentColor}/>
                 <span style={{ fontSize:9, fontWeight:isActive?700:500,
                   color:isActive?accentColor:NEW_G.greyMid, letterSpacing:"0.08em" }}>
