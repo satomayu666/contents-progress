@@ -147,122 +147,6 @@ function CatIco({ cat, color }) {
   return <span style={{ color:color||G.greyMid, display:"inline-flex", alignItems:"center" }}><Fn/></span>;
 }
 
-// ─── Level / EXP System ──────────────────────────────────────────────────────
-
-const MAX_LEVEL = 100;
-
-const TITLES = [
-  { level:1,   name:"はじめた人" },
-  { level:5,   name:"コツコツ勢" },
-  { level:10,  name:"習慣ビギナー" },
-  { level:25,  name:"継続の民" },
-  { level:50,  name:"習慣マスター" },
-  { level:75,  name:"コンテンツ探求者" },
-  { level:100, name:"コンテンツの神" },
-];
-
-const BADGES = [
-  { id:"lv1",   name:"はじまりの一歩", description:"Lv.1 に到達した",  unlockLevel:1,   icon:"🌱" },
-  { id:"lv5",   name:"コツコツバッジ", description:"Lv.5 に到達した",  unlockLevel:5,   icon:"📚" },
-  { id:"lv10",  name:"習慣の芽",       description:"Lv.10 に到達した", unlockLevel:10,  icon:"🌿" },
-  { id:"lv25",  name:"継続の証",       description:"Lv.25 に到達した", unlockLevel:25,  icon:"🔥" },
-  { id:"lv50",  name:"習慣マスター章", description:"Lv.50 に到達した", unlockLevel:50,  icon:"⭐" },
-  { id:"lv75",  name:"探求者の紋章",   description:"Lv.75 に到達した", unlockLevel:75,  icon:"🔭" },
-  { id:"lv100", name:"神の称号",       description:"Lv.100 に到達した",unlockLevel:100, icon:"👑" },
-];
-
-const STREAK_BONUSES = [
-  { days:3,  exp:20  },
-  { days:7,  exp:50  },
-  { days:14, exp:100 },
-  { days:30, exp:200 },
-];
-
-const EXP_REWARDS = {
-  ACTION:           10,
-  COMPLETE:        100,
-  FOCUS_START:       5,
-  LIGHT_REFLECTION:  5,
-};
-
-const LS_PROGRESS = "cp_user_progress_v1";
-
-function getRequiredExp(level) {
-  return Math.floor(50 * Math.pow(level, 1.5));
-}
-
-function calculateLevel(totalExp) {
-  let level = 1, remaining = totalExp;
-  while (level < MAX_LEVEL) {
-    const needed = getRequiredExp(level);
-    if (remaining >= needed) { remaining -= needed; level++; }
-    else break;
-  }
-  return { level, currentExp: remaining };
-}
-
-function getCurrentTitle(level) {
-  const reached = TITLES.filter(t => level >= t.level);
-  return reached.length ? reached[reached.length - 1].name : TITLES[0].name;
-}
-
-function getUnlockedBadges(level) {
-  return BADGES.filter(b => b.unlockLevel <= level);
-}
-
-function addExpPure(user, amount) {
-  const prevLevel  = user.level;
-  const newTotalExp = user.totalExp + amount;
-  const { level: newLevel, currentExp: newCurrentExp } = calculateLevel(newTotalExp);
-  const leveledUp   = newLevel > prevLevel;
-  const levelsGained = newLevel - prevLevel;
-  const newBadges = leveledUp
-    ? BADGES.filter(b => b.unlockLevel > prevLevel && b.unlockLevel <= newLevel && !user.obtainedBadges.includes(b.id))
-    : [];
-  const newTitleUnlocked = leveledUp
-    ? (() => { const ts = TITLES.filter(t => t.level > prevLevel && t.level <= newLevel); return ts.length ? ts[ts.length-1].name : null; })()
-    : null;
-  const newProgress = {
-    ...user, level:newLevel, currentExp:newCurrentExp, totalExp:newTotalExp,
-    obtainedBadges: [...user.obtainedBadges, ...newBadges.map(b=>b.id)],
-  };
-  return { newProgress, leveledUp, levelsGained, newBadges, newTitle:newTitleUnlocked };
-}
-
-function updateStreakPure(user, todayDate) {
-  const last = user.lastActiveDate;
-  if (last === todayDate) return user;
-  let newStreak = 1;
-  if (last) {
-    const diffDays = Math.round((new Date(todayDate) - new Date(last)) / 86_400_000);
-    newStreak = diffDays === 1 ? user.streakDays + 1 : 1;
-  }
-  let updated = { ...user, streakDays:newStreak, lastActiveDate:todayDate };
-  for (const bonus of STREAK_BONUSES) {
-    if (newStreak === bonus.days) {
-      updated = addExpPure(updated, bonus.exp).newProgress;
-      break;
-    }
-  }
-  return updated;
-}
-
-function createInitialProgress() {
-  return { level:1, currentExp:0, totalExp:0, streakDays:0, lastActiveDate:"", obtainedBadges:["lv1"] };
-}
-
-function loadProgress() {
-  try {
-    const raw = localStorage.getItem(LS_PROGRESS);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return createInitialProgress();
-}
-
-function saveProgress(p) {
-  try { localStorage.setItem(LS_PROGRESS, JSON.stringify(p)); } catch {}
-}
-
 // ─── End Level System ─────────────────────────────────────────────────────────
 
 const CATS = {
@@ -2234,7 +2118,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
 
 // ─── ContentDetail — 画面2-② コンテンツ詳細（進捗履歴）─────────────────────
 function ContentDetail({ item, items, activityLog, onBack,
-  onUpdate, onActivityLog, removeActivityLog, grantExp }) {
+  onUpdate, onActivityLog, removeActivityLog }) {
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
   const [actionSheet, setActionSheet] = useState(null); // { histIdx, hist }
   const [toast, setToast] = useState(null);
@@ -2309,9 +2193,6 @@ function ContentDetail({ item, items, activityLog, onBack,
     }
 
     // EXP差し引き
-    if (grantExp && h.delta > 0) {
-      grantExp(-(EXP_REWARDS.ACTION * (h.delta || 1)));
-    }
 
     setActionSheet(null);
     setToast("記録を削除しました");
@@ -2691,13 +2572,14 @@ function ContentReport({ items, onSelectItem }) {
 }
 
 // ─── DonutChart — カテゴリ別進捗ドーナツグラフ ───────────────────────────────
-function DonutChart({ catCounts, completedCount }) {
+function DonutChart({ catCounts, completedCount, colorMap }) {
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
   const size = 140, stroke = 26, r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const cx = size / 2, cy = size / 2;
+  const getColor = (k) => (colorMap && colorMap[k]) || CATS[k]?.color || "#B0A898";
   const segments = CAT_KEYS
-    .map(k => ({ key:k, count:catCounts[k]||0, color:CATS[k].color, label:CATS[k].label }))
+    .map(k => ({ key:k, count:catCounts[k]||0, color:getColor(k), label:CATS[k].label }))
     .filter(s => s.count > 0);
   const total = segments.reduce((s,seg)=>s+seg.count, 0);
 
@@ -2734,7 +2616,8 @@ function DonutChart({ catCounts, completedCount }) {
 }
 
 // ─── PeriodReport — 画面1 ────────────────────────────────────────────────────
-function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
+function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
+  onUpdate, removeActivityLog, onActivityLog }) {
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
   const now = new Date();
   const years  = Array.from({length:5},(_,i)=>now.getFullYear()-i);
@@ -2742,6 +2625,78 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
 
   // Activity Log date tap popup
   const [actLogPopup, setActLogPopup] = useState(null); // { ymd, day }
+  // Action sheet for edit/delete
+  const [actionSheet, setActionSheet] = useState(null); // { item, histIdx, hist, ymd }
+  // Edit mode state
+  const [editDelta, setEditDelta] = useState(""); // new delta value for edit
+
+  // ── Delete a progress history entry ──────────────────────────────────
+  const handleDeleteEntry = ({ item, histIdx, hist, ymd }) => {
+    const newHistory = (item.progressHistory || []).filter((h, i) =>
+      !(h.date === hist.date && h.from === hist.from && h.to === hist.to && h.delta === hist.delta)
+    // only remove the first match
+    ).map((h, i, arr) => h); // identity, first-match removal handled below
+    // Actually filter only first match:
+    let removed = false;
+    const filtered = (item.progressHistory || []).filter(h => {
+      if (!removed && h.date === hist.date && h.from === hist.from
+        && h.to === hist.to && h.delta === hist.delta) {
+        removed = true; return false;
+      }
+      return true;
+    });
+
+    const newCurrent = Math.max(0, item.current - (hist.delta || 0));
+    const newStatus = newCurrent >= item.total && item.total > 0 ? "done"
+      : newCurrent > 0 ? (item.status === "done" ? "active" : item.status)
+      : item.status === "done" ? "queue" : item.status;
+
+    onUpdate && onUpdate(item.id, {
+      progressHistory: filtered,
+      current: newCurrent,
+      status: newStatus,
+      completedAt: newStatus === "done" ? item.completedAt : null,
+      lastUpdated: today(),
+    });
+    removeActivityLog && removeActivityLog(hist.date, item.category);
+    setActionSheet(null);
+    setActLogPopup(null);
+  };
+
+  // ── Edit a progress history entry (change delta) ──────────────────────
+  const handleEditEntry = ({ item, hist, newDelta }) => {
+    const delta = parseInt(newDelta);
+    if (isNaN(delta) || delta <= 0) return;
+    const diff = delta - (hist.delta || 0); // positive = more, negative = less
+
+    const updated = (item.progressHistory || []).map(h => {
+      if (h.date === hist.date && h.from === hist.from
+        && h.to === hist.to && h.delta === hist.delta) {
+        return { ...h, delta, to: h.from + delta };
+      }
+      return h;
+    });
+
+    const newCurrent = Math.max(0, item.current + diff);
+    const newStatus = newCurrent >= item.total && item.total > 0 ? "done"
+      : item.status;
+
+    onUpdate && onUpdate(item.id, {
+      progressHistory: updated,
+      current: newCurrent,
+      status: newStatus,
+      completedAt: newStatus === "done" ? (item.completedAt || today()) : item.completedAt,
+      lastUpdated: today(),
+    });
+    // Sync activityLog: diff > 0 → add, diff < 0 → remove
+    if (diff > 0 && onActivityLog) {
+      for (let i = 0; i < diff; i++) onActivityLog(hist.date, item.category);
+    } else if (diff < 0 && removeActivityLog) {
+      for (let i = 0; i < Math.abs(diff); i++) removeActivityLog(hist.date, item.category);
+    }
+    setActionSheet(null);
+    setActLogPopup(null);
+  };
 
   // ── Month navigation ─────────────────────────────────────────────────────
   const prevMonth = () => { if(month===1){setYear(y=>y-1);setMonth(12);}else setMonth(m=>m-1); };
@@ -2751,6 +2706,20 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
     if(month===12){setYear(y=>y+1);setMonth(1);}else setMonth(m=>m+1);
   };
   const isCurrentMonth = year===now.getFullYear() && month===now.getMonth()+1;
+
+  // カレンダードット専用カラー（指定値）
+  const CAL_DOT_COLOR = {
+    article: "#DDE1E0",
+    live:    "#EEE6D6",
+    youtube: "#EDE2D9",
+    radio:   "#DDE1E0",
+    tv:      "#DDE1E0",
+    book:    "#DDE1E0",
+    anime:   "#EEE6D6",
+    drama:   "#EDE2D9",
+    movie:   "#DDE1E0",
+    manga:   "#DDE1E0",
+  };
 
   // ── Calendar grid (月間) ──────────────────────────────────────────────────
   const calendarDays = React.useMemo(() => {
@@ -2773,7 +2742,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
         totalCount = entries.reduce((s,[,v])=>s+v,0);
         if (entries.length > 0) {
           const top = entries.sort((a,b)=>b[1]-a[1])[0][0];
-          dotColor = CATS[top]?.color || "#B0A898";
+          dotColor = CAL_DOT_COLOR[top] || "#DDE1E0";
         }
       }
       days.push({ day:d, ymd, dotColor, totalCount });
@@ -2878,7 +2847,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
                   }}>
                     <span style={{
                       fontSize:9, fontWeight: isToday ? 700 : 500,
-                      color: hasActivity ? "#fff" : isToday ? "#3A3A3A" : "#6A6A6A",
+                      color: isToday ? "#3A3A3A" : "#6A6A6A",
                       lineHeight:1, letterSpacing:"-0.02em", userSelect:"none",
                     }}>
                       {day.day}
@@ -2899,21 +2868,28 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
         </div>
         <div style={{ background:"#F6F6F6", borderRadius:16, padding:"16px",
           display:"flex", alignItems:"center", gap:20 }}>
-          <DonutChart catCounts={stats.catCounts} completedCount={stats.completedItems.length}/>
+          <DonutChart catCounts={stats.catCounts} completedCount={stats.completedItems.length}
+            colorMap={{
+              article:"#DDE1E0", live:"#EEE6D6", youtube:"#EDE2D9",
+              radio:"#DDE1E0",   tv:"#DDE1E0",   book:"#DDE1E0",
+              anime:"#EEE6D6",   drama:"#EDE2D9", movie:"#DDE1E0", manga:"#DDE1E0",
+            }}/>
           {/* 凡例 */}
           <div style={{ flex:1, minWidth:0 }}>
-            {CAT_KEYS.filter(k=>stats.catCounts[k]>0).map(k => (
-              <div key={k} style={{ display:"flex", alignItems:"center", gap:7,
-                marginBottom:6 }}>
-                <div style={{ width:10, height:10, borderRadius:"50%",
-                  background:CATS[k].color, flexShrink:0 }}/>
-                <span style={{ fontSize:11, fontWeight:500, color:"#3A3A3A",
-                  letterSpacing:"0.03em" }}>{CATS[k].label}</span>
-                <span style={{ fontSize:10, color:"#A0A0A0", marginLeft:"auto" }}>
-                  {stats.catCounts[k]}回
-                </span>
-              </div>
-            ))}
+            {CAT_KEYS.filter(k=>stats.catCounts[k]>0).map(k => {
+              const donutColor = { article:"#DDE1E0",live:"#EEE6D6",youtube:"#EDE2D9",radio:"#DDE1E0",tv:"#DDE1E0",book:"#DDE1E0",anime:"#EEE6D6",drama:"#EDE2D9",movie:"#DDE1E0",manga:"#DDE1E0" };
+              return (
+                <div key={k} style={{ display:"flex", alignItems:"center", gap:7, marginBottom:6 }}>
+                  <div style={{ width:10, height:10, borderRadius:"50%",
+                    background: donutColor[k] || CATS[k].color, flexShrink:0 }}/>
+                  <span style={{ fontSize:11, fontWeight:500, color:"#3A3A3A",
+                    letterSpacing:"0.03em" }}>{CATS[k].label}</span>
+                  <span style={{ fontSize:10, color:"#A0A0A0", marginLeft:"auto" }}>
+                    {stats.catCounts[k]}回
+                  </span>
+                </div>
+              );
+            })}
             {stats.totalCatCount === 0 && (
               <div style={{ fontSize:11, color:"#A0A0A0" }}>記録なし</div>
             )}
@@ -3014,7 +2990,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
                   } else {
                     amountStr = "記録あり";
                   }
-                  entries.push({ item, amountStr });
+                  entries.push({ item, amountStr, hist: h });
                 });
               });
 
@@ -3043,9 +3019,12 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
                 ));
               }
 
-              return entries.map(({ item, amountStr }, idx) => (
-                <div key={idx} style={{ display:"flex", alignItems:"center", gap:10,
-                  padding:"10px 0", borderBottom:"1px solid #F0EEEC" }}>
+              return entries.map(({ item, amountStr, hist }, idx) => (
+                <div key={idx}
+                  onClick={() => { setActionSheet({ item, histIdx: idx, hist, ymd: actLogPopup.ymd }); setEditDelta(String(hist.delta || "")); }}
+                  style={{ display:"flex", alignItems:"center", gap:10,
+                    padding:"10px 0", borderBottom:"1px solid #F0EEEC",
+                    cursor:"pointer" }}>
                   <span style={{ display:"inline-flex", alignItems:"center", gap:4,
                     background: CAT_BADGE_BG[item.category]||"#EBEBEB", borderRadius:7,
                     padding:"3px 9px", flexShrink:0 }}>
@@ -3062,19 +3041,93 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth }) {
                     <div style={{ fontSize:11, fontWeight:400, color:"#A0A0A0",
                       letterSpacing:"0.03em", marginTop:1 }}>{amountStr}</div>
                   </div>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="#C8C4BE" strokeWidth="2" strokeLinecap="round">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
                 </div>
               ));
             })()}
           </div>
         </div>
       )}
+
+      {/* ── Action Sheet: 編集 / 削除 ── */}
+      {actionSheet && (
+        <div onClick={()=>setActionSheet(null)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)",
+            zIndex:700, display:"flex", alignItems:"flex-end" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#FFFFFF", borderRadius:"20px 20px 0 0",
+              width:"100%", padding:"22px 20px 48px",
+              boxShadow:"0 -6px 30px rgba(0,0,0,0.12)", fontFamily:FC }}>
+
+            {/* Record summary */}
+            <div style={{ fontSize:13, fontWeight:600, color:"#1A1A1A",
+              marginBottom:4, letterSpacing:"0.04em" }}>
+              {actionSheet.item.title}
+            </div>
+            <div style={{ fontSize:11, fontWeight:400, color:"#A0A0A0",
+              letterSpacing:"0.03em", marginBottom:20 }}>
+              {actionSheet.hist.date}
+              {actionSheet.hist.delta > 0 &&
+                ` ／ +${actionSheet.hist.delta}${CATS[actionSheet.item.category]?.unit || ""}`}
+            </div>
+
+            {/* ── 編集 ── */}
+            {actionSheet.hist.delta > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:11, fontWeight:600, color:"#6A6A6A",
+                  letterSpacing:"0.06em", marginBottom:8 }}>記録を修正</div>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <input
+                    type="number" min="1"
+                    value={editDelta}
+                    onChange={e=>setEditDelta(e.target.value)}
+                    style={{ flex:1, padding:"10px 12px", borderRadius:10,
+                      border:"1.5px solid #E8E2DA", fontSize:14, fontWeight:600,
+                      color:"#1A1A1A", fontFamily:FC, outline:"none", textAlign:"center" }}
+                    placeholder="修正後の数量"
+                  />
+                  <span style={{ fontSize:12, color:"#6A6A6A", flexShrink:0 }}>
+                    {CATS[actionSheet.item.category]?.unit || ""}
+                  </span>
+                  <button
+                    onClick={()=>handleEditEntry({ item:actionSheet.item, hist:actionSheet.hist, newDelta:editDelta })}
+                    style={{ padding:"10px 18px", borderRadius:10, border:"none",
+                      background:"#BFBFBF", color:"#fff", fontSize:12, fontWeight:700,
+                      cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em", flexShrink:0 }}>
+                    修正する
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── 削除 ── */}
+            <button onClick={()=>handleDeleteEntry(actionSheet)}
+              style={{ width:"100%", padding:"13px", borderRadius:12,
+                border:"1.5px solid #E8E2DA", background:"transparent",
+                color:"#B05050", fontSize:13, fontWeight:600,
+                cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em",
+                marginBottom:10 }}>
+              この記録を削除する
+            </button>
+
+            <button onClick={()=>setActionSheet(null)}
+              style={{ width:"100%", padding:"13px", borderRadius:12,
+                border:"1.5px solid #E8E2DA", background:"transparent",
+                color:"#6A625A", fontSize:13, fontWeight:500,
+                cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em" }}>
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-// ─── ReportModal ──────────────────────────────────────────────────────────────
 function ReportModal({ items, activityLog, onClose, inlineMode = false,
-  onUpdate, onActivityLog, removeActivityLog, grantExp,
+  onUpdate, onActivityLog, removeActivityLog,
   onModeChange, exportRef }) {
   const now = new Date();
   const [reportMode, setReportMode] = useState("period");   // "period" | "content"
@@ -3411,6 +3464,9 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
           activityLog={activityLog}
           year={year} month={month}
           setYear={setYear} setMonth={setMonth}
+          onUpdate={onUpdate}
+          removeActivityLog={removeActivityLog}
+          onActivityLog={onActivityLog}
         />}
 
 
@@ -3430,7 +3486,6 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
             onUpdate={onUpdate}
             onActivityLog={onActivityLog}
             removeActivityLog={removeActivityLog}
-            grantExp={grantExp}
           />
         )}
 
@@ -3513,271 +3568,8 @@ const NAV_ICONS = {
   settings:({active,col}) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active?col:"#A09890"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
 };
 
-// ─── Shared level color helper ────────────────────────────────────────────────
-function lvColor(level) {
-  if (level >= 75) return "#C0B6A3";
-  if (level >= 50) return "#BDB1A6";
-  if (level >= 25) return "#A4ADAF";
-  if (level >= 10) return "#9EA89A";
-  return "#A8A29F";
-}
-
-// ─── LevelPage ────────────────────────────────────────────────────────────────
-function LevelPage({ progress, onClose }) {
-  const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
-  const { level, currentExp, totalExp, streakDays, obtainedBadges } = progress;
-  const reqExp   = level < MAX_LEVEL ? getRequiredExp(level) : 0;
-  const pctBar   = level >= MAX_LEVEL ? 100 : Math.min(100, Math.round(currentExp / reqExp * 100));
-  const title    = getCurrentTitle(level);
-  const color    = lvColor(level);
-
-  return (
-    <div style={{ position:"fixed", inset:0, background:"#FFFFFF", zIndex:900,
-      overflowY:"auto", fontFamily:FC }}>
-
-      {/* Header */}
-      <div style={{ padding:"20px 20px 14px", background:"#FFFFFF",
-        borderBottom:"1px solid #F0EEEC", position:"sticky", top:0, zIndex:10,
-        display:"flex", alignItems:"center", gap:12 }}>
-        <button onClick={onClose}
-          style={{ background:"none", border:"none", cursor:"pointer", color:"#8A8A8A",
-            padding:"4px 0", display:"flex", alignItems:"center", gap:5,
-            fontSize:13, fontFamily:FC, fontWeight:500, letterSpacing:"0.03em" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
-          </svg>
-          戻る
-        </button>
-        <div style={{ fontSize:22, fontWeight:700, color:"#1A1A1A",
-          letterSpacing:"0.1em", fontFamily:FC }}>Level</div>
-      </div>
-
-      <div style={{ padding:"24px 20px 100px" }}>
-
-        {/* ── Level Card ── */}
-        <div style={{ background:"#F6F6F6", borderRadius:22, padding:"28px 24px 24px",
-          marginBottom:20, textAlign:"center" }}>
-          <div style={{ width:80, height:80, borderRadius:"50%", margin:"0 auto 16px",
-            background:color, display:"flex", flexDirection:"column",
-            alignItems:"center", justifyContent:"center",
-            boxShadow:`0 4px 16px ${color}66` }}>
-            <div style={{ fontSize:9, fontWeight:700, color:"#fff",
-              letterSpacing:"0.1em", textTransform:"uppercase" }}>LV</div>
-            <div style={{ fontSize:30, fontWeight:700, color:"#fff", lineHeight:1 }}>{level}</div>
-          </div>
-          <div style={{ fontSize:17, fontWeight:700, color:"#1A1A1A",
-            letterSpacing:"0.06em", marginBottom:6 }}>{title}</div>
-          <div style={{ fontSize:11, fontWeight:400, color:"#A0A0A0",
-            letterSpacing:"0.04em", marginBottom:18 }}>
-            累計 EXP: {totalExp.toLocaleString()}
-          </div>
-          {level < MAX_LEVEL ? (
-            <>
-              <div style={{ height:8, background:"#E8E4E0", borderRadius:99,
-                overflow:"hidden", marginBottom:6 }}>
-                <div style={{ height:"100%", width:`${pctBar}%`, background:color,
-                  borderRadius:99, transition:"width .6s ease" }}/>
-              </div>
-              <div style={{ fontSize:10, color:"#A0A0A0", letterSpacing:"0.04em" }}>
-                {currentExp.toLocaleString()} / {reqExp.toLocaleString()} EXP（次のレベルまで）
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize:14, fontWeight:700, color:color,
-              letterSpacing:"0.06em" }}>MAX LEVEL 達成 🎉</div>
-          )}
-        </div>
-
-        {/* ── Streak ── */}
-        <div style={{ background:"#F6F6F6", borderRadius:18, padding:"18px 20px",
-          marginBottom:20, display:"flex", alignItems:"center", gap:14 }}>
-          <div style={{ fontSize:28 }}>🔥</div>
-          <div>
-            <div style={{ fontSize:15, fontWeight:700, color:"#1A1A1A",
-              letterSpacing:"0.03em" }}>{streakDays}日連続ログイン</div>
-            <div style={{ fontSize:11, fontWeight:400, color:"#A0A0A0",
-              letterSpacing:"0.04em", marginTop:2 }}>
-              3 / 7 / 14 / 30日でボーナスEXP
-            </div>
-          </div>
-        </div>
-
-        {/* ── EXP 獲得ルール ── */}
-        <div style={{ marginBottom:20 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#8A8A8A",
-            letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:12 }}>
-            EXP 獲得ルール
-          </div>
-          <div style={{ background:"#F6F6F6", borderRadius:18, overflow:"hidden" }}>
-            {[
-              ["コンテンツを1アクション進めた",    "+10 EXP"],
-              ["コンテンツを完了した",              "+100 EXP"],
-              ["Today's Focus を開始/再開した",    "+5 EXP"],
-              ["3日連続ログイン",                   "+20 EXP"],
-              ["7日連続ログイン",                   "+50 EXP"],
-              ["14日連続ログイン",                  "+100 EXP"],
-              ["30日連続ログイン",                  "+200 EXP"],
-            ].map(([label, exp], i, arr) => (
-              <div key={i} style={{ display:"flex", justifyContent:"space-between",
-                alignItems:"center", padding:"11px 18px",
-                borderBottom: i < arr.length-1 ? "1px solid #ECEAE7" : "none" }}>
-                <span style={{ fontSize:12, fontWeight:400, color:"#3A3A3A",
-                  letterSpacing:"0.03em" }}>{label}</span>
-                <span style={{ fontSize:12, fontWeight:700, color,
-                  letterSpacing:"0.04em", flexShrink:0, marginLeft:8 }}>{exp}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── 称号ロードマップ ── */}
-        <div style={{ marginBottom:20 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#8A8A8A",
-            letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:12 }}>
-            称号
-          </div>
-          <div style={{ background:"#F6F6F6", borderRadius:18, overflow:"hidden" }}>
-            {TITLES.map((t, i, arr) => {
-              const reached = level >= t.level;
-              return (
-                <div key={t.level} style={{ display:"flex", alignItems:"center",
-                  gap:12, padding:"12px 18px",
-                  borderBottom: i < arr.length-1 ? "1px solid #ECEAE7" : "none",
-                  opacity: reached ? 1 : 0.4 }}>
-                  <div style={{ width:36, height:36, borderRadius:"50%", flexShrink:0,
-                    background: reached ? color : "#D8D4D0",
-                    display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <span style={{ fontSize:8, fontWeight:800, color:"#fff",
-                      letterSpacing:"0.04em" }}>Lv.{t.level}</span>
-                  </div>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight: reached ? 700 : 500,
-                      color: reached ? "#1A1A1A" : "#A0A0A0",
-                      letterSpacing:"0.04em" }}>{t.name}</div>
-                    <div style={{ fontSize:10, color:"#B0B0B0",
-                      letterSpacing:"0.03em", marginTop:1 }}>
-                      {reached ? "✓ 解放済み" : `Lv.${t.level} で解放`}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── Badge Collection ── */}
-        <div>
-          <div style={{ fontSize:11, fontWeight:700, color:"#8A8A8A",
-            letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:12 }}>
-            バッジコレクション ({obtainedBadges.length}/{BADGES.length})
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-            {BADGES.map(badge => {
-              const got = obtainedBadges.includes(badge.id);
-              return (
-                <div key={badge.id} style={{
-                  background: got ? "#F6F6F6" : "#FAFAFA",
-                  borderRadius:16, padding:"16px 10px",
-                  textAlign:"center",
-                  border:`1.5px solid ${got ? "#E0DEDB" : "#ECEAE7"}`,
-                  opacity: got ? 1 : 0.38,
-                  transition:"opacity .3s",
-                }}>
-                  <div style={{ fontSize:28, marginBottom:6,
-                    filter: got ? "none" : "grayscale(1)" }}>
-                    {badge.icon}
-                  </div>
-                  <div style={{ fontSize:10, fontWeight:700, color:"#2A2A2A",
-                    letterSpacing:"0.04em", lineHeight:1.4, marginBottom:3 }}>
-                    {badge.name}
-                  </div>
-                  <div style={{ fontSize:9, fontWeight:400, color:"#A0A0A0",
-                    letterSpacing:"0.03em", lineHeight:1.4 }}>
-                    {badge.description}
-                  </div>
-                  {!got && (
-                    <div style={{ fontSize:9, fontWeight:600, color:"#C8C4C0",
-                      marginTop:5, letterSpacing:"0.04em" }}>
-                      Lv.{badge.unlockLevel} で解放
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── LevelUpModal ────────────────────────────────────────────────────────────
-function LevelUpModal({ newLevel, newBadges, newTitle, onClose }) {
-  const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
-  const color = lvColor(newLevel);
-
-  return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)",
-      zIndex:1100, display:"flex", alignItems:"center", justifyContent:"center",
-      fontFamily:FC }}>
-      <div style={{ background:"#FFFFFF", borderRadius:24, padding:"36px 28px 28px",
-        width:"calc(100% - 48px)", maxWidth:320, textAlign:"center",
-        boxShadow:"0 12px 48px rgba(0,0,0,0.22)" }}>
-
-        {/* Level circle */}
-        <div style={{ width:80, height:80, borderRadius:"50%", margin:"0 auto 18px",
-          background:color, display:"flex", flexDirection:"column",
-          alignItems:"center", justifyContent:"center",
-          boxShadow:`0 6px 20px ${color}66` }}>
-          <div style={{ fontSize:8, fontWeight:700, color:"#fff",
-            letterSpacing:"0.1em", textTransform:"uppercase" }}>LV</div>
-          <div style={{ fontSize:30, fontWeight:700, color:"#fff", lineHeight:1 }}>{newLevel}</div>
-        </div>
-
-        <div style={{ fontSize:20, fontWeight:700, color:"#1A1A1A",
-          letterSpacing:"0.08em", marginBottom:8 }}>Level Up! 🎉</div>
-
-        {newTitle && (
-          <div style={{ fontSize:13, fontWeight:500, color:"#6A6A6A",
-            letterSpacing:"0.06em", marginBottom:18 }}>
-            称号「{newTitle}」を解放！
-          </div>
-        )}
-
-        {/* New badges */}
-        {newBadges && newBadges.length > 0 && (
-          <div style={{ marginBottom:20 }}>
-            <div style={{ fontSize:10, fontWeight:700, color:"#A0A0A0",
-              letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
-              New Badge
-            </div>
-            <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
-              {newBadges.map(badge => (
-                <div key={badge.id} style={{ background:"#F6F6F6", borderRadius:14,
-                  padding:"12px 14px", textAlign:"center", minWidth:80 }}>
-                  <div style={{ fontSize:26, marginBottom:4 }}>{badge.icon}</div>
-                  <div style={{ fontSize:10, fontWeight:700, color:"#2A2A2A",
-                    letterSpacing:"0.04em", lineHeight:1.3 }}>{badge.name}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <button onClick={onClose}
-          style={{ width:"100%", padding:"13px", borderRadius:12, border:"none",
-            background:color, color:"#fff", fontSize:14, fontWeight:700,
-            cursor:"pointer", fontFamily:FC, letterSpacing:"0.08em" }}>
-          やった！
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─── Home Screen ──────────────────────────────────────────────────────────
-function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdit, onStatusChange, removeActivityLog, progress, onLevelOpen }) {
+function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdit, onStatusChange, removeActivityLog }) {
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
 
   // ── Category config (colors + text from spec) ──────────────────────────
@@ -3799,6 +3591,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
   const [pastRecordOpen, setPastRecord] = useState(false);
   const [focusToast, setFocusToast] = useState(null);
   const [focusConfetti, setFocusConfetti] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0); // 0=今週, -1=先週, -2=2週前, ...
 
   // ── Date: "22nd April, 2026" format ──────────────────────────────────
   const now = new Date();
@@ -3807,19 +3600,18 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const dateStr = `${day}${suffix} ${monthNames[now.getMonth()]}, ${now.getFullYear()}`;
 
-  // ── Weekly calendar (Mon–Sun of current week) ────────────────────────
+  // ── Weekly calendar (Mon–Sun of selected week) ────────────────────────
   const weekDays = (() => {
     const days = [];
     const d = new Date(now);
-    // Move to Monday of this week
-    const dow = d.getDay() === 0 ? 6 : d.getDay() - 1; // 0=Mon
-    d.setDate(d.getDate() - dow);
+    // Move to Monday of current week, then apply offset
+    const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+    d.setDate(d.getDate() - dow + weekOffset * 7);
     const dayLabels = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
     for (let i = 0; i < 7; i++) {
       const dd = new Date(d);
       const ymd = `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,"0")}-${String(dd.getDate()).padStart(2,"0")}`;
       const log = activityLog[ymd];
-      // Find dominant category that day for dot color
       let dotColor = null;
       if (log && typeof log === "object") {
         const entries = Object.entries(log).filter(([,v])=>v>0);
@@ -3828,17 +3620,38 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
           dotColor = CAT_CARD[top]?.dotColor || "#B0A898";
         }
       }
-      days.push({ date: dd.getDate(), label: dayLabels[i], ymd, dotColor });
+      days.push({ date: dd.getDate(), label: dayLabels[i], ymd, dotColor,
+        month: dd.getMonth()+1 });
       d.setDate(d.getDate()+1);
     }
     return days;
   })();
 
-  // ── Today's Focus: active item closest to completion ─────────────────
+  // 表示週のラベル（例: "4月28日 〜 5月4日"）
+  const weekLabel = (() => {
+    if (weekOffset === 0) return "今週";
+    if (weekOffset === -1) return "先週";
+    const first = weekDays[0];
+    const last  = weekDays[6];
+    const sameMonth = first.month === last.month;
+    return sameMonth
+      ? `${first.month}月${first.date}日 〜 ${last.date}日`
+      : `${first.month}月${first.date}日 〜 ${last.month}月${last.date}日`;
+  })();
+
+  // ── Today's Focus: manual selection or auto (closest to completion) ──
+  const [manualFocusId, setManualFocusId] = useState(null);
+  const [focusPicker, setFocusPicker]     = useState(false); // picker open/close
+
   const focusItem = (() => {
+    // 手動選択が有効かつアイテムが存在する場合はそれを使う
+    if (manualFocusId) {
+      const found = items.find(i => i.id === manualFocusId && (i.status === "active" || i.status === "queue"));
+      if (found) return found;
+    }
+    // 自動: 進行中から完了に最も近いものを選ぶ
     const active = items.filter(i => i.status === "active");
     if (active.length === 0) return null;
-    // Sort by % completion descending (closest to done)
     return [...active].sort((a,b) => {
       const pa = a.total > 0 ? a.current/a.total : 0;
       const pb = b.total > 0 ? b.current/b.total : 0;
@@ -3895,6 +3708,51 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
 
   // Activity Log date tap popup
   const [actLogPopup, setActLogPopup] = useState(null); // { ymd, label, date }
+  // Action sheet for edit/delete
+  const [actActionSheet, setActActionSheet] = useState(null); // { item, hist, ymd }
+  const [actEditDelta, setActEditDelta] = useState("");
+
+  const handleActDelete = ({ item, hist }) => {
+    let removed = false;
+    const filtered = (item.progressHistory || []).filter(h => {
+      if (!removed && h.date === hist.date && h.from === hist.from
+        && h.to === hist.to && h.delta === hist.delta) {
+        removed = true; return false;
+      }
+      return true;
+    });
+    const newCurrent = Math.max(0, item.current - (hist.delta || 0));
+    const newStatus = newCurrent >= item.total && item.total > 0 ? "done"
+      : newCurrent > 0 ? (item.status === "done" ? "active" : item.status)
+      : item.status === "done" ? "queue" : item.status;
+    onUpdate && onUpdate(item.id, {
+      progressHistory: filtered, current: newCurrent,
+      status: newStatus, completedAt: newStatus === "done" ? item.completedAt : null,
+      lastUpdated: today(),
+    });
+    removeActivityLog && removeActivityLog(hist.date, item.category);
+    setActActionSheet(null); setActLogPopup(null);
+  };
+
+  const handleActEdit = ({ item, hist, newDelta }) => {
+    const delta = parseInt(newDelta);
+    if (isNaN(delta) || delta <= 0) return;
+    const diff = delta - (hist.delta || 0);
+    const updated = (item.progressHistory || []).map(h =>
+      h.date === hist.date && h.from === hist.from && h.to === hist.to && h.delta === hist.delta
+        ? { ...h, delta, to: h.from + delta } : h
+    );
+    const newCurrent = Math.max(0, item.current + diff);
+    const newStatus = newCurrent >= item.total && item.total > 0 ? "done" : item.status;
+    onUpdate && onUpdate(item.id, {
+      progressHistory: updated, current: newCurrent, status: newStatus,
+      completedAt: newStatus === "done" ? (item.completedAt || today()) : item.completedAt,
+      lastUpdated: today(),
+    });
+    if (diff > 0 && onActivityLog) for (let i=0;i<diff;i++) onActivityLog(hist.date, item.category);
+    else if (diff < 0 && removeActivityLog) for (let i=0;i<Math.abs(diff);i++) removeActivityLog(hist.date, item.category);
+    setActActionSheet(null); setActLogPopup(null);
+  };
 
   return (
     <div style={{ background:"#FFFFFF", minHeight:"100vh", fontFamily:FC,
@@ -3907,29 +3765,42 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
             fontFamily:"'Outfit','Hiragino Sans','Noto Sans JP',sans-serif" }}>Home</div>
           <div style={{ fontSize:13, fontWeight:400, color:"#8A8A8A", marginTop:4, letterSpacing:"0.04em" }}>{dateStr}</div>
         </div>
-        {/* Level icon — tappable, opens LevelPage */}
-        {(() => {
-          const lv  = progress?.level ?? 1;
-          const col = lvColor(lv);
-          return (
-            <button onClick={onLevelOpen}
-              style={{ width:44, height:44, borderRadius:"50%", border:"none",
-                background:col, display:"flex", flexDirection:"column",
-                alignItems:"center", justifyContent:"center",
-                boxShadow:`0 2px 8px ${col}66`, cursor:"pointer", flexShrink:0,
-                padding:0 }}>
-              <div style={{ fontSize:7, fontWeight:700, color:"rgba(255,255,255,0.85)",
-                letterSpacing:"0.08em", textTransform:"uppercase", lineHeight:1 }}>LV</div>
-              <div style={{ fontSize:14, fontWeight:700, color:"#fff", lineHeight:1.1 }}>{lv}</div>
-            </button>
-          );
-        })()}
       </div>
 
       {/* ② Activity Log */}
       <div style={{ padding:"0 20px 20px" }}>
-        <div style={{ fontSize:11, fontWeight:600, color:"#8A8A8A", letterSpacing:"0.1em",
-          textTransform:"uppercase", marginBottom:12 }}>Activity Log</div>
+        {/* Section header with week navigation */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+          <div style={{ fontSize:11, fontWeight:600, color:"#8A8A8A",
+            letterSpacing:"0.1em", textTransform:"uppercase" }}>Activity Log</div>
+          {/* Week nav */}
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <span style={{ fontSize:10, fontWeight:500, color:"#8A8A8A",
+              letterSpacing:"0.04em" }}>{weekLabel}</span>
+            <button onClick={()=>setWeekOffset(w=>w-1)}
+              style={{ width:24, height:24, borderRadius:7, border:"1px solid #E0DEDC",
+                background:"none", cursor:"pointer", display:"flex",
+                alignItems:"center", justifyContent:"center", padding:0, color:"#6A6A6A" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            </button>
+            <button onClick={()=>setWeekOffset(w=>Math.min(w+1, 0))}
+              disabled={weekOffset >= 0}
+              style={{ width:24, height:24, borderRadius:7,
+                border:"1px solid #E0DEDC",
+                background:"none", cursor: weekOffset >= 0 ? "default" : "pointer",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                padding:0, color:"#6A6A6A",
+                opacity: weekOffset >= 0 ? 0.3 : 1 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
         <div style={{ background:"#F6F6F6", borderRadius:20, padding:"14px 10px 12px" }}>
           <div style={{ display:"flex", justifyContent:"space-around", alignItems:"flex-start" }}>
             {weekDays.map(({ date, label, ymd, dotColor }) => (
@@ -3994,7 +3865,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   // binary categories: show status change
                   const isBin = ["youtube","tv","radio","live","article"].includes(item.category);
                   if (isBin) amountStr = "記録あり";
-                  entries.push({ item, amountStr });
+                  entries.push({ item, amountStr, hist: h });
                 });
               });
               if (entries.length === 0) {
@@ -4017,12 +3888,14 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   );
                 });
               }
-              return entries.map(({ item, amountStr }, idx) => {
+              return entries.map(({ item, amountStr, hist }, idx) => {
                 const cat = CATS[item.category];
                 const badge = CAT_CARD[item.category] || { bg:"#EBEBEB", fg:"#666" };
                 return (
-                  <div key={idx} style={{ display:"flex", alignItems:"center", gap:10,
-                    padding:"10px 0", borderBottom:"1px solid #F0EEEC" }}>
+                  <div key={idx}
+                    onClick={() => { setActActionSheet({ item, hist }); setActEditDelta(String(hist.delta || "")); }}
+                    style={{ display:"flex", alignItems:"center", gap:10,
+                      padding:"10px 0", borderBottom:"1px solid #F0EEEC", cursor:"pointer" }}>
                     <span style={{ display:"inline-flex", alignItems:"center", gap:4,
                       background:badge.bg, borderRadius:7, padding:"3px 9px", flexShrink:0 }}>
                       <CatIco cat={item.category} color={badge.fg}/>
@@ -4035,6 +3908,10 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                       <div style={{ fontSize:11, fontWeight:400, color:"#A0A0A0",
                         letterSpacing:"0.03em", marginTop:1 }}>{amountStr}</div>
                     </div>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="#C8C4BE" strokeWidth="2" strokeLinecap="round">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
                   </div>
                 );
               });
@@ -4043,10 +3920,87 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
         </div>
       )}
 
+      {/* ── Action Sheet: 編集 / 削除 ── */}
+      {actActionSheet && (
+        <div onClick={()=>setActActionSheet(null)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)",
+            zIndex:700, display:"flex", alignItems:"flex-end" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#FFFFFF", borderRadius:"20px 20px 0 0",
+              width:"100%", padding:"22px 20px 48px",
+              boxShadow:"0 -6px 30px rgba(0,0,0,0.12)", fontFamily:FC }}>
+            <div style={{ fontSize:13, fontWeight:600, color:"#1A1A1A",
+              marginBottom:4, letterSpacing:"0.04em" }}>
+              {actActionSheet.item.title}
+            </div>
+            <div style={{ fontSize:11, fontWeight:400, color:"#A0A0A0",
+              letterSpacing:"0.03em", marginBottom:20 }}>
+              {actActionSheet.hist.date}
+              {actActionSheet.hist.delta > 0 &&
+                ` ／ +${actActionSheet.hist.delta}${CATS[actActionSheet.item.category]?.unit || ""}`}
+            </div>
+
+            {/* 編集 */}
+            {actActionSheet.hist.delta > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:11, fontWeight:600, color:"#6A6A6A",
+                  letterSpacing:"0.06em", marginBottom:8 }}>記録を修正</div>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <input type="number" min="1" value={actEditDelta}
+                    onChange={e=>setActEditDelta(e.target.value)}
+                    style={{ flex:1, padding:"10px 12px", borderRadius:10,
+                      border:"1.5px solid #E8E2DA", fontSize:14, fontWeight:600,
+                      color:"#1A1A1A", fontFamily:FC, outline:"none", textAlign:"center" }}
+                    placeholder="修正後の数量"/>
+                  <span style={{ fontSize:12, color:"#6A6A6A", flexShrink:0 }}>
+                    {CATS[actActionSheet.item.category]?.unit || ""}
+                  </span>
+                  <button
+                    onClick={()=>handleActEdit({ item:actActionSheet.item, hist:actActionSheet.hist, newDelta:actEditDelta })}
+                    style={{ padding:"10px 18px", borderRadius:10, border:"none",
+                      background:"#BFBFBF", color:"#fff", fontSize:12, fontWeight:700,
+                      cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em", flexShrink:0 }}>
+                    修正する
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 削除 */}
+            <button onClick={()=>handleActDelete(actActionSheet)}
+              style={{ width:"100%", padding:"13px", borderRadius:12,
+                border:"1.5px solid #E8E2DA", background:"transparent",
+                color:"#B05050", fontSize:13, fontWeight:600,
+                cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em", marginBottom:10 }}>
+              この記録を削除する
+            </button>
+            <button onClick={()=>setActActionSheet(null)}
+              style={{ width:"100%", padding:"13px", borderRadius:12,
+                border:"1.5px solid #E8E2DA", background:"transparent",
+                color:"#6A625A", fontSize:13, fontWeight:500,
+                cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em" }}>
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ③ Today's Focus */}
       <div style={{ padding:"0 20px 20px" }}>
-        <div style={{ fontSize:11, fontWeight:600, color:"#8A8A8A", letterSpacing:"0.1em",
-          textTransform:"uppercase", marginBottom:12 }}>Today's Focus</div>
+        {/* Section header with 変更する button */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+          <div style={{ fontSize:11, fontWeight:600, color:"#8A8A8A", letterSpacing:"0.1em",
+            textTransform:"uppercase" }}>Today's Focus</div>
+          {/* 変更するボタン */}
+          {items.filter(i=>i.status==="active"||i.status==="queue").length > 0 && (
+            <button onClick={()=>setFocusPicker(true)}
+              style={{ background:"none", border:"1px solid #E0DEDC", borderRadius:8,
+                padding:"4px 10px", fontSize:10, fontWeight:600, color:"#6A6A6A",
+                cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em" }}>
+              変更する
+            </button>
+          )}
+        </div>
 
         {focusItem ? (
           <div onClick={()=>onEdit(focusItem)}
@@ -4139,6 +4093,98 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
           }} onClose={()=>setPastRecord(false)}/>
         )}
       </div>
+
+      {/* ── Focus Picker Sheet ── */}
+      {focusPicker && (
+        <div onClick={()=>setFocusPicker(false)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.32)", zIndex:600,
+            display:"flex", alignItems:"flex-end" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#FFFFFF", borderRadius:"22px 22px 0 0",
+              width:"100%", maxHeight:"75vh", display:"flex", flexDirection:"column",
+              boxShadow:"0 -8px 36px rgba(0,0,0,0.12)", fontFamily:FC }}>
+            {/* Header */}
+            <div style={{ padding:"20px 20px 14px", borderBottom:"1px solid #F0EEEC", flexShrink:0 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontSize:13, fontWeight:700, color:"#1A1A1A", letterSpacing:"0.04em" }}>
+                  Today's Focus を選択
+                </span>
+                <button onClick={()=>setFocusPicker(false)}
+                  style={{ background:"none", border:"none", cursor:"pointer",
+                    color:"#A0A0A0", fontSize:18, lineHeight:1, padding:4 }}>×</button>
+              </div>
+              <div style={{ fontSize:11, fontWeight:400, color:"#A0A0A0", marginTop:4, letterSpacing:"0.04em" }}>
+                進行中・これからのコンテンツから選択してください
+              </div>
+            </div>
+            {/* List */}
+            <div style={{ overflowY:"auto", padding:"8px 16px 48px", flex:1 }}>
+              {["active","queue"].map(st => {
+                const group = items.filter(i=>i.status===st);
+                if (group.length === 0) return null;
+                const stLabel = st === "active" ? "進行中" : "これから";
+                return (
+                  <div key={st} style={{ marginBottom:16 }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:"#A0A0A0",
+                      letterSpacing:"0.1em", textTransform:"uppercase",
+                      padding:"10px 0 6px" }}>{stLabel}</div>
+                    {group.map(item => {
+                      const catBg = { article:"#DADCD1",live:"#EDE6D6",youtube:"#EBE1D8",radio:"#DCE1DF",tv:"#DFDAD7",book:"#DADCD1",anime:"#EDE6D6",drama:"#EBE1D8",movie:"#DCE1DF",manga:"#DFDAD7" };
+                      const catFg = { article:"#465135",live:"#806C47",youtube:"#7A624C",radio:"#485950",tv:"#534946",book:"#465135",anime:"#806C47",drama:"#7A624C",movie:"#485950",manga:"#534946" };
+                      const isSelected = focusItem?.id === item.id;
+                      return (
+                        <button key={item.id}
+                          onClick={()=>{ setManualFocusId(item.id); setFocusPicker(false); }}
+                          style={{ width:"100%", display:"flex", alignItems:"center", gap:10,
+                            padding:"11px 12px", marginBottom:6, borderRadius:12, fontFamily:FC,
+                            border: isSelected ? `1.5px solid ${CATS[item.category].color}` : "1px solid #ECEAE7",
+                            background: isSelected ? "#FAFAFA" : "#FAFAFA",
+                            cursor:"pointer", textAlign:"left",
+                            boxShadow: isSelected ? `0 0 0 2px ${CATS[item.category].color}33` : "none" }}>
+                          {/* Category badge */}
+                          <span style={{ display:"inline-flex", alignItems:"center", gap:4,
+                            background:catBg[item.category]||"#EBEBEB", borderRadius:7,
+                            padding:"3px 9px", flexShrink:0 }}>
+                            <CatIco cat={item.category} color={catFg[item.category]||"#555"}/>
+                            <span style={{ fontSize:10, fontWeight:600, letterSpacing:"0.04em",
+                              color:catFg[item.category]||"#555" }}>
+                              {CATS[item.category]?.label}
+                            </span>
+                          </span>
+                          {/* Title */}
+                          <div style={{ flex:1, minWidth:0,
+                            fontSize:13, fontWeight:500, color:"#1A1A1A",
+                            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                            letterSpacing:"0.03em" }}>
+                            {item.title}
+                          </div>
+                          {/* Check mark for current selection */}
+                          {isSelected && (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                              stroke={CATS[item.category].color} strokeWidth="2.5" strokeLinecap="round">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+              {/* 自動選択に戻す */}
+              {manualFocusId && (
+                <button onClick={()=>{ setManualFocusId(null); setFocusPicker(false); }}
+                  style={{ width:"100%", padding:"12px", borderRadius:12, marginTop:4,
+                    border:"1px solid #E8E2DA", background:"transparent",
+                    color:"#6A6A6A", fontSize:12, fontWeight:500,
+                    cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em" }}>
+                  自動選択に戻す（完了間近を優先）
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ④ Categories — 5 cards visible, scroll for rest */}
       <div style={{ padding:"0 20px 8px" }}>
@@ -5345,7 +5391,7 @@ function AddPageScreen({ onAdd, onDone, F2 }) {
 }
 
 // ─── Report Page Screen (full-page) ───────────────────────────────────────
-function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, removeActivityLog, grantExp }) {
+function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, removeActivityLog }) {
   const [currentMode, setCurrentMode] = React.useState("period");
   const exportRef = React.useRef(null); // { exportImage, exportAllItems }
   const [exportDoneHdr, setExportDoneHdr] = React.useState(false);
@@ -5396,7 +5442,7 @@ function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, rem
       <ReportModal
         items={items} activityLog={activityLog} onClose={()=>{}} inlineMode={true}
         onUpdate={onUpdate} onActivityLog={onActivityLog}
-        removeActivityLog={removeActivityLog} grantExp={grantExp}
+        removeActivityLog={removeActivityLog}
         onModeChange={setCurrentMode}
         exportRef={exportRef}
       />
@@ -5429,76 +5475,6 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const [editItem, setEdit] = useState(null);
   const [showConfetti, setConfetti] = useState(false);
   const [globalToast, setGlobalToast] = useState(null);
-
-  // ── Level / EXP state ─────────────────────────────────────────────────────
-  // 初期値は localStorage から（Supabase 読み込み前の瞬間的な表示用）
-  const [userProgress, setUserProgress] = useState(() => loadProgress());
-  const [levelOpen, setLevelOpen]     = useState(false);
-  const [levelUpData, setLevelUpData] = useState(null); // { newLevel, newBadges, newTitle }
-  const progressSaveTimer = useRef(null); // Supabase保存のdebounce用
-
-  // localStorage への永続化（Supabase 保存のfallback兼キャッシュ）
-  useEffect(() => { saveProgress(userProgress); }, [userProgress]);
-
-  // Update streak once on mount / when loaded
-  useEffect(() => {
-    if (!loaded) return;
-    setUserProgress(prev => {
-      const updated = updateStreakPure(prev, today());
-      // ストリーク更新後に Supabase へも同期（debounce 1s）
-      if (userId && sbOps?.updateUserProgress) {
-        clearTimeout(progressSaveTimer.current);
-        progressSaveTimer.current = setTimeout(() => {
-          sbOps.updateUserProgress(userId, updated).catch(e => console.error("streak sync:", e));
-        }, 1000);
-      }
-      return updated;
-    });
-  }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Supabase から UserProgress を初期ロード（userId 確定後）
-  useEffect(() => {
-    if (!userId || !sbOps?.getUserProgress) return;
-    (async () => {
-      try {
-        const remote = await sbOps.getUserProgress(userId);
-        if (remote) {
-          // リモートのデータで上書き（より信頼性が高い）
-          setUserProgress(remote);
-          saveProgress(remote); // localStorage も更新
-        } else {
-          // 初回ログイン：localStorage のデータを初期値として INSERT
-          const local = loadProgress();
-          await sbOps.createUserProgress(userId, local);
-        }
-      } catch (e) {
-        console.error("Progress initial load error:", e);
-        // 失敗しても localStorage の値で動作継続（fallback）
-      }
-    })();
-  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /**
-   * EXP を加算し、UI を楽観更新してから Supabase に非同期保存。
-   * 保存失敗時もUIは正常動作（fallback = localStorage）。
-   */
-  const grantExp = useCallback((amount) => {
-    setUserProgress(prev => {
-      const result = addExpPure(prev, amount);
-      if (result.leveledUp) {
-        setLevelUpData({ newLevel: result.newProgress.level, newBadges: result.newBadges, newTitle: result.newTitle });
-      }
-      const next = result.newProgress;
-      // Supabase へ debounce 付きで非同期保存
-      if (userId && sbOps?.updateUserProgress) {
-        clearTimeout(progressSaveTimer.current);
-        progressSaveTimer.current = setTimeout(() => {
-          sbOps.updateUserProgress(userId, next).catch(e => console.error("progress sync:", e));
-        }, 800);
-      }
-      return next;
-    });
-  }, [userId, sbOps]);
 
   // ── Sync helpers ─────────────────────────────────────────────────────────
   const markSaving = () => { setSyncStatus("saving"); clearTimeout(syncTimerRef.current); };
@@ -5584,9 +5560,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       if (userId && sbOps) sbOps.upsertActivity(userId,date,category,newCount);
       return { ...prev, [date]: { ...day, [category]: newCount } };
     });
-    // +10 EXP per action
-    grantExp(EXP_REWARDS.ACTION);
-  }, [userId, sbOps, grantExp]);
+  }, [userId, sbOps]);
 
   const removeActivity = useCallback((date, category) => {
     if (!date) return;
@@ -5602,7 +5576,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   // ── Item callbacks ────────────────────────────────────────────────────────
   const update  = useCallback((id,patch)=>setItems(p=>p.map(it=>it.id===id?{...it,...patch}:it)),[setItems]);
   const saveEdit = useCallback((updated) => {
-    setItemsRaw(prev => {
+    setItems(prev => {
       const old = prev.find(it=>it.id===updated.id);
       if (old) {
         const delta = updated.current - old.current;
@@ -5610,40 +5584,18 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         // ── progress delta (currentの増減) ──
         if (delta > 0) {
           for (let i=0;i<delta;i++) setActivityLog(log => { const day=log[today()]&&typeof log[today()]==="object"?log[today()]:{};const cur=day[updated.category]||0;const newCount=cur+1;if(userId&&sbOps)sbOps.upsertActivity(userId,today(),updated.category,newCount);return {...log,[today()]:{...day,[updated.category]:newCount}}; });
-          grantExp(EXP_REWARDS.ACTION * delta);
           updated = { ...updated, progressHistory:[...(old.progressHistory||[]), {date:today(),delta,from:old.current,to:updated.current,editedViaModal:true}] };
         } else if (delta < 0) {
           const removeDelta=Math.abs(delta), date=old.lastUpdated||today();
           setActivityLog(log => { const day=log[date]&&typeof log[date]==="object"?log[date]:{};const cur=day[updated.category]||0;const next=Math.max(cur-removeDelta,0);if(userId&&sbOps)sbOps.upsertActivity(userId,date,updated.category,next);if(next<=0){const nd={...day};delete nd[updated.category];if(Object.keys(nd).length===0){const tl={...log};delete tl[date];return tl;}return{...log,[date]:nd};}return{...log,[date]:{...day,[updated.category]:next}};});
-          // EXP差し引き
-          setUserProgress(p2 => {
-            const newTotal = Math.max(0, p2.totalExp - EXP_REWARDS.ACTION * removeDelta);
-            const { level:lv, currentExp:ce } = calculateLevel(newTotal);
-            const np = { ...p2, level:lv, currentExp:ce, totalExp:newTotal };
-            saveProgress(np);
-            if(userId&&sbOps?.updateUserProgress) sbOps.updateUserProgress(userId,np).catch(()=>{});
-            return np;
-          });
           const hist=[...(old.progressHistory||[])];let toRemove=removeDelta;
           while(toRemove>0&&hist.length>0){const last=hist[hist.length-1];if(last.delta<=toRemove){hist.pop();toRemove-=last.delta;}else{hist[hist.length-1]={...last,delta:last.delta-toRemove,to:last.to-toRemove};toRemove=0;}}
           updated = { ...updated, progressHistory: hist };
         }
 
-        // ── status revert: done → queue/active（進捗・EXP・ログを差し引く）──
+        // ── status revert: done → queue/active ──
         const wasCompleted = old.status==="done" && (updated.status==="queue"||updated.status==="active");
         if (wasCompleted) {
-          // 完了EXP -100 + progressHistory全件のactionEXP差し引き
-          const totalActions = (old.progressHistory||[]).reduce((s,h)=>s+(h.delta||1),0);
-          const expToRemove = EXP_REWARDS.COMPLETE + EXP_REWARDS.ACTION * totalActions;
-          setUserProgress(p2 => {
-            const newTotal = Math.max(0, p2.totalExp - expToRemove);
-            const { level:lv, currentExp:ce } = calculateLevel(newTotal);
-            const np = { ...p2, level:lv, currentExp:ce, totalExp:newTotal };
-            saveProgress(np);
-            if(userId&&sbOps?.updateUserProgress) sbOps.updateUserProgress(userId,np).catch(()=>{});
-            return np;
-          });
-          // progressHistory全件をactivityLogから差し引く
           const toRemoveLog = {};
           (old.progressHistory||[]).forEach(h => {
             if(!h.date) return;
@@ -5667,14 +5619,15 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             });
             return next;
           });
+          // completedAt・progressHistory・firstActiveAtをクリア
           updated = { ...updated, progressHistory:[], firstActiveAt:null, completedAt:null };
         }
       }
-      return prev.map(it=>it.id===updated.id?updated:it);
+      // setItems は内部で localStorage + Supabase への即時保存を行う
+      return prev.map(it=>it.id===updated.id ? updated : it);
     });
-    setItems(p=>p.map(it=>it.id===updated.id?updated:it));
     setEdit(null);
-  }, [setItems, userId, sbOps, grantExp]);
+  }, [setItems, userId, sbOps]);
 
   const deleteItem = useCallback((id) => {
     // アクティビティログのクリーンアップ（削除前のitem情報を使う）
@@ -5715,21 +5668,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           });
         }
 
-        // EXPの取り消し: progressHistoryの件数分 -10 EXP
-        const totalActions = (target.progressHistory||[]).reduce((sum,h)=>sum+(h.delta||1),0);
-        const expToRemove = totalActions * EXP_REWARDS.ACTION
-          + (target.status==="done" ? EXP_REWARDS.COMPLETE : 0);
-        if (expToRemove > 0) {
-          setUserProgress(prev2 => {
-            const newTotal = Math.max(0, prev2.totalExp - expToRemove);
-            const { level: newLevel, currentExp: newCurrentExp } = calculateLevel(newTotal);
-            const updated = { ...prev2, level:newLevel, currentExp:newCurrentExp, totalExp:newTotal };
-            saveProgress(updated);
-            if(userId && sbOps?.updateUserProgress)
-              sbOps.updateUserProgress(userId, updated).catch(e=>console.error("progress delete sync:", e));
-            return updated;
-          });
-        }
+        // EXPの取り消し処理は削除済み
       }
 
       const next = prev.filter(it=>it.id!==id);
@@ -5754,13 +5693,11 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
     setItems(p=>p.map(it=>{if(it.id!==id)return it;const patch={...it,status:st,completedAt:st==="done"?today():null,current:st==="done"?it.total:it.current};if(st==="active"&&it.status==="queue"&&!it.firstActiveAt)patch.firstActiveAt=today();if(st==="queue")patch.firstActiveAt=null;return patch;}));
     if(st==="done"){
       setConfetti(true);
-      grantExp(EXP_REWARDS.COMPLETE); // +100 EXP on completion
     }
     if(st==="active"){
-      grantExp(EXP_REWARDS.FOCUS_START); // +5 EXP when starting
       setWatchQueue(prev=>{const idx=prev.indexOf(id);if(idx===-1)return prev;const next=prev.filter(x=>x!==id);if(idx===0&&next.length===0)setTimeout(()=>setNvChooseOpen(true),50);return next;});
     }
-  },[setItems, grantExp]);
+  },[setItems]);
 
   const addItem = useCallback((item)=>setItems(p=>[...p,item]),[setItems]);
   const reorder = useCallback((listItems,idx,dir)=>{const si=idx+dir;if(si<0||si>=listItems.length)return;const arr=[...listItems];[arr[idx],arr[si]]=[arr[si],arr[idx]];setItems(prev=>{const ids=arr.map(i=>i.id);return prev.map(it=>{const qi=ids.indexOf(it.id);return qi>=0?{...it,priority:qi}:it;});});},[setItems]);
@@ -5811,7 +5748,9 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         paddingBottom:90 }}>
 
         {/* ── Page content ── */}
-        <div style={{ overflowY:"auto", height:"100vh", paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
+        {/* Contentsタブのみ固定高さスクロール。他は自然な高さ（余白スクロールなし） */}
+        {navTab===1 ? (
+          <div style={{ overflowY:"auto", height:"100vh", paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
           {navTab===0 && (
             <HomeScreen
               items={items}
@@ -5822,8 +5761,6 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
               onEdit={setEdit}
               onStatusChange={statusChange}
               removeActivityLog={removeActivity}
-              progress={userProgress}
-              onLevelOpen={()=>setLevelOpen(true)}
             />
           )}
           {navTab===1 && (
@@ -5847,7 +5784,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           {navTab===3 && (
             <ReportPageScreen items={items} activityLog={activityLog} F2={F2}
               onUpdate={update} onActivityLog={logActivity}
-              removeActivityLog={removeActivity} grantExp={grantExp}/>
+              removeActivityLog={removeActivity}/>
           )}
           {navTab===4 && (
             <SettingsScreen
@@ -5860,11 +5797,9 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 setItems([]);
                 setActivityLog({});
                 setWatchQueue([]);
-                setUserProgress(createInitialProgress());
                 lsSet(LS_ITEMS, []);
                 lsSet(LS_DATES, {});
                 lsSet(LS_WQ, []);
-                saveProgress(createInitialProgress());
                 // Supabase側も削除
                 if (userId && sbOps) {
                   try {
@@ -5880,13 +5815,67 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                       }
                     }
                     if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, []);
-                    if (sbOps.updateUserProgress) await sbOps.updateUserProgress(userId, createInitialProgress());
                   } catch(e) { console.error("deleteAll error:", e); }
                 }
               }}
             />
           )}
         </div>
+        ) : (
+          /* Home / + / Report / Settings: 自然な高さ（余白スクロールなし） */
+          <div style={{ paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
+          {navTab===0 && (
+            <HomeScreen
+              items={items}
+              activityLog={activityLog}
+              onUpdate={update}
+              onMove={move}
+              onActivityLog={logActivity}
+              onEdit={setEdit}
+              onStatusChange={statusChange}
+              removeActivityLog={removeActivity}
+            />
+          )}
+          {navTab===2 && (
+            <AddPageScreen onAdd={(item)=>{ addItem(item); setGlobalToast("コンテンツを追加しました！"); }} onDone={()=>setNavTab(1)} F2={F2}/>
+          )}
+          {navTab===3 && (
+            <ReportPageScreen items={items} activityLog={activityLog} F2={F2}
+              onUpdate={update} onActivityLog={logActivity}
+              removeActivityLog={removeActivity}/>
+          )}
+          {navTab===4 && (
+            <SettingsScreen
+              user={user}
+              onLogout={onLogout}
+              syncStatus={syncStatus}
+              items={items}
+              onDeleteAll={async () => {
+                setItems([]);
+                setActivityLog({});
+                setWatchQueue([]);
+                lsSet(LS_ITEMS, []);
+                lsSet(LS_DATES, {});
+                lsSet(LS_WQ, []);
+                if (userId && sbOps) {
+                  try {
+                    const allItems = items;
+                    await Promise.all(allItems.map(it => sbOps.deleteItem(userId, it.id)));
+                    const dates = Object.keys(activityLog);
+                    for (const date of dates) {
+                      const cats = Object.keys(activityLog[date]||{});
+                      for (const cat of cats) {
+                        await sbOps.upsertActivity(userId, date, cat, 0);
+                      }
+                    }
+                    if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, []);
+                  } catch(e) { console.error("deleteAll error:", e); }
+                }
+              }}
+            />
+          )}
+          </div>
+        )}
 
         {/* ── Bottom Navigation ── */}
         <div style={{
@@ -5947,17 +5936,6 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       {nvChooseOpen && <NVChoosePrompt queueItems={items.filter(i=>i.status==="queue")} onSelect={(id)=>{ setWatchQueue(prev=>[id,...prev.filter(x=>x!==id)]); setNvChooseOpen(false); }} onDismiss={()=>setNvChooseOpen(false)}/>}
       {showConfetti && <Confetti onDone={()=>setConfetti(false)}/>}
       {globalToast && <Toast msg={globalToast} onHide={()=>setGlobalToast(null)}/>}
-      {/* Level Page */}
-      {levelOpen && <LevelPage progress={userProgress} onClose={()=>setLevelOpen(false)}/>}
-      {/* Level Up Modal */}
-      {levelUpData && (
-        <LevelUpModal
-          newLevel={levelUpData.newLevel}
-          newBadges={levelUpData.newBadges}
-          newTitle={levelUpData.newTitle}
-          onClose={()=>setLevelUpData(null)}
-        />
-      )}
     </React.Fragment>
   );
 }
