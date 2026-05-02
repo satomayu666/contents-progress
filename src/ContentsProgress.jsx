@@ -1592,8 +1592,10 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
       station:          f.station||null,
       tvStation:        f.tvStation||null,
       tvViewMethod:     f.tvViewMethod||[],
+      tvViewOther:      f.tvViewOther||"",
       airDate:          f.airDate||null,
       streamingServices: f.streamingServices||[],
+      streamingOther:   f.streamingOther||"",
       readingMethod:    f.readingMethod||[],
       readingSubOther:  f.readingSubOther||"",
       readingOther:     f.readingOther||"",
@@ -5183,19 +5185,35 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
     isYT && item.videoDurationMin ? item.videoDurationMin :
     item.category==="article" && item.episodeMin ? item.episodeMin * rem : null;
 
-  // Chip labels — resolveOptions でユーザーカスタム選択肢を適用
+  // Chip labels — resolveOptions でユーザーカスタム選択肢を適用・重複除去
   const streamingOpts = resolveOptions(getStreamingOptions(item.category),
     userOptions?.[`streaming:${item.category}`]);
-  const streamingLabels = (item.streamingServices||[]).map(k => {
+  const streamingLabels = [...new Set((item.streamingServices||[]).map(k => {
     if (k==="other") return item.streamingOther||"その他";
     return streamingOpts.find(o=>o.key===k)?.label || k;
-  }).filter(Boolean);
+  }).filter(Boolean))];
+
   const genreOpts = resolveOptions(getGenreOptions(item.category),
     userOptions?.[`genre:${item.category}`]);
-  const genreLabels = (item.genres||[]).map(k => {
+  const genreLabels = [...new Set((item.genres||[]).map(k => {
     if (k==="other") return item.genreOther||"その他";
     return genreOpts.find(o=>o.key===k)?.label || k;
-  }).filter(Boolean);
+  }).filter(Boolean))];
+
+  const viewOpts = resolveOptions(getViewOptions(item.category),
+    userOptions?.[`view:${item.category}`]);
+  const viewLabels = [...new Set((item.tvViewMethod||[]).map(k => {
+    if (k==="other") return item.tvViewOther||"その他";
+    return viewOpts.find(o=>o.key===k)?.label || k;
+  }).filter(Boolean))];
+
+  const readingOpts = resolveOptions(getReadingOptions(item.category),
+    userOptions?.[`reading:${item.category}`]);
+  const readingLabels = [...new Set((item.readingMethod||[]).map(k => {
+    if (k==="sub") return item.readingSubOther||"サブスク";
+    if (k==="other") return item.readingOther||"その他";
+    return readingOpts.find(o=>o.key===k)?.label || k;
+  }).filter(Boolean))];
 
   const ringPct = isBinary
     ? (item.status==="done" ? 100
@@ -5302,18 +5320,6 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
                 </span>
               );
             })()}
-            {streamingLabels.map((l,i) => (
-              <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
-                background:NEW_G.surfaceAlt, border:`1px solid ${NEW_G.border}`,
-                borderRadius:5, padding:"2px 8px", letterSpacing:"0.03em",
-                fontFamily:FC }}>{l}</span>
-            ))}
-            {genreLabels.slice(0,2).map((l,i) => (
-              <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyMid,
-                background:"transparent", border:`1px solid ${NEW_G.border}`,
-                borderRadius:5, padding:"2px 8px", letterSpacing:"0.03em",
-                fontFamily:FC }}>{l}</span>
-            ))}
           </div>
 
           {/* Row 2: Title */}
@@ -5348,15 +5354,14 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
               )}
             </div>
           )}
-          {(isTV||isRadio) && (item.tvViewMethod||[]).length>0 && (
+          {(isTV||isRadio) && viewLabels.length > 0 && (
             <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
-              {(item.tvViewMethod||[]).map((k,i) => {
-                const lbl = k==="other"?(item.tvViewOther||"その他"):TV_VIEW_OPTIONS.find(o=>o.key===k)?.label||k;
-                return <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
+              {viewLabels.map((lbl,i) => (
+                <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
                   background:NEW_G.surfaceAlt, border:`1px solid ${NEW_G.border}`,
                   borderRadius:5, padding:"2px 7px", letterSpacing:"0.03em",
-                  fontFamily:FC }}>{lbl}</span>;
-              })}
+                  fontFamily:FC }}>{lbl}</span>
+              ))}
             </div>
           )}
           {/* 配信サービス */}
@@ -5382,19 +5387,14 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
             </div>
           )}
           {/* 閲覧方法（Book・Manga） */}
-          {(item.readingMethod||[]).length > 0 && (
+          {readingLabels.length > 0 && (
             <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
-              {(item.readingMethod||[]).map((k,i) => {
-                const lbl = k==="sub"
-                  ? (item.readingSubOther||"サブスク")
-                  : k==="other"
-                  ? (item.readingOther||"その他")
-                  : getReadingOptions(item.category)?.find(o=>o.key===k)?.label || k;
-                return <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
+              {readingLabels.map((lbl,i) => (
+                <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
                   background:NEW_G.surfaceAlt, border:`1px solid ${NEW_G.border}`,
                   borderRadius:5, padding:"2px 7px", letterSpacing:"0.03em",
-                  fontFamily:FC }}>{lbl}</span>;
-              })}
+                  fontFamily:FC }}>{lbl}</span>
+              ))}
             </div>
           )}
           {/* Live: アーティスト名 */}
