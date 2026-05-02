@@ -3949,9 +3949,10 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
   const [focusPicker, setFocusPicker] = useState(false);
 
   const focusItem = (() => {
-    // 手動選択が有効かつアイテムが存在する場合はそれを使う
-    if (manualFocusId) {
-      const found = items.find(i => i.id === manualFocusId && (i.status === "active" || i.status === "queue"));
+    // 手動選択: manualFocusId または isFocus フラグ
+    const manualId = manualFocusId || items.find(i => i.isFocus)?.id;
+    if (manualId) {
+      const found = items.find(i => i.id === manualId && (i.status === "active" || i.status === "queue"));
       if (found) return found;
     }
     // 自動: 進行中から完了に最も近いものを選ぶ
@@ -4480,7 +4481,20 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
               })}
               {/* 自動選択に戻す */}
               {manualFocusId && (
-                <button onClick={()=>{ setManualFocusId(null); setFocusPicker(false); }}
+                <button onClick={()=>{
+                  // isFocus フラグをクリア
+                  setItems(prev => {
+                    const next = prev.map(it => it.isFocus ? { ...it, isFocus: false } : it);
+                    next.forEach(it => {
+                      const old = prev.find(p => p.id === it.id);
+                      if (old?.isFocus !== it.isFocus) dirtyItems.current.add(it.id);
+                    });
+                    scheduleFlush(next, watchQueueRef.current);
+                    return next;
+                  });
+                  setManualFocusId(null);
+                  setFocusPicker(false);
+                }}
                   style={{ width:"100%", padding:"12px", borderRadius:12, marginTop:4,
                     border:"1px solid #E8E2DA", background:"transparent",
                     color:"#6A6A6A", fontSize:12, fontWeight:500,
@@ -5787,23 +5801,49 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const manualFocusIdRef = useRef(manualFocusId);
   useEffect(() => { manualFocusIdRef.current = manualFocusId; }, [manualFocusId]);
 
+  // items ロード後に isFocus フラグから manualFocusId を復元
+  useEffect(() => {
+    if (!loaded) return;
+    const focusItem = items.find(i => i.isFocus);
+    if (focusItem && (focusItem.status === "active" || focusItem.status === "queue")) {
+      setManualFocusIdRaw(focusItem.id);
+      manualFocusIdRef.current = focusItem.id;
+      try { localStorage.setItem(LS_FOCUS, focusItem.id); } catch {}
+    }
+  }, [loaded]); // ロード時のみ実行
+
   const setManualFocusId = (id) => {
     setManualFocusIdRaw(id);
-    manualFocusIdRef.current = id; // ref も即時更新
+    manualFocusIdRef.current = id;
     // localStorage に即時保存
     try {
       if (id) localStorage.setItem(LS_FOCUS, id);
       else localStorage.removeItem(LS_FOCUS);
     } catch {}
-    // Supabase に即時保存（userIdRef で最新userId を参照）
+    // Supabase: items の isFocus フラグで保存（contents テーブルを使用）
     const uid = userIdRef.current ?? userId;
-    if (uid && sbOps?.saveWatchQueue) {
-      sbOps.saveWatchQueue(uid, watchQueueRef.current, id).catch(e => {
-        console.error('manualFocusId save error:', e);
+    if (uid && sbOps?.saveItem) {
+      // 前の focus アイテムの isFocus をクリアし、新しいものに set
+      setItems(prev => {
+        const next = prev.map(it => {
+          if (it.isFocus && it.id !== id) return { ...it, isFocus: false };
+          if (it.id === id) return { ...it, isFocus: true };
+          return it;
+        });
+        // 変更があったアイテムを Supabase に即時保存
+        next.forEach(it => {
+          const old = prev.find(p => p.id === it.id);
+          if (old && old.isFocus !== it.isFocus) {
+            dirtyItems.current.add(it.id);
+          }
+        });
+        scheduleFlush(next, watchQueueRef.current);
+        return next;
       });
-    } else {
-      // userId 未確定時は dirty フラグで次回 flush 時に保存
-      dirtyWQ.current = true;
+    }
+    // watch_queue にも保存（フォールバック）
+    if (uid && sbOps?.saveWatchQueue) {
+      sbOps.saveWatchQueue(uid, watchQueueRef.current, id).catch(() => {});
     }
   };
   const [nvChooseOpen, setNvChooseOpen] = useState(false);
