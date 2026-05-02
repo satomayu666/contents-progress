@@ -1623,18 +1623,20 @@ function UrlButton({ url, color, label="URLを開く" }) {
 // ─── Past Record Modal ────────────────────────────────────────────────────────
 function PastRecordModal({ item, onSave, onClose }) {
   const c = CATS[item.category];
-  const isBinary = ["youtube","tv","radio","live","article"].includes(item.category);
+  const isTimedCat = ["youtube","tv","radio","live"].includes(item.category);
+  // article のみ binary（完了/未完了）扱い。timed は分単位入力
+  const isBinary = item.category === "article";
   const effectiveUnit = item.category === "manga" ? (item.mangaUnit || "巻") : c.unit;
-  // Yesterday as default date
   const yesterday = (() => { const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); })();
   const [date, setDate] = useState(yesterday);
   const [amount, setAmount] = useState(isBinary ? 1 : "");
 
-  // Amount presets for quick tap
+  // Amount presets
   const presets = item.category==="book" ? [10,20,50,100]
     : item.category==="manga" ? [1,2,3,5]
     : (item.category==="anime"||item.category==="drama") ? [1,2,3]
     : item.category==="movie" ? [10,30,60]
+    : isTimedCat ? [10,30,60,90]   // timed: 分単位プリセット
     : [];
 
   const save = () => {
@@ -1662,17 +1664,18 @@ function PastRecordModal({ item, onSave, onClose }) {
             value={date} max={today()} onChange={e=>setDate(e.target.value)}/>
         </FF>
 
-        {/* Amount — hidden for binary categories */}
+        {/* Amount — shown for all non-article categories */}
         {!isBinary && (
           <FF label={`記録量 (${effectiveUnit})`}>
-            <input type="number" style={INP} placeholder={`例: ${item.category==="book"?10:1}`}
+            <input type="number" style={INP}
+              placeholder={isTimedCat ? "例: 30" : `例: ${item.category==="book"?10:1}`}
               min="1" value={amount} onChange={e=>setAmount(e.target.value)}/>
             {presets.length > 0 && (
               <div style={{ display:"flex", gap:7, marginTop:8, flexWrap:"wrap" }}>
                 {presets.map(p => (
                   <button key={p} onClick={()=>setAmount(p)}
                     style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600,
-                      border:`1.5px solid ${amount===p||Number(amount)===p?c.color:G.border}`,
+                      border:`1.5px solid ${Number(amount)===p?c.color:G.border}`,
                       background:Number(amount)===p?tint(c.color):G.surfaceAlt,
                       color:Number(amount)===p?dk(c.color):G.greyDark,cursor:"pointer",fontFamily:F }}>
                     +{p}{effectiveUnit}
@@ -1684,7 +1687,7 @@ function PastRecordModal({ item, onSave, onClose }) {
         )}
         {isBinary && (
           <div style={{ padding:"11px 13px",borderRadius:9,background:G.surfaceAlt,fontSize:12,color:G.greyMid,marginBottom:14,lineHeight:1.6 }}>
-            この日に完了・視聴したとして記録されます。
+            この日に読了したとして記録されます。
           </div>
         )}
 
@@ -5376,12 +5379,17 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
       {toast && <Toast msg={toast} onHide={()=>setToast(null)}/>}
       {showConfetti && <Confetti onDone={()=>setShowConfetti(false)}/>}
       {pastRecordOpen && <PastRecordModal item={item} onSave={({ date, amount }) => {
-        const nx = Math.min(item.total, item.current + amount);
-        const newSt = resolveStatus(nx, item.total);
+        const nx = Math.min(item.total > 0 ? item.total : Infinity, item.current + amount);
+        const newSt = item.total > 0 ? resolveStatus(nx, item.total) : (nx > 0 ? "active" : item.status);
         const histEntry = { date, delta:nx-item.current, from:item.current, to:nx };
         const patch3 = { current:nx, lastUpdated:date, status:newSt, progressHistory:[...(item.progressHistory||[]),histEntry] };
-        onActivityLog(date, item.category);
-        if (nx>=item.total) Object.assign(patch3, { status:"done", completedAt:date, current:item.total });
+        // timed カテゴリは完了時のみ1回記録
+        const isTimedCat = ["youtube","tv","radio","live"].includes(item.category);
+        if (!isTimedCat) onActivityLog(date, item.category);
+        if (nx>=item.total && item.total>0) {
+          Object.assign(patch3, { status:"done", completedAt:date, current:item.total });
+          if (isTimedCat) onActivityLog(date, item.category); // 完了時のみ
+        }
         onUpdate(item.id, patch3); setPastRecord(false); setToast(`${date} の記録を追加しました`);
       }} onClose={()=>setPastRecord(false)}/>}
     </div>
