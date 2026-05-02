@@ -5790,9 +5790,12 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       if (id) localStorage.setItem(LS_FOCUS, id);
       else localStorage.removeItem(LS_FOCUS);
     } catch {}
-    // Supabase にも保存（watchQueue と一緒に）
+    // Supabase にも保存（userId が確定していれば即時、なければ dirtyWQ 経由で次回 flush 時）
     if (userId && sbOps?.saveWatchQueue) {
       sbOps.saveWatchQueue(userId, watchQueueRef.current, id).catch(() => {});
+    } else {
+      // userId 未確定時は dirty フラグを立てて次回 flush 時に保存
+      dirtyWQ.current = true;
     }
   };
   const [nvChooseOpen, setNvChooseOpen] = useState(false);
@@ -5879,19 +5882,22 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         // WatchQueue + manualFocusId: Supabase優先、なければlocalStorage
         if (sbWQ) {
           // 新形式: { queue:[], manualFocusId:... }
-          const q = sbWQ.queue ?? sbWQ;
+          const q = sbWQ.queue ?? (Array.isArray(sbWQ) ? sbWQ : []);
           const focusId = sbWQ.manualFocusId ?? null;
           if (Array.isArray(q) && q.length > 0) setWatchQueue(q);
-          if (focusId) {
+          // focusId を確実に復元（空文字でなければ）
+          if (focusId && typeof focusId === "string" && focusId.trim()) {
             setManualFocusIdRaw(focusId);
             try { localStorage.setItem(LS_FOCUS, focusId); } catch {}
           }
         } else {
           const local = await wsGet(LS_WQ, null);
-          if (Array.isArray(local)) {
+          if (Array.isArray(local) && local.length > 0) {
             setWatchQueue(local);
-            if (local.length > 0) await sbOps.saveWatchQueue(userId, local, manualFocusId);
           }
+          // localStorage から manualFocusId を復元（sbWQ がない場合のフォールバック）
+          const localFocus = lsGet(LS_FOCUS);
+          if (localFocus) setManualFocusIdRaw(localFocus);
         }
         const si = await wsGet(LS_ITEMS, null); if (si && Array.isArray(si) && si.length>0) setItemsRaw(si);
         const wq = await wsGet(LS_WQ, null); if (Array.isArray(wq)) setWatchQueue(wq);
