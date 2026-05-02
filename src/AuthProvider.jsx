@@ -112,8 +112,10 @@ export async function sbLoadUserOptions(userId) {
   const sb = getSupabase(); if (!sb) return null;
   const { data, error } = await sb
     .from("user_options").select("option_type, category, options_data").eq("user_id", userId);
-  if (error) { if (error.code !== "PGRST116") console.error("sbLoadUserOptions:", error); return null; }
-  // { "genre:anime": {hidden,order,custom}, "streaming:movie": {...}, ... }
+  if (error) {
+    if (error.code !== "PGRST116") console.error("sbLoadUserOptions:", error);
+    return null;
+  }
   const result = {};
   for (const row of data) {
     result[`${row.option_type}:${row.category}`] = row.options_data;
@@ -122,13 +124,14 @@ export async function sbLoadUserOptions(userId) {
 }
  
 export async function sbSaveUserOption(userId, optionType, category, optionsData) {
-  const sb = getSupabase(); if (!sb) return;
+  const sb = getSupabase(); if (!sb) return false;
   const { error } = await sb.from("user_options").upsert(
     { user_id: userId, option_type: optionType, category, options_data: optionsData,
       updated_at: new Date().toISOString() },
     { onConflict: "user_id,option_type,category" }
   );
-  if (error) console.error("sbSaveUserOption:", error);
+  if (error) { console.error("sbSaveUserOption:", error); return false; }
+  return true;
 }
  
 export async function sbDeleteUserOptions(userId) {

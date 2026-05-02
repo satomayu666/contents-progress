@@ -37,7 +37,8 @@ function dk(hex) {
 const LS_ITEMS = "cp_items_v5";
 const LS_WQ    = "cp_wq_v1";
 const LS_DATES = "cp_dates_v6";
-const LS_FOCUS = "cp_focus_v1";  // Today's Focus 手動選択ID
+const LS_FOCUS = "cp_focus_v1";
+const LS_OPTIONS = "cp_options_v1"; // ユーザーカスタム選択肢フォールバック
 
 // ─── Persistent storage ────────────────────────────────────────────────────────
 // localStorage を最優先（PWA / ブラウザ両対応）
@@ -5691,6 +5692,7 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
   const handleTypeChange = (t) => {
     setSelType(t);
     setSelCat(OPTION_TYPES.find(o => o.type === t).cats[0]);
+    setResetConfirm(false);
   };
 
   const key = `${selType}:${selCat}`;
@@ -5751,13 +5753,15 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
     saveUserOpt(selType, selCat, { ...userOpts, custom, hidden, order });
   };
 
+  const [resetConfirm, setResetConfirm] = useState(false);
+
   const resetToDefault = () => {
     saveUserOpt(selType, selCat, { hidden:[], order:[], custom:[] });
   };
 
   const btnStyle = (active) => ({
-    padding:"6px 12px", borderRadius:8, border:`1.5px solid ${active ? NEW_G2.ink : NEW_G2.border}`,
-    background: active ? NEW_G2.ink : NEW_G2.surface,
+    padding:"6px 12px", borderRadius:8, border:`1.5px solid ${active ? "#BFBFBF" : NEW_G2.border}`,
+    background: active ? "#BFBFBF" : NEW_G2.surface,
     color: active ? "#fff" : NEW_G2.dark,
     fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em",
     flexShrink:0,
@@ -5797,8 +5801,13 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
       {/* List */}
       <div style={{ flex:1, overflowY:"auto", padding:"12px 16px 24px" }}>
         <div style={{ fontSize:11, color:NEW_G2.grey, marginBottom:10,
-          letterSpacing:"0.04em", lineHeight:1.6 }}>
-          👁 非表示にしたい項目はタップ。↑↓ で並び替えできます。
+          letterSpacing:"0.04em", lineHeight:1.6, display:"flex", alignItems:"center", gap:5 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          非表示にしたい項目はタップ。↑↓ で並び替えできます。
         </div>
         {ordered.map((opt, idx) => {
           const hidden = isHidden(opt.key);
@@ -5812,10 +5821,10 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
               {/* 非表示トグル */}
               <button onClick={()=>toggleHidden(opt.key)}
                 style={{ width:28, height:28, borderRadius:7, border:`1px solid ${NEW_G2.border}`,
-                  background: hidden ? NEW_G2.alt : NEW_G2.alt,
+                  background: NEW_G2.alt,
                   cursor:"pointer", display:"flex",
                   alignItems:"center", justifyContent:"center", flexShrink:0,
-                  color: hidden ? NEW_G2.grey : NEW_G2.grey }}>
+                  color: NEW_G2.grey }}>
                 {hidden
                   ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -5867,7 +5876,7 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
                 fontFamily:FC, color:NEW_G2.ink }}/>
             <button onClick={addCustom}
               style={{ padding:"9px 16px", borderRadius:8, border:"none",
-                background:NEW_G2.ink, color:"#fff", fontSize:12,
+                background:"#BFBFBF", color:"#fff", fontSize:12,
                 fontWeight:700, cursor:"pointer", fontFamily:FC, flexShrink:0 }}>
               追加
             </button>
@@ -5875,13 +5884,43 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
         </div>
 
         {/* リセット */}
-        <button onClick={resetToDefault}
-          style={{ width:"100%", padding:"11px", marginTop:12, borderRadius:10,
-            border:`1px solid ${NEW_G2.border}`, background:"transparent",
-            color:NEW_G2.grey, fontSize:12, fontWeight:500, cursor:"pointer",
-            fontFamily:FC, letterSpacing:"0.04em" }}>
-          このカテゴリの設定をリセット
-        </button>
+        {!resetConfirm ? (
+          <button onClick={()=>setResetConfirm(true)}
+            style={{ width:"100%", padding:"11px", marginTop:12, borderRadius:10,
+              border:`1px solid ${NEW_G2.border}`, background:"transparent",
+              color:NEW_G2.grey, fontSize:12, fontWeight:500, cursor:"pointer",
+              fontFamily:FC, letterSpacing:"0.04em" }}>
+            このカテゴリの設定をリセット
+          </button>
+        ) : (
+          <div style={{ marginTop:12, padding:"14px", borderRadius:10,
+            border:`1px solid ${NEW_G2.border}`, background:NEW_G2.alt }}>
+            <div style={{ fontSize:12, fontWeight:600, color:NEW_G2.ink,
+              marginBottom:10, letterSpacing:"0.03em", textAlign:"center" }}>
+              リセットしますか？
+            </div>
+            <div style={{ fontSize:11, color:NEW_G2.grey, marginBottom:12,
+              textAlign:"center", lineHeight:1.6 }}>
+              追加した項目・並び替え・非表示の設定がすべて削除されます。
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button onClick={()=>setResetConfirm(false)}
+                style={{ flex:1, padding:"10px", borderRadius:8,
+                  border:`1px solid ${NEW_G2.border}`, background:"transparent",
+                  color:NEW_G2.dark, fontSize:12, fontWeight:600,
+                  cursor:"pointer", fontFamily:FC }}>
+                キャンセル
+              </button>
+              <button onClick={()=>{ resetToDefault(); setResetConfirm(false); }}
+                style={{ flex:1, padding:"10px", borderRadius:8,
+                  border:"none", background:"#BFBFBF",
+                  color:"#fff", fontSize:12, fontWeight:700,
+                  cursor:"pointer", fontFamily:FC }}>
+                リセットする
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -5953,7 +5992,7 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOp
         <div style={{ fontSize:10, fontWeight:700, color:NEW_G.greyMid, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>カスタマイズ</div>
         <button onClick={()=>setCustomizerOpen(true)}
           style={{ width:"100%", padding:"13px", borderRadius:12,
-            border:`1.5px solid ${NEW_G.border}`, background:NEW_G.surfaceAlt,
+            border:`1.5px solid ${NEW_G.border}`, background:"#FFFFFF",
             color:NEW_G.greyDark, fontSize:13, fontWeight:600,
             cursor:"pointer", fontFamily:F2, letterSpacing:"0.03em",
             display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -6250,7 +6289,13 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const [activityLog,  setActivityLog]= useState({});
   const [loaded,       setLoaded]     = useState(false);
   // ユーザーカスタム選択肢: { "genre:anime": {hidden:[], order:[], custom:[]}, ... }
-  const [userOptions,  setUserOptions] = useState({});
+  // localStorage を初期値として使い、Supabase でクラウド同期
+  const [userOptions, setUserOptions] = useState(() => {
+    try {
+      const v = localStorage.getItem(LS_OPTIONS);
+      return v ? JSON.parse(v) : {};
+    } catch { return {}; }
+  });
   // Today's Focus 手動選択: localStorage + Supabase で永続化
   const [manualFocusId, setManualFocusIdRaw] = useState(() => {
     try { return localStorage.getItem(LS_FOCUS) || null; } catch { return null; }
@@ -6412,11 +6457,27 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         const wq = await wsGet(LS_WQ, null); if (Array.isArray(wq)) setWatchQueue(wq);
         const al = await wsGet(LS_DATES, null); if (al && typeof al==="object") setActivityLog(sanitizeLog(al));
       }
-      // userOptions: Supabase からロード
+      // userOptions: Supabase からロード → localStorage に書き戻し
       if (userId && sbOps?.loadUserOptions) {
         try {
           const opts = await sbOps.loadUserOptions(userId);
-          if (opts) setUserOptions(opts);
+          if (opts && Object.keys(opts).length > 0) {
+            setUserOptions(opts);
+            try { localStorage.setItem(LS_OPTIONS, JSON.stringify(opts)); } catch {}
+          } else {
+            // Supabase に未保存 → localStorage の値があれば Supabase に書き込む
+            const local = lsGet(LS_OPTIONS);
+            if (local && typeof local === "object" && Object.keys(local).length > 0) {
+              setUserOptions(local);
+              // localStorage の全エントリを Supabase に書き込む
+              for (const [key, data] of Object.entries(local)) {
+                const [optType, cat] = key.split(":");
+                if (optType && cat) {
+                  sbOps.saveUserOption(userId, optType, cat, data).catch(() => {});
+                }
+              }
+            }
+          }
         } catch(e) { console.error("loadUserOptions:", e); }
       }
 
@@ -6715,12 +6776,22 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const addItem = useCallback((item)=>setItems(p=>[...p,item]),[setItems]);
   const reorder = useCallback((listItems,idx,dir)=>{const si=idx+dir;if(si<0||si>=listItems.length)return;const arr=[...listItems];[arr[idx],arr[si]]=[arr[si],arr[idx]];setItems(prev=>{const ids=arr.map(i=>i.id);return prev.map(it=>{const qi=ids.indexOf(it.id);return qi>=0?{...it,priority:qi}:it;});});},[setItems]);
 
-  // ユーザーカスタム選択肢の保存
+  // ユーザーカスタム選択肢の保存（localStorage + Supabase）
   const saveUserOpt = useCallback((optionType, category, optionsData) => {
     const key = `${optionType}:${category}`;
-    setUserOptions(prev => ({ ...prev, [key]: optionsData }));
-    if (userId && sbOps?.saveUserOption) {
-      sbOps.saveUserOption(userId, optionType, category, optionsData)
+    setUserOptions(prev => {
+      const next = { ...prev, [key]: optionsData };
+      // localStorage に即時保存（フォールバック）
+      try { localStorage.setItem(LS_OPTIONS, JSON.stringify(next)); } catch {}
+      return next;
+    });
+    // Supabase に保存
+    const uid = userIdRef.current ?? userId;
+    if (uid && sbOps?.saveUserOption) {
+      sbOps.saveUserOption(uid, optionType, category, optionsData)
+        .then(ok => {
+          if (!ok) console.warn("saveUserOpt: Supabase保存失敗（localStorageに保存済み）");
+        })
         .catch(e => console.error("saveUserOpt:", e));
     }
   }, [userId, sbOps]);
@@ -6793,7 +6864,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           </div>
         ) : (
           /* Home / + / Report / Settings: 自然な高さ（余白スクロールなし） */
-          <div style={{ paddingBottom:"calc(90px + env(safe-area-inset-bottom, 34px))" }}>
+          <div style={{ paddingBottom: navTab===4 ? 0 : "calc(90px + env(safe-area-inset-bottom, 34px))" }}>
             {navTab===0 && (
               <HomeScreen
                 items={items}
@@ -6817,37 +6888,41 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 removeActivityLog={removeActivity}/>
             )}
             {navTab===4 && (
-              <SettingsScreen
-                user={user}
-                onLogout={onLogout}
-                syncStatus={syncStatus}
-                items={items}
-                userOptions={userOptions}
-                saveUserOpt={saveUserOpt}
-                onDeleteAll={async () => {
-                  setItems([]);
-                  setActivityLog({});
-                  setWatchQueue([]);
-                  setManualFocusId(null);
-                  setUserOptions({});  // Today's Focus 手動選択もクリア
-                  lsSet(LS_ITEMS, []);
-                  lsSet(LS_DATES, {});
-                  lsSet(LS_WQ, []);
-                  try { localStorage.removeItem(LS_FOCUS); } catch {}
-                  if (userId && sbOps) {
-                    try {
-                      await Promise.all(items.map(it => sbOps.deleteItem(userId, it.id)));
-                      for (const date of Object.keys(activityLog)) {
-                        for (const cat of Object.keys(activityLog[date]||{})) {
-                          await sbOps.upsertActivity(userId, date, cat, 0);
+              <div style={{ overflowY:"auto", height:"100vh",
+                paddingBottom:"calc(90px + env(safe-area-inset-bottom, 34px))" }}>
+                <SettingsScreen
+                  user={user}
+                  onLogout={onLogout}
+                  syncStatus={syncStatus}
+                  items={items}
+                  userOptions={userOptions}
+                  saveUserOpt={saveUserOpt}
+                  onDeleteAll={async () => {
+                    setItems([]);
+                    setActivityLog({});
+                    setWatchQueue([]);
+                    setManualFocusId(null);
+                    setUserOptions({});
+                    try { localStorage.removeItem(LS_OPTIONS); } catch {}  // Today's Focus 手動選択もクリア
+                    lsSet(LS_ITEMS, []);
+                    lsSet(LS_DATES, {});
+                    lsSet(LS_WQ, []);
+                    try { localStorage.removeItem(LS_FOCUS); } catch {}
+                    if (userId && sbOps) {
+                      try {
+                        await Promise.all(items.map(it => sbOps.deleteItem(userId, it.id)));
+                        for (const date of Object.keys(activityLog)) {
+                          for (const cat of Object.keys(activityLog[date]||{})) {
+                            await sbOps.upsertActivity(userId, date, cat, 0);
+                          }
                         }
-                      }
-                      if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, [], null);
-                      if (sbOps.deleteUserOptions) await sbOps.deleteUserOptions(userId);
-                    } catch(e) { console.error("deleteAll error:", e); }
-                  }
-                }}
-              />
+                        if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, [], null);
+                        if (sbOps.deleteUserOptions) await sbOps.deleteUserOptions(userId);
+                      } catch(e) { console.error("deleteAll error:", e); }
+                    }
+                  }}
+                />
+              </div>
             )}
           </div>
         )}
