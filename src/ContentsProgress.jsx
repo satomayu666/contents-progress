@@ -3748,7 +3748,7 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
 
 // ─── Design tokens (updated palette) ─────────────────────────────────────
 const NEW_G = {
-  bg:        "#F6F6F6",
+  bg:        "#FFFFFF",
   surface:   "#FFFFFF",
   surfaceAlt:"#F6F6F6",
   border:    "#E8E2DA",
@@ -4703,7 +4703,7 @@ function ContentsScreen({
   ];
 
   return (
-    <div style={{ fontFamily:F2 }}>
+    <div style={{ fontFamily:F2, background:"#F7F7F7", minHeight:"100vh" }}>
       {/* Header — sticky */}
       <div style={{ padding:"24px 18px 12px", background:NEW_G.surface,
         position:"sticky", top:0, zIndex:10,
@@ -5372,7 +5372,7 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
   })();
 
   return (
-    <div style={{ padding:"24px 18px 60px", fontFamily:F2 }}>
+    <div style={{ padding:"24px 18px 60px", fontFamily:F2, background:"#F7F7F7", minHeight:"100vh" }}>
       <div style={{ fontSize:22, fontWeight:700, color:NEW_G.ink, letterSpacing:"0.1em", marginBottom:24 }}>Settings</div>
 
       {/* Usage stats */}
@@ -5567,7 +5567,7 @@ function AddPageScreen({ onAdd, onDone, F2 }) {
 
   // ── Step 2: Form for selected category ───────────────────────────────
   return (
-    <div style={{ background:NEW_G.bg, fontFamily:FC }}>
+    <div style={{ background:"#FFFFFF", fontFamily:FC }}>
       <div style={{ padding:"16px 18px 14px", background:NEW_G.surface,
         borderBottom:`1px solid ${NEW_G.border}`,
         position:"sticky", top:0, zIndex:10,
@@ -6093,7 +6093,8 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
         * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-        body { margin:0; background:${NEW_G.bg}; font-family:'Inter','Noto Sans JP','Hiragino Sans',sans-serif; letter-spacing:0.02em; font-size:13px; }
+        html { background:#FFFFFF; }
+        body { margin:0; background:#FFFFFF; font-family:'Inter','Noto Sans JP','Hiragino Sans',sans-serif; letter-spacing:0.02em; font-size:13px; }
         ::-webkit-scrollbar { display:none; }
         @keyframes fadeUp { from{opacity:0;transform:translate(-50%,10px);}to{opacity:1;transform:translate(-50%,0);} }
         @keyframes spin { to { transform:rotate(360deg); } }
@@ -6104,13 +6105,15 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         button { letter-spacing:0.02em; }
       `}</style>
 
-      <div style={{ minHeight:"100vh", background:NEW_G.bg, fontFamily:F2, maxWidth:480, margin:"0 auto",
+      <div style={{ minHeight:"100vh",
+        background: navTab===1 || navTab===4 ? "#F7F7F7" : "#FFFFFF",
+        fontFamily:F2, maxWidth:480, margin:"0 auto",
         paddingBottom:90 }}>
 
         {/* ── Page content ── */}
-        {/* Contentsタブのみ固定高さスクロール。他は自然な高さ（余白スクロールなし） */}
         {navTab===1 ? (
-          <div style={{ overflowY:"auto", height:"100vh", paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
+          <div style={{ overflowY:"auto", height:"100vh", background:"#F7F7F7",
+            paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
             <ContentsScreen
               items={items}
               watchQueue={watchQueue}
