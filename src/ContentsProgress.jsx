@@ -2580,7 +2580,7 @@ function ContentReport({ items, onSelectItem }) {
 // ─── DonutChart — カテゴリ別進捗ドーナツグラフ ───────────────────────────────
 function DonutChart({ catCounts, completedCount, colorMap }) {
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
-  const size = 140, stroke = 26, r = (size - stroke) / 2;
+  const size = 110, stroke = 22, r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const cx = size / 2, cy = size / 2;
   const getColor = (k) => (colorMap && colorMap[k]) || CATS[k]?.color || "#B0A898";
@@ -2615,8 +2615,8 @@ function DonutChart({ catCounts, completedCount, colorMap }) {
         );
       })}
       {/* Center text */}
-      <text x={cx} y={cy-12} textAnchor="middle" fontSize="10" fontWeight="500" fill="#A09890" fontFamily={FC}>完了数</text>
-      <text x={cx} y={cy+13} textAnchor="middle" fontSize="20" fontWeight="700" fill="#1A1A1A" fontFamily={FC}>{completedCount}</text>
+      <text x={cx} y={cy-12} textAnchor="middle" fontSize="9" fontWeight="500" fill="#A09890" fontFamily={FC}>完了数</text>
+      <text x={cx} y={cy+13} textAnchor="middle" fontSize="18" fontWeight="700" fill="#1A1A1A" fontFamily={FC}>{completedCount}</text>
     </svg>
   );
 }
@@ -3978,7 +3978,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
 
   return (
     <div style={{ background:"#FFFFFF", fontFamily:FC,
-      display:"flex", flexDirection:"column", padding:"0 0 100px" }}>
+      display:"flex", flexDirection:"column" }}>
 
       {/* ① Header */}
       <div style={{ padding:"24px 20px 20px", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
@@ -4703,7 +4703,7 @@ function ContentsScreen({
   ];
 
   return (
-    <div style={{ fontFamily:F2, background:"#F7F7F7", minHeight:"100vh" }}>
+    <div style={{ fontFamily:F2, background:"#F7F7F7" }}>
       {/* Header — sticky */}
       <div style={{ padding:"24px 18px 12px", background:NEW_G.surface,
         position:"sticky", top:0, zIndex:10,
@@ -5372,7 +5372,7 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
   })();
 
   return (
-    <div style={{ padding:"24px 18px 60px", fontFamily:F2, background:"#F7F7F7", minHeight:"100vh" }}>
+    <div style={{ padding:"24px 18px 0", fontFamily:F2, background:"#F7F7F7" }}>
       <div style={{ fontSize:22, fontWeight:700, color:NEW_G.ink, letterSpacing:"0.1em", marginBottom:24 }}>Settings</div>
 
       {/* Usage stats */}
@@ -6105,10 +6105,9 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         button { letter-spacing:0.02em; }
       `}</style>
 
-      <div style={{ minHeight:"100vh",
+      <div style={{
         background: navTab===1 || navTab===4 ? "#F7F7F7" : "#FFFFFF",
-        fontFamily:F2, maxWidth:480, margin:"0 auto",
-        paddingBottom:90 }}>
+        fontFamily:F2, maxWidth:480, margin:"0 auto" }}>
 
         {/* ── Page content ── */}
         {navTab===1 ? (
@@ -6130,7 +6129,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           </div>
         ) : (
           /* Home / + / Report / Settings: 自然な高さ（余白スクロールなし） */
-          <div style={{ paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
+          <div style={{ paddingBottom:"calc(90px + env(safe-area-inset-bottom, 34px))" }}>
             {navTab===0 && (
               <HomeScreen
                 items={items}
