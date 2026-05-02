@@ -5846,10 +5846,12 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
               <button onClick={()=>moveUp(idx)} disabled={idx===0}
                 style={{ width:26, height:26, borderRadius:6, border:`1px solid ${NEW_G2.border}`,
                   background:NEW_G2.surface, cursor:"pointer", fontSize:12,
+                  color:"#BFBFBF",
                   opacity: idx===0 ? 0.3 : 1, flexShrink:0 }}>↑</button>
               <button onClick={()=>moveDown(idx)} disabled={idx>=ordered.length-1}
                 style={{ width:26, height:26, borderRadius:6, border:`1px solid ${NEW_G2.border}`,
                   background:NEW_G2.surface, cursor:"pointer", fontSize:12,
+                  color:"#BFBFBF",
                   opacity: idx>=ordered.length-1 ? 0.3 : 1, flexShrink:0 }}>↓</button>
               {/* カスタム項目の削除 */}
               {isCustom && (
@@ -6888,8 +6890,9 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 removeActivityLog={removeActivity}/>
             )}
             {navTab===4 && (
-              <div style={{ overflowY:"auto", height:"100vh",
-                paddingBottom:"calc(90px + env(safe-area-inset-bottom, 34px))" }}>
+              <div style={{ overflowY:"auto",
+                height:"calc(100vh - 90px - env(safe-area-inset-bottom, 34px))",
+                paddingBottom:24 }}>
                 <SettingsScreen
                   user={user}
                   onLogout={onLogout}
