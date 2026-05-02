@@ -37,6 +37,7 @@ function dk(hex) {
 const LS_ITEMS = "cp_items_v5";
 const LS_WQ    = "cp_wq_v1";
 const LS_DATES = "cp_dates_v6";
+const LS_FOCUS = "cp_focus_v1";  // Today's Focus 手動選択ID
 
 // ─── Persistent storage ────────────────────────────────────────────────────────
 // localStorage を最優先（PWA / ブラウザ両対応）
@@ -211,25 +212,55 @@ function cjkMin(t) {
 // Uses allorigins CORS proxy so it works from browser/GitHub Pages too
 async function fetchArticleReadingMin(url) {
   if (!url || !url.startsWith("http")) return null;
-  try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const html = data.contents || "";
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    // Remove noise elements
-    ["script","style","noscript","nav","footer","header","aside","[role=complementary]","[role=navigation]","[class*=ad]","[id*=ad]"].forEach(sel => {
-      try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
-    });
-    // Extract main content
-    const main = doc.querySelector("article, [role='main'], main, .entry-content, .post-content, .article-body") || doc.body;
-    const text = main ? (main.innerText || main.textContent || "") : "";
-    const mins = cjkMin(text.trim());
-    return mins >= 1 ? mins : null;
-  } catch {
-    return null;
+
+  // 複数のCORSプロキシを試みる（どれかが成功すればOK）
+  const proxies = [
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  ];
+
+  for (const proxyUrl of proxies) {
+    try {
+      // AbortSignal.timeout は非対応ブラウザがあるため手動タイムアウト
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      let res;
+      try {
+        res = await fetch(proxyUrl, { signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!res || !res.ok) continue;
+
+      let html = "";
+      // allorigins は JSON で contents を返す
+      if (proxyUrl.includes("allorigins")) {
+        const data = await res.json();
+        html = data.contents || "";
+      } else {
+        html = await res.text();
+      }
+      if (!html) continue;
+
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      // ノイズ除去
+      ["script","style","noscript","nav","footer","header","aside",
+       "[role=complementary]","[role=navigation]","[class*=ad]","[id*=ad]"
+      ].forEach(sel => {
+        try { doc.querySelectorAll(sel).forEach(el => el.remove()); } catch {}
+      });
+      // メインコンテンツ抽出（innerTextはDOMParserで空になるのでtextContentを使う）
+      const main = doc.querySelector(
+        "article, [role='main'], main, .entry-content, .post-content, .article-body"
+      ) || doc.body;
+      const text = main ? (main.textContent || "") : "";
+      const mins = cjkMin(text.trim());
+      if (mins >= 1) return mins;
+    } catch {
+      // 次のプロキシを試みる
+    }
   }
+  return null;
 }
 
 // Fallback estimate (used when URL is blank or fetch fails)
@@ -1609,8 +1640,22 @@ function UrlButton({ url, color, label="URLを開く" }) {
   const handleOpen = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    // iOS PWAでtarget="_blank"が無視されるためwindow.openで強制外部起動
-    window.open(url, "_blank", "noopener,noreferrer");
+    // iOS PWA: window.open は内部WebViewで開いてしまうため
+    // location.href への代入で強制的に外部Safari/アプリを起動する
+    try {
+      // YouTubeリンクはYouTubeアプリへ誘導
+      if (/youtube\.com|youtu\.be/.test(url)) {
+        const ytApp = url.replace("https://www.youtube.com", "youtube://www.youtube.com")
+                         .replace("https://youtu.be/", "youtube://youtu.be/");
+        window.location.href = ytApp;
+        // アプリが入っていない場合のフォールバック
+        setTimeout(() => { window.location.href = url; }, 1500);
+        return;
+      }
+      window.location.href = url;
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
   };
   return (
     <a href={url} onClick={handleOpen}
@@ -3829,7 +3874,7 @@ const NAV_ICONS = {
 };
 
 // ─── Home Screen ──────────────────────────────────────────────────────────
-function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdit, onStatusChange, removeActivityLog }) {
+function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdit, onStatusChange, removeActivityLog, manualFocusId, setManualFocusId }) {
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
 
   // ── Category config (colors + text from spec) ──────────────────────────
@@ -3900,8 +3945,8 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
   })();
 
   // ── Today's Focus: manual selection or auto (closest to completion) ──
-  const [manualFocusId, setManualFocusId] = useState(null);
-  const [focusPicker, setFocusPicker]     = useState(false); // picker open/close
+  // Today's Focus: manualFocusId/setManualFocusId は親(ContentsProgress)から props で受け取る
+  const [focusPicker, setFocusPicker] = useState(false);
 
   const focusItem = (() => {
     // 手動選択が有効かつアイテムが存在する場合はそれを使う
@@ -5734,6 +5779,22 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const [watchQueue,   setWatchQueue] = useState([]);
   const [activityLog,  setActivityLog]= useState({});
   const [loaded,       setLoaded]     = useState(false);
+  // Today's Focus 手動選択: localStorage + Supabase で永続化
+  const [manualFocusId, setManualFocusIdRaw] = useState(() => {
+    try { return localStorage.getItem(LS_FOCUS) || null; } catch { return null; }
+  });
+  const setManualFocusId = (id) => {
+    setManualFocusIdRaw(id);
+    // localStorage に即時保存
+    try {
+      if (id) localStorage.setItem(LS_FOCUS, id);
+      else localStorage.removeItem(LS_FOCUS);
+    } catch {}
+    // Supabase にも保存（watchQueue と一緒に）
+    if (userId && sbOps?.saveWatchQueue) {
+      sbOps.saveWatchQueue(userId, watchQueueRef.current, id).catch(() => {});
+    }
+  };
   const [nvChooseOpen, setNvChooseOpen] = useState(false);
   const [syncStatus,   setSyncStatus]  = useState(null);
 
@@ -5815,14 +5876,21 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           }
         }
 
-        // WatchQueue: Supabase優先、なければlocalStorage
-        if (sbWQ && sbWQ.length > 0) {
-          setWatchQueue(sbWQ);
+        // WatchQueue + manualFocusId: Supabase優先、なければlocalStorage
+        if (sbWQ) {
+          // 新形式: { queue:[], manualFocusId:... }
+          const q = sbWQ.queue ?? sbWQ;
+          const focusId = sbWQ.manualFocusId ?? null;
+          if (Array.isArray(q) && q.length > 0) setWatchQueue(q);
+          if (focusId) {
+            setManualFocusIdRaw(focusId);
+            try { localStorage.setItem(LS_FOCUS, focusId); } catch {}
+          }
         } else {
           const local = await wsGet(LS_WQ, null);
           if (Array.isArray(local)) {
             setWatchQueue(local);
-            if (local.length > 0) await sbOps.saveWatchQueue(userId, local);
+            if (local.length > 0) await sbOps.saveWatchQueue(userId, local, manualFocusId);
           }
         }
         const si = await wsGet(LS_ITEMS, null); if (si && Array.isArray(si) && si.length>0) setItemsRaw(si);
@@ -5842,11 +5910,14 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       try {
         const ids = [...dirtyItems.current]; dirtyItems.current.clear();
         await Promise.all(ids.map(id => { const item = currentItems.find(i=>i.id===id); return item ? sbOps.saveItem(userId,item) : sbOps.deleteItem(userId,id); }));
-        if (dirtyWQ.current) { dirtyWQ.current=false; await sbOps.saveWatchQueue(userId, currentWQ); }
+        if (dirtyWQ.current) {
+          dirtyWQ.current = false;
+          await sbOps.saveWatchQueue(userId, currentWQ, manualFocusId);
+        }
         markSaved();
       } catch(e) { console.error("flush error:", e); markError(); }
     }, 600);
-  }, [userId, sbOps]);
+  }, [userId, sbOps, manualFocusId]);
 
   // iOS PWA対策: バックグラウンド移行直前に即時保存
   // items/activityLog を ref で保持して stale closure を防ぐ
@@ -5871,7 +5942,8 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       }
       if (dirtyWQ.current) {
         dirtyWQ.current = false;
-        sbOps.saveWatchQueue(userId, watchQueueRef.current).catch(() => {});
+        sbOps.saveWatchQueue(userId, watchQueueRef.current,
+          lsGet(LS_FOCUS)).catch(() => {});
       }
 
       // activityLog を即時保存（stale closure を避けるため ref から読む）
@@ -5916,7 +5988,10 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   useEffect(() => {
     if (!loaded) return;
     try { localStorage.setItem(LS_WQ, JSON.stringify(watchQueue)); } catch {}
-    if (userId && sbOps) { dirtyWQ.current=true; scheduleFlush(items, watchQueue); }
+    if (userId && sbOps) {
+      dirtyWQ.current = true;
+      scheduleFlush(items, watchQueue);
+    }
   }, [watchQueue, loaded]);
 
   useEffect(() => {
@@ -6194,6 +6269,8 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 onEdit={setEdit}
                 onStatusChange={statusChange}
                 removeActivityLog={removeActivity}
+                manualFocusId={manualFocusId}
+                setManualFocusId={setManualFocusId}
               />
             )}
             {navTab===2 && (
@@ -6214,9 +6291,11 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                   setItems([]);
                   setActivityLog({});
                   setWatchQueue([]);
+                  setManualFocusId(null);  // Today's Focus 手動選択もクリア
                   lsSet(LS_ITEMS, []);
                   lsSet(LS_DATES, {});
                   lsSet(LS_WQ, []);
+                  try { localStorage.removeItem(LS_FOCUS); } catch {}
                   if (userId && sbOps) {
                     try {
                       await Promise.all(items.map(it => sbOps.deleteItem(userId, it.id)));
@@ -6225,7 +6304,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                           await sbOps.upsertActivity(userId, date, cat, 0);
                         }
                       }
-                      if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, []);
+                      if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, [], null);
                     } catch(e) { console.error("deleteAll error:", e); }
                   }
                 }}

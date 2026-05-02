@@ -86,13 +86,18 @@ export async function sbLoadWatchQueue(userId) {
   const { data, error } = await sb
     .from("watch_queue").select("queue_data").eq("user_id", userId).single();
   if (error) { if (error.code !== "PGRST116") console.error("sbLoadWatchQueue:", error); return null; }
-  return data?.queue_data ?? [];
+  // queue_data は配列（旧形式）またはオブジェクト { queue:[], manualFocusId:... }（新形式）
+  const raw = data?.queue_data;
+  if (!raw) return { queue: [], manualFocusId: null };
+  if (Array.isArray(raw)) return { queue: raw, manualFocusId: null }; // 旧形式互換
+  return { queue: raw.queue ?? [], manualFocusId: raw.manualFocusId ?? null };
 }
  
-export async function sbSaveWatchQueue(userId, queue) {
+export async function sbSaveWatchQueue(userId, queue, manualFocusId = null) {
   const sb = getSupabase(); if (!sb) return;
+  const queueData = { queue, manualFocusId };
   const { error } = await sb.from("watch_queue").upsert(
-    { user_id: userId, queue_data: queue, updated_at: new Date().toISOString() },
+    { user_id: userId, queue_data: queueData, updated_at: new Date().toISOString() },
     { onConflict: "user_id" }
   );
   if (error) console.error("sbSaveWatchQueue:", error);
@@ -318,3 +323,4 @@ export default function AuthProvider() {
     />
   );
 }
+ 
