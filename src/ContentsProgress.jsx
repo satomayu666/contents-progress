@@ -1305,7 +1305,7 @@ function EditModal({ item, onClose, onSave, onDelete, userOptions = {} }) {
         {f.category==="live"&&(
           <>
             <FF label="アーティスト名（任意）">
-              <input style={INP} placeholder="例: TK from 凛として時雨" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
+              <input style={INP} placeholder="例: UNISON SQUARE GARDEN" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
             </FF>
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
               <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
@@ -1723,7 +1723,7 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
         )}
         {f.category==="live"&&(
           <FF label="アーティスト名（任意）">
-            <input style={INP} placeholder="例: TK from 凛として時雨" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
+            <input style={INP} placeholder="例: UNISON SQUARE GARDEN" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
           </FF>
         )}
         {f.category==="tv"&&(
