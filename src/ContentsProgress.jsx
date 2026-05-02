@@ -1409,7 +1409,7 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
   const isEpBased = ["anime","drama"].includes(f.category);
 
   const innerContent = (
-    <div style={{ background:G.surface, ...(inlineMode ? { borderRadius:0, padding:"0 18px 48px" } : { borderRadius:"22px 22px 0 0", width:"100%", padding:"28px 22px 48px", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -8px 40px rgba(0,0,0,0.12)" }) }}>
+    <div style={{ background:G.surface, ...(inlineMode ? { borderRadius:0, padding:"20px 18px 48px" } : { borderRadius:"22px 22px 0 0", width:"100%", padding:"28px 22px 48px", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -8px 40px rgba(0,0,0,0.12)" }) }}>
       {!inlineMode && (
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22 }}>
           <span style={{ fontSize:17,fontWeight:800,color:G.greyDeep }}>新しいコンテンツ</span>
