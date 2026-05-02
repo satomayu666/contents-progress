@@ -6834,7 +6834,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
         * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         html { background:#FFFFFF; }
-        body { margin:0; background:#FFFFFF; font-family:'Inter','Noto Sans JP','Hiragino Sans',sans-serif; letter-spacing:0.02em; font-size:13px; }
+        body { margin:0; background:#FFFFFF; font-family:'Inter','Noto Sans JP','Hiragino Sans',sans-serif; letter-spacing:0.02em; font-size:13px; overscroll-behavior:none; }
         ::-webkit-scrollbar { display:none; }
         * { scrollbar-width:none; }
         *::-webkit-scrollbar { display:none; }
@@ -6898,7 +6898,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             {navTab===4 && (
               <div style={{ overflowY:"auto",
                 height:"calc(100vh - 90px - env(safe-area-inset-bottom, 34px))",
-                paddingBottom:24 }}>
+                paddingBottom:24, background:"#F7F7F7" }}>
                 <SettingsScreen
                   user={user}
                   onLogout={onLogout}
