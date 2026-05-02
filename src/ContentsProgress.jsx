@@ -1019,9 +1019,10 @@ function EditModal({ item, onClose, onSave, onDelete }) {
           ? (Number(f.videoDurationMin)||0)
           : (Number(f.totalDurationMin)||0))
       : (Number(f.total)||1);
-    const newStatus = isBinaryCat
-      ? (tot > 0 && cur >= tot && cur > 0 ? "done" : f.status)
-      : resolveStatus(cur, tot);
+    // timed progress: use resolveStatus same as anime/drama
+    const newStatus = isTimedProgress
+      ? resolveStatus(cur, tot)
+      : (isBinaryCat ? (tot > 0 && cur >= tot && cur > 0 ? "done" : f.status) : resolveStatus(cur, tot));
     const newCompletedAt = (newStatus==="done" && f.status!=="done")
       ? (f.completedAt||today()) : (newStatus!=="done" ? null : f.completedAt);
     onSave({
@@ -1239,11 +1240,27 @@ function EditModal({ item, onClose, onSave, onDelete }) {
           <textarea style={{ ...INP,minHeight:64,resize:"vertical" }} value={f.notes} onChange={e=>set("notes",e.target.value)}/>
         </FF>
 
-        {/* Status preview — only for non-binary categories */}
+        {/* Status preview — non-binary categories */}
         {!["youtube","tv","radio","live","article"].includes(f.category)&&(()=>{
           const cur=Number(f.current)||0, tot=Number(f.total)||1;
           const newSt=resolveStatus(cur,tot);
           if(newSt!==f.status) return (
+            <div style={{ marginBottom:14,padding:"10px 13px",borderRadius:9,background:tint(P.orange),border:`1.5px solid ${P.orange}`,fontSize:12,color:dk(P.orange),lineHeight:1.6 }}>
+              ⓘ 保存すると「{statusLabel(newSt)}」に移動します
+            </div>
+          );
+          return null;
+        })()}
+
+        {/* Status preview — timed categories (youtube/tv/radio/live) */}
+        {["youtube","tv","radio","live"].includes(f.category)&&(()=>{
+          const cur = Number(f.current)||0;
+          const tot = f.category==="youtube"
+            ? (Number(f.videoDurationMin)||0)
+            : (Number(f.totalDurationMin)||0);
+          if (tot <= 0) return null;
+          const newSt = resolveStatus(cur, tot);
+          if (newSt !== f.status) return (
             <div style={{ marginBottom:14,padding:"10px 13px",borderRadius:9,background:tint(P.orange),border:`1.5px solid ${P.orange}`,fontSize:12,color:dk(P.orange),lineHeight:1.6 }}>
               ⓘ 保存すると「{statusLabel(newSt)}」に移動します
             </div>
@@ -1338,8 +1355,17 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
 
   const add = () => {
     if(!f.title) return;
-    const noProgress = ["youtube","tv","radio","live","article","movie"].includes(f.category);
-    const totalVal = f.category==="movie" ? (Number(f.episodeMin)||1) : noProgress ? 1 : Number(f.total)||1;
+    const isTimedCat = ["youtube","tv","radio","live"].includes(f.category);
+    const noProgress = ["article"].includes(f.category);
+    // timed categories: total = totalDurationMin (or videoDurationMin for YouTube)
+    const timedTotal = f.category==="youtube"
+      ? (Number(f.videoDurationMin)||0)
+      : (Number(f.totalDurationMin)||0);
+    const totalVal = isTimedCat
+      ? (timedTotal > 0 ? timedTotal : 0)   // 未設定なら0（表示は「未視聴」）
+      : f.category==="movie" ? (Number(f.episodeMin)||0)
+      : noProgress ? 0
+      : (Number(f.total)||0);
     // For article: use fetched minutes if available; if URL provided but fetch failed, use estimate; if no URL, null
     const articleEpisodeMin = articleMinutes
       ? articleMinutes
@@ -1733,10 +1759,15 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
     if (newSt === "active" && item.status === "queue" && !item.firstActiveAt) {
       patch.firstActiveAt = today();
     }
-    onActivityLog(today(), item.category);
+    // timed（Live/YouTube/Radio/TV）は+10分タップごとにはActivityLog記録しない（完了時のみ1回）
+    if (!isTimedProgress) {
+      onActivityLog(today(), item.category);
+    }
     if (newSt === "active" && item.status === "queue") onStatusChange && onStatusChange(item.id, "active");
     if (nx >= item.total) {
       Object.assign(patch, { status:"done", completedAt:today(), current:item.total });
+      // timed: 完了時に1回記録
+      if (isTimedProgress) onActivityLog(today(), item.category);
       onUpdate(item.id, patch);
       setToast("完了！おめでとうございます 🎉");
       setShowConfetti(true);
@@ -1755,8 +1786,8 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   };
 
   const completeCelebrate = () => {
-    // ③ 残り全量をその瞬間に終えたとみなす
-    const logCount = isBinary ? 1 : Math.max(rem, 1);
+    // timed（Live/YouTube/Radio/TV）は完了で1回のみ。その他は残量分ループ
+    const logCount = isTimedProgress ? 1 : (isBinary ? 1 : Math.max(rem, 1));
     for (let i = 0; i < logCount; i++) {
       onActivityLog(today(), item.category);
     }
@@ -3123,16 +3154,20 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                   if (h.date !== ymd) return;
                   const cat = CATS[item.category];
                   const effectiveUnit = item.category==="manga" ? (item.mangaUnit||"巻") : cat?.unit||"";
-                  const isBin = ["youtube","tv","radio","live","article"].includes(item.category);
                   let amountStr;
-                  if (isBin && h.delta > 0) {
-                    amountStr = `+${h.delta}${effectiveUnit}`;
-                  } else if (h.delta > 0) {
-                    amountStr = `+${h.delta}${effectiveUnit}（${h.from}→${h.to}）`;
+                  if (h.delta > 0) {
+                    // from→to と % を表示（Reportタブと同じ形式）
+                    const pctAfter = item.total > 0 ? Math.round(h.to / item.total * 100) : null;
+                    const fromTo = h.from !== undefined && h.to !== undefined
+                      ? `${h.from}→${h.to}${effectiveUnit}${pctAfter !== null ? ` (${pctAfter}%)` : ""}`
+                      : "";
+                    amountStr = `+${h.delta}${effectiveUnit}${fromTo ? `　${fromTo}` : ""}`;
                   } else if (h.completedViaButton) {
                     amountStr = "完了にした";
+                  } else if (h.editedViaModal) {
+                    amountStr = "編集済み";
                   } else {
-                    amountStr = "記録あり";
+                    amountStr = "ステータス変更";
                   }
                   entries.push({ item, amountStr, hist: h });
                 });
@@ -4077,16 +4112,18 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   const effectiveUnit = item.category==="manga" ? (item.mangaUnit||"巻") : cat?.unit || "";
                   let amountStr;
                   if (h.delta > 0) {
-                    amountStr = `+${h.delta}${effectiveUnit}（${h.from}→${h.to}）`;
+                    const pctAfter = item.total > 0 ? Math.round(h.to / item.total * 100) : null;
+                    const fromTo = h.from !== undefined && h.to !== undefined
+                      ? `${h.from}→${h.to}${effectiveUnit}${pctAfter !== null ? ` (${pctAfter}%)` : ""}`
+                      : "";
+                    amountStr = `+${h.delta}${effectiveUnit}${fromTo ? `　${fromTo}` : ""}`;
                   } else if (h.completedViaButton) {
-                    amountStr = `完了にした`;
+                    amountStr = "完了にした";
+                  } else if (h.editedViaModal) {
+                    amountStr = "編集済み";
                   } else {
-                    // status change only
-                    amountStr = h.from===0 && h.to===0 ? "開始した" : `記録`;
+                    amountStr = "ステータス変更";
                   }
-                  // binary categories: show status change
-                  const isBin = ["youtube","tv","radio","live","article"].includes(item.category);
-                  if (isBin) amountStr = "記録あり";
                   entries.push({ item, amountStr, hist: h });
                 });
               });
@@ -5940,14 +5977,23 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       const old = prev.find(it=>it.id===updated.id);
       if (old) {
         const delta = updated.current - old.current;
+        const isTimedCat = ["youtube","tv","radio","live"].includes(updated.category);
 
         // ── progress delta (currentの増減) ──
         if (delta > 0) {
-          for (let i=0;i<delta;i++) setActivityLog(log => { const day=log[today()]&&typeof log[today()]==="object"?log[today()]:{};const cur=day[updated.category]||0;const newCount=cur+1;if(userId&&sbOps)sbOps.upsertActivity(userId,today(),updated.category,newCount);return {...log,[today()]:{...day,[updated.category]:newCount}}; });
+          // timed カテゴリは activityLog をカウントしない（完了時のみ1回）
+          if (!isTimedCat) {
+            for (let i=0;i<delta;i++) setActivityLog(log => { const day=log[today()]&&typeof log[today()]==="object"?log[today()]:{};const cur=day[updated.category]||0;const newCount=cur+1;if(userId&&sbOps)sbOps.upsertActivity(userId,today(),updated.category,newCount);return {...log,[today()]:{...day,[updated.category]:newCount}}; });
+          }
           updated = { ...updated, progressHistory:[...(old.progressHistory||[]), {date:today(),delta,from:old.current,to:updated.current,editedViaModal:true}] };
         } else if (delta < 0) {
-          const removeDelta=Math.abs(delta), date=old.lastUpdated||today();
-          setActivityLog(log => { const day=log[date]&&typeof log[date]==="object"?log[date]:{};const cur=day[updated.category]||0;const next=Math.max(cur-removeDelta,0);if(userId&&sbOps)sbOps.upsertActivity(userId,date,updated.category,next);if(next<=0){const nd={...day};delete nd[updated.category];if(Object.keys(nd).length===0){const tl={...log};delete tl[date];return tl;}return{...log,[date]:nd};}return{...log,[date]:{...day,[updated.category]:next}};});
+          // timed カテゴリは activityLog をカウントしない（分数≠記録回数なので引き算しない）
+          if (!isTimedCat) {
+            const removeDelta=Math.abs(delta), date=old.lastUpdated||today();
+            setActivityLog(log => { const day=log[date]&&typeof log[date]==="object"?log[date]:{};const cur=day[updated.category]||0;const next=Math.max(cur-removeDelta,0);if(userId&&sbOps)sbOps.upsertActivity(userId,date,updated.category,next);if(next<=0){const nd={...day};delete nd[updated.category];if(Object.keys(nd).length===0){const tl={...log};delete tl[date];return tl;}return{...log,[date]:nd};}return{...log,[date]:{...day,[updated.category]:next}};});
+          }
+          // progressHistory を部分削除（timed も含む）
+          const removeDelta=Math.abs(delta);
           const hist=[...(old.progressHistory||[])];let toRemove=removeDelta;
           while(toRemove>0&&hist.length>0){const last=hist[hist.length-1];if(last.delta<=toRemove){hist.pop();toRemove-=last.delta;}else{hist[hist.length-1]={...last,delta:last.delta-toRemove,to:last.to-toRemove};toRemove=0;}}
           updated = { ...updated, progressHistory: hist };
