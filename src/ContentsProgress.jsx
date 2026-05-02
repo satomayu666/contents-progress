@@ -6380,6 +6380,17 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const markSaved  = () => { setSyncStatus("saved");  syncTimerRef.current = setTimeout(()=>setSyncStatus(null), 2500); };
   const markError  = () => { setSyncStatus("error");  syncTimerRef.current = setTimeout(()=>setSyncStatus(null), 4000); };
 
+  // タブに応じてhtml/bodyの背景色を動的変更（iOS PWAのバウンス時に白が見えるのを防ぐ）
+  useEffect(() => {
+    const bg = (navTab===1 || navTab===4) ? "#F7F7F7" : "#FFFFFF";
+    document.documentElement.style.background = bg;
+    document.body.style.background = bg;
+    return () => {
+      document.documentElement.style.background = "";
+      document.body.style.background = "";
+    };
+  }, [navTab]);
+
   // ── Load ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
