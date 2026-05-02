@@ -482,41 +482,87 @@ function MultiSelect({ options, value, onChange, otherKey, otherValue, onOtherCh
 }
 
 // Streaming service options for anime/drama
-const STREAMING_OPTIONS = [
-  { key:"tver",    label:"TVer" },
-  { key:"amazon",  label:"Amazon Prime" },
-  { key:"netflix", label:"Netflix" },
-  { key:"hulu",    label:"Hulu" },
-  { key:"abema",   label:"ABEMA" },
-  { key:"other",   label:"その他" },
+// ─── 配信サービス ────────────────────────────────────────────────────────────
+const STREAMING_OPTIONS = [           // Anime・Drama・TV 共通
+  { key:"netflix",   label:"Netflix" },
+  { key:"amazon",    label:"Amazon Prime" },
+  { key:"hulu",      label:"Hulu" },
+  { key:"disney",    label:"Disney+" },
+  { key:"abema",     label:"ABEMA" },
+  { key:"tver",      label:"TVer" },
+  { key:"danimation",label:"dアニメストア" },
+  { key:"unext",     label:"U-NEXT" },
+  { key:"other",     label:"その他" },
 ];
-// 映画専用（映画館を追加）
-const MOVIE_STREAMING_OPTIONS = [
-  { key:"cinema",  label:"映画館" },
-  { key:"amazon",  label:"Amazon Prime" },
-  { key:"netflix", label:"Netflix" },
-  { key:"hulu",    label:"Hulu" },
-  { key:"abema",   label:"ABEMA" },
-  { key:"other",   label:"その他" },
+const MOVIE_STREAMING_OPTIONS = [     // Movie 専用
+  { key:"cinema",    label:"映画館" },
+  { key:"netflix",   label:"Netflix" },
+  { key:"amazon",    label:"Amazon Prime" },
+  { key:"hulu",      label:"Hulu" },
+  { key:"disney",    label:"Disney+" },
+  { key:"unext",     label:"U-NEXT" },
+  { key:"abema",     label:"ABEMA" },
+  { key:"other",     label:"その他" },
 ];
-// Reading method options for book & manga
-const READING_OPTIONS = [
-  { key:"paper",  label:"紙書籍を購入" },
-  { key:"ebook",  label:"電子書籍を購入" },
-  { key:"sub",    label:"サブスクリプション" },
-  { key:"other",  label:"その他" },
+const ANIME_STREAMING_OPTIONS = [     // Anime 専用
+  { key:"netflix",   label:"Netflix" },
+  { key:"amazon",    label:"Amazon Prime" },
+  { key:"hulu",      label:"Hulu" },
+  { key:"disney",    label:"Disney+" },
+  { key:"abema",     label:"ABEMA" },
+  { key:"tver",      label:"TVer" },
+  { key:"danimation",label:"dアニメストア" },
+  { key:"unext",     label:"U-NEXT" },
+  { key:"nicovideo", label:"ニコニコ動画" },
+  { key:"other",     label:"その他" },
 ];
-// TV viewing method
-const TV_VIEW_OPTIONS = [
-  { key:"tv",    label:"TV" },
-  { key:"tver",  label:"TVer" },
-  { key:"other", label:"その他" },
+const DRAMA_STREAMING_OPTIONS = [     // Drama 専用
+  { key:"netflix",   label:"Netflix" },
+  { key:"amazon",    label:"Amazon Prime" },
+  { key:"hulu",      label:"Hulu" },
+  { key:"disney",    label:"Disney+" },
+  { key:"tver",      label:"TVer" },
+  { key:"unext",     label:"U-NEXT" },
+  { key:"abema",     label:"ABEMA" },
+  { key:"other",     label:"その他" },
 ];
 
-// ─── Genre options ────────────────────────────────────────────────────────────
-// 汎用ジャンル（TV/本/アニメ/ドラマ/映画/漫画 共通）
-const GENRE_OPTIONS = [
+// ─── 閲覧方法 ────────────────────────────────────────────────────────────────
+const READING_OPTIONS = [             // Book 専用
+  { key:"paper",   label:"紙書籍を購入" },
+  { key:"ebook",   label:"電子書籍を購入" },
+  { key:"sub",     label:"サブスクリプション" },
+  { key:"library", label:"図書館" },
+  { key:"other",   label:"その他" },
+];
+const MANGA_READING_OPTIONS = [       // Comic 専用
+  { key:"paper",   label:"紙書籍を購入" },
+  { key:"ebook",   label:"電子書籍を購入" },
+  { key:"sub",     label:"サブスクリプション" },
+  { key:"app",     label:"無料アプリ" },
+  { key:"library", label:"図書館" },
+  { key:"other",   label:"その他" },
+];
+
+// ─── 視聴方法 ────────────────────────────────────────────────────────────────
+const TV_VIEW_OPTIONS = [             // TV 専用
+  { key:"live",    label:"リアルタイム視聴" },
+  { key:"record",  label:"録画" },
+  { key:"tver",    label:"TVer" },
+  { key:"other",   label:"その他" },
+];
+const RADIO_VIEW_OPTIONS = [          // Radio 専用
+  { key:"live",    label:"リアルタイム視聴" },
+  { key:"radiko",  label:"radiko" },
+  { key:"podcast", label:"Podcast" },
+  { key:"other",   label:"その他" },
+];
+
+// ─── ジャンル ─────────────────────────────────────────────────────────────────
+const ANIME_GENRE_OPTIONS = [
   { key:"action",    label:"アクション" },
+  { key:"shonen",    label:"少年漫画原作" },
+  { key:"shojo",     label:"少女漫画原作" },
   { key:"adventure", label:"アドベンチャー" },
   { key:"comedy",    label:"コメディ" },
   { key:"romance",   label:"恋愛" },
@@ -527,26 +573,149 @@ const GENRE_OPTIONS = [
   { key:"fantasy",   label:"ファンタジー" },
   { key:"history",   label:"歴史・時代劇" },
   { key:"sports",    label:"スポーツ" },
-  { key:"food",      label:"グルメ" },
-  { key:"documentary",label:"ドキュメンタリー" },
   { key:"music",     label:"音楽" },
-  { key:"anime_genre",label:"アニメ" },
-  { key:"magazine",  label:"雑誌" },   // Book向け追加
+  { key:"isekai",    label:"異世界" },
+  { key:"moe",       label:"日常・萌え" },
+  { key:"other",     label:"その他" },
+];
+const DRAMA_GENRE_OPTIONS = [
+  { key:"romance",   label:"恋愛" },
+  { key:"comedy",    label:"コメディ" },
+  { key:"mystery",   label:"ミステリー" },
+  { key:"suspense",  label:"サスペンス" },
+  { key:"drama",     label:"ヒューマンドラマ" },
+  { key:"medical",   label:"医療" },
+  { key:"legal",     label:"法廷・弁護士" },
+  { key:"historical",label:"時代劇" },
+  { key:"scifi",     label:"SF・ファンタジー" },
+  { key:"horror",    label:"ホラー" },
+  { key:"action",    label:"アクション" },
+  { key:"sports",    label:"スポーツ" },
+  { key:"domestic",  label:"国内" },
+  { key:"foreign",   label:"海外" },
+  { key:"korean",    label:"韓国" },
+  { key:"other",     label:"その他" },
+];
+const MOVIE_GENRE_OPTIONS = [
+  { key:"action",    label:"アクション" },
+  { key:"adventure", label:"アドベンチャー" },
+  { key:"comedy",    label:"コメディ" },
+  { key:"romance",   label:"恋愛" },
+  { key:"drama",     label:"ヒューマンドラマ" },
+  { key:"mystery",   label:"ミステリー" },
+  { key:"suspense",  label:"サスペンス" },
+  { key:"horror",    label:"ホラー" },
+  { key:"scifi",     label:"SF" },
+  { key:"fantasy",   label:"ファンタジー" },
+  { key:"history",   label:"歴史・時代劇" },
+  { key:"animation", label:"アニメ映画" },
+  { key:"documentary",label:"ドキュメンタリー" },
   { key:"domestic",  label:"国内" },
   { key:"foreign",   label:"海外" },
   { key:"other",     label:"その他" },
 ];
-
-// YouTubeジャンル（YouTube専用）
-const YOUTUBE_GENRE_OPTIONS = [
-  { key:"music",   label:"音楽" },
-  { key:"vlog",    label:"Vlog" },
-  { key:"tech",    label:"スマホ/アプリ" },
-  { key:"beauty",  label:"美容" },
-  { key:"fitness", label:"運動" },
-  { key:"quiz",    label:"QuizKnock" },
-  { key:"other",   label:"その他" },
+const MANGA_GENRE_OPTIONS = [
+  { key:"shonen",    label:"少年漫画" },
+  { key:"shojo",     label:"少女漫画" },
+  { key:"seinen",    label:"青年漫画" },
+  { key:"josei",     label:"女性漫画" },
+  { key:"action",    label:"アクション" },
+  { key:"romance",   label:"恋愛" },
+  { key:"comedy",    label:"コメディ" },
+  { key:"mystery",   label:"ミステリー" },
+  { key:"fantasy",   label:"ファンタジー" },
+  { key:"scifi",     label:"SF" },
+  { key:"sports",    label:"スポーツ" },
+  { key:"horror",    label:"ホラー" },
+  { key:"isekai",    label:"異世界" },
+  { key:"slice",     label:"日常" },
+  { key:"other",     label:"その他" },
 ];
+const TV_GENRE_OPTIONS = [
+  { key:"variety",   label:"バラエティ" },
+  { key:"news",      label:"ニュース・報道" },
+  { key:"drama",     label:"ドラマ" },
+  { key:"documentary",label:"ドキュメンタリー" },
+  { key:"anime",     label:"アニメ" },
+  { key:"sports",    label:"スポーツ" },
+  { key:"music",     label:"音楽" },
+  { key:"education", label:"教育・情報" },
+  { key:"other",     label:"その他" },
+];
+const BOOK_GENRE_OPTIONS = [
+  { key:"novel",       label:"小説" },
+  { key:"shortstory",  label:"短編" },
+  { key:"business",    label:"ビジネス書" },
+  { key:"essay",       label:"エッセイ" },
+  { key:"biography",   label:"自伝" },
+  { key:"magazine",    label:"雑誌" },
+  { key:"music_book",  label:"音楽" },
+  { key:"lifestyle",   label:"暮らし" },
+  { key:"infosharing", label:"情報発信" },
+  { key:"money",       label:"お金" },
+  { key:"bizbook",     label:"ビジネス" },
+  { key:"it",          label:"IT" },
+  { key:"mystery",     label:"ミステリー" },
+  { key:"romance",     label:"恋愛" },
+  { key:"scifi",       label:"SF" },
+  { key:"fantasy",     label:"ファンタジー" },
+  { key:"history",     label:"歴史" },
+  { key:"documentary", label:"ノンフィクション" },
+  { key:"other",       label:"その他" },
+];
+const YOUTUBE_GENRE_OPTIONS = [
+  { key:"music",     label:"音楽" },
+  { key:"vlog",      label:"Vlog" },
+  { key:"tech",      label:"スマホ/アプリ" },
+  { key:"beauty",    label:"美容" },
+  { key:"fitness",   label:"運動" },
+  { key:"cooking",   label:"料理" },
+  { key:"game",      label:"ゲーム" },
+  { key:"news",      label:"ニュース・解説" },
+  { key:"education", label:"教育・学習" },
+  { key:"quiz",      label:"QuizKnock" },
+  { key:"other",     label:"その他" },
+];
+
+// カテゴリ別オプション取得ヘルパー（デフォルト）
+const getGenreOptions    = (cat) => cat==="anime"  ? ANIME_GENRE_OPTIONS
+                                  : cat==="drama"  ? DRAMA_GENRE_OPTIONS
+                                  : cat==="movie"  ? MOVIE_GENRE_OPTIONS
+                                  : cat==="manga"  ? MANGA_GENRE_OPTIONS
+                                  : cat==="tv"     ? TV_GENRE_OPTIONS
+                                  : cat==="book"   ? BOOK_GENRE_OPTIONS
+                                  : cat==="youtube"? YOUTUBE_GENRE_OPTIONS
+                                  : [];
+const getStreamingOptions= (cat) => cat==="movie"  ? MOVIE_STREAMING_OPTIONS
+                                  : cat==="anime"  ? ANIME_STREAMING_OPTIONS
+                                  : cat==="drama"  ? DRAMA_STREAMING_OPTIONS
+                                  : STREAMING_OPTIONS;
+const getReadingOptions  = (cat) => cat==="manga"  ? MANGA_READING_OPTIONS
+                                  : READING_OPTIONS;
+const getViewOptions     = (cat) => cat==="radio"  ? RADIO_VIEW_OPTIONS
+                                  : TV_VIEW_OPTIONS;
+
+/**
+ * ユーザーカスタム設定を適用して最終的な選択肢リストを返す
+ * @param {Array} defaults - デフォルト選択肢
+ * @param {Object} userOpts - { hidden:[], order:[], custom:[] }
+ * @returns {Array} 最終選択肢（hidden除外・custom追加・order並び替え済み）
+ */
+function resolveOptions(defaults, userOpts) {
+  if (!userOpts) return defaults;
+  const { hidden = [], order = [], custom = [] } = userOpts;
+  // デフォルト + カスタム追加分をマージ
+  const all = [...defaults, ...custom.filter(c => !defaults.find(d => d.key === c.key))];
+  // hidden を除外
+  const visible = all.filter(o => !hidden.includes(o.key));
+  // order が指定されていれば並び替え（order に含まれないものは末尾に）
+  if (order.length > 0) {
+    const ordered = order.map(k => visible.find(o => o.key === k)).filter(Boolean);
+    const rest    = visible.filter(o => !order.includes(o.key));
+    return [...ordered, ...rest];
+  }
+  return visible;
+}
 function MemoPopup({ text, onClose }) {
   return (
     <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(34,34,34,0.25)",zIndex:800,display:"flex",alignItems:"flex-end" }}>
@@ -1017,7 +1186,7 @@ function startedAtLabel(cat) {
 }
 
 // ─── Edit Modal ───────────────────────────────────────────────────────────────
-function EditModal({ item, onClose, onSave, onDelete }) {
+function EditModal({ item, onClose, onSave, onDelete, userOptions = {} }) {
   const c = CATS[item.category];
   const [f, setF] = useState({ ...item });
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -1162,18 +1331,18 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         )}
         {(f.category==="anime"||f.category==="drama")&&(
           <FF label="配信サービス">
-            <MultiSelect options={STREAMING_OPTIONS} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/>
+            <MultiSelect options={resolveOptions(getStreamingOptions(f.category), userOptions[`streaming:${f.category}`])} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/>
           </FF>
         )}
         {f.category==="movie"&&(
           <FF label="視聴方法">
-            <MultiSelect options={MOVIE_STREAMING_OPTIONS} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/>
+            <MultiSelect options={resolveOptions(getStreamingOptions(f.category), userOptions[`streaming:${f.category}`])} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/>
           </FF>
         )}
         {(f.category==="book"||f.category==="manga")&&(
           <FF label="閲覧方法">
             <MultiSelect
-              options={READING_OPTIONS}
+              options={resolveOptions(getReadingOptions(f.category), userOptions[`reading:${f.category}`])}
               value={f.readingMethod||[]}
               onChange={v=>set("readingMethod",v)}
               otherKey={f.readingMethod?.includes("sub") ? "sub" : f.readingMethod?.includes("other") ? "other" : null}
@@ -1207,7 +1376,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
             </div>
             <FF label="テレビ局"><input style={INP} placeholder="例: NHK" value={f.tvStation||""} onChange={e=>set("tvStation",e.target.value)}/></FF>
             <FF label="視聴方法">
-              <MultiSelect options={TV_VIEW_OPTIONS} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/>
+              <MultiSelect options={resolveOptions(getViewOptions(f.category), userOptions[`view:${f.category}`])} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/>
             </FF>
             <div style={{ marginBottom:14 }}>
               <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
@@ -1245,7 +1414,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         {["tv","book","anime","drama","movie","manga"].includes(f.category)&&(
           <FF label="ジャンル（任意）">
             <MultiSelect
-              options={GENRE_OPTIONS}
+              options={resolveOptions(getGenreOptions(f.category), userOptions[`genre:${f.category}`])}
               value={f.genres||[]}
               onChange={v=>set("genres",v)}
               otherKey="other"
@@ -1257,7 +1426,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
         {f.category==="youtube"&&(
           <FF label="ジャンル（任意）">
             <MultiSelect
-              options={YOUTUBE_GENRE_OPTIONS}
+              options={resolveOptions(getGenreOptions(f.category), userOptions[`genre:${f.category}`])}
               value={f.genres||[]}
               onChange={v=>set("genres",v)}
               otherKey="other"
@@ -1360,7 +1529,7 @@ function EditModal({ item, onClose, onSave, onDelete }) {
 }
 
 // ─── Add Modal ────────────────────────────────────────────────────────────────
-function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime" }) {
+function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime", userOptions = {} }) {
   const [f,setF] = useState({ title:"",category:defaultCategory,total:"",episodeMin:"",totalDurationMin:"",videoDurationMin:"",videoUrl:"",articleUrl:"",contentUrl:"",station:"",tvStation:"",tvViewMethod:[],tvViewOther:"",airDate:"",streamingServices:[],streamingOther:"",readingMethod:[],readingSubOther:"",readingOther:"",startedAt:"",notes:"",genres:[],genreOther:"",mangaUnit:"巻",artistName:"" });
   const set = (k,v) => setF(p=>({...p,[k]:v}));
   const c = CATS[f.category];
@@ -1505,7 +1674,7 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
         {(f.category==="anime"||f.category==="drama")&&(
           <FF label="配信サービス">
             <MultiSelect
-              options={STREAMING_OPTIONS}
+              options={resolveOptions(getStreamingOptions(f.category), userOptions[`streaming:${f.category}`])}
               value={f.streamingServices}
               onChange={v=>set("streamingServices",v)}
               otherKey="other"
@@ -1517,7 +1686,7 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
         {f.category==="movie"&&(
           <FF label="視聴方法">
             <MultiSelect
-              options={MOVIE_STREAMING_OPTIONS}
+              options={resolveOptions(getStreamingOptions(f.category), userOptions[`streaming:${f.category}`])}
               value={f.streamingServices}
               onChange={v=>set("streamingServices",v)}
               otherKey="other"
@@ -1529,7 +1698,7 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
         {(f.category==="book"||f.category==="manga")&&(
           <FF label="閲覧方法">
             <MultiSelect
-              options={READING_OPTIONS}
+              options={resolveOptions(getReadingOptions(f.category), userOptions[`reading:${f.category}`])}
               value={f.readingMethod}
               onChange={v=>set("readingMethod",v)}
               otherKey={f.readingMethod?.includes("sub") ? "sub" : f.readingMethod?.includes("other") ? "other" : null}
@@ -1560,7 +1729,7 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
           <>
             <FF label="テレビ局（任意）"><input style={INP} placeholder="例: NHK" value={f.tvStation} onChange={e=>set("tvStation",e.target.value)}/></FF>
             <FF label="視聴方法">
-              <MultiSelect options={TV_VIEW_OPTIONS} value={f.tvViewMethod} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther} onOtherChange={v=>set("tvViewOther",v)}/>
+              <MultiSelect options={resolveOptions(getViewOptions(f.category), userOptions[`view:${f.category}`])} value={f.tvViewMethod} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther} onOtherChange={v=>set("tvViewOther",v)}/>
             </FF>
             <div style={{ marginBottom:14 }}>
               <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
@@ -1596,7 +1765,7 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
         {["tv","book","anime","drama","movie","manga"].includes(f.category)&&(
           <FF label="ジャンル（任意）">
             <MultiSelect
-              options={GENRE_OPTIONS}
+              options={resolveOptions(getGenreOptions(f.category), userOptions[`genre:${f.category}`])}
               value={f.genres||[]}
               onChange={v=>set("genres",v)}
               otherKey="other"
@@ -1608,7 +1777,7 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
         {f.category==="youtube"&&(
           <FF label="ジャンル（任意）">
             <MultiSelect
-              options={YOUTUBE_GENRE_OPTIONS}
+              options={resolveOptions(getGenreOptions(f.category), userOptions[`genre:${f.category}`])}
               value={f.genres||[]}
               onChange={v=>set("genres",v)}
               otherKey="other"
@@ -1877,11 +2046,11 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   const readingLabels = (item.readingMethod||[]).map(k => {
     if (k === "sub")   return item.readingSubOther || "サブスク";
     if (k === "other") return item.readingOther    || "その他";
-    return READING_OPTIONS.find(o=>o.key===k)?.label || k;
+    return getReadingOptions(item.category).find(o=>o.key===k)?.label || k;
   }).filter(Boolean);
 
   // Genre labels to display
-  const genreOpts = item.category === "youtube" ? YOUTUBE_GENRE_OPTIONS : GENRE_OPTIONS;
+  const genreOpts = getGenreOptions(item.category);
   const genreLabels = (item.genres||[]).map(k => {
     if (k === "other") return item.genreOther || "その他";
     return genreOpts.find(o=>o.key===k)?.label || k;
@@ -4710,7 +4879,7 @@ function ContentsScreen({
   items, watchQueue, setWatchQueue, activityLog,
   onUpdate, onEdit, onMove,
   onActivityLog, onStatusChange, removeActivityLog,
-  onReorder,
+  onReorder, userOptions = {},
 }) {
   const F2 = "'Outfit','Hiragino Sans','Noto Sans JP',sans-serif";
   const [tab, setTab] = useState(0);       // 0=進行中, 1=これから, 2=完了
@@ -4952,6 +5121,7 @@ function ContentsScreen({
               onActivityLog={onActivityLog}
               onStatusChange={onStatusChange}
               removeActivityLog={removeActivityLog}
+              userOptions={userOptions}
             />
           </div>
         ))}
@@ -4970,7 +5140,7 @@ function ContentsScreen({
 }
 
 // ─── New Item Card (詳細表示リデザイン版) ─────────────────────────────────
-function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onStatusChange, removeActivityLog }) {
+function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onStatusChange, removeActivityLog, userOptions = {} }) {
   const c = CATS[item.category];
   const p = pct(item.current, item.total);
   const rem = item.total - item.current;
@@ -5012,16 +5182,18 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
     isYT && item.videoDurationMin ? item.videoDurationMin :
     item.category==="article" && item.episodeMin ? item.episodeMin * rem : null;
 
-  // Chip labels
-  const streamingOpts = item.category==="movie" ? MOVIE_STREAMING_OPTIONS : STREAMING_OPTIONS;
+  // Chip labels — resolveOptions でユーザーカスタム選択肢を適用
+  const streamingOpts = resolveOptions(getStreamingOptions(item.category),
+    userOptions?.[`streaming:${item.category}`]);
   const streamingLabels = (item.streamingServices||[]).map(k => {
     if (k==="other") return item.streamingOther||"その他";
-    return streamingOpts.find(o=>o.key===k)?.label||k;
+    return streamingOpts.find(o=>o.key===k)?.label || k;
   }).filter(Boolean);
-  const genreOpts = item.category==="youtube" ? YOUTUBE_GENRE_OPTIONS : GENRE_OPTIONS;
+  const genreOpts = resolveOptions(getGenreOptions(item.category),
+    userOptions?.[`genre:${item.category}`]);
   const genreLabels = (item.genres||[]).map(k => {
     if (k==="other") return item.genreOther||"その他";
-    return genreOpts.find(o=>o.key===k)?.label||k;
+    return genreOpts.find(o=>o.key===k)?.label || k;
   }).filter(Boolean);
 
   const ringPct = isBinary
@@ -5179,6 +5351,44 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
             <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
               {(item.tvViewMethod||[]).map((k,i) => {
                 const lbl = k==="other"?(item.tvViewOther||"その他"):TV_VIEW_OPTIONS.find(o=>o.key===k)?.label||k;
+                return <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
+                  background:NEW_G.surfaceAlt, border:`1px solid ${NEW_G.border}`,
+                  borderRadius:5, padding:"2px 7px", letterSpacing:"0.03em",
+                  fontFamily:FC }}>{lbl}</span>;
+              })}
+            </div>
+          )}
+          {/* 配信サービス */}
+          {streamingLabels.length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
+              {streamingLabels.map((lbl,i) => (
+                <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
+                  background:NEW_G.surfaceAlt, border:`1px solid ${NEW_G.border}`,
+                  borderRadius:5, padding:"2px 7px", letterSpacing:"0.03em",
+                  fontFamily:FC }}>{lbl}</span>
+              ))}
+            </div>
+          )}
+          {/* ジャンル */}
+          {genreLabels.length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
+              {genreLabels.map((lbl,i) => (
+                <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
+                  background:NEW_G.surfaceAlt, border:`1px solid ${NEW_G.border}`,
+                  borderRadius:5, padding:"2px 7px", letterSpacing:"0.03em",
+                  fontFamily:FC }}>{lbl}</span>
+              ))}
+            </div>
+          )}
+          {/* 閲覧方法（Book・Manga） */}
+          {(item.readingMethod||[]).length > 0 && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
+              {(item.readingMethod||[]).map((k,i) => {
+                const lbl = k==="sub"
+                  ? (item.readingSubOther||"サブスク")
+                  : k==="other"
+                  ? (item.readingOther||"その他")
+                  : getReadingOptions(item.category)?.find(o=>o.key===k)?.label || k;
                 return <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
                   background:NEW_G.surfaceAlt, border:`1px solid ${NEW_G.border}`,
                   borderRadius:5, padding:"2px 7px", letterSpacing:"0.03em",
@@ -5456,10 +5666,232 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
 }
 
 // ─── Settings Screen ──────────────────────────────────────────────────────
-function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
+// ─── Options Customizer ──────────────────────────────────────────────────────
+const OPTION_TYPES = [
+  { type:"genre",     label:"ジャンル",     cats:["anime","drama","movie","manga","tv","book","youtube"] },
+  { type:"streaming", label:"配信サービス", cats:["anime","drama","movie","tv","radio","live","youtube"] },
+  { type:"reading",   label:"閲覧方法",     cats:["book","manga"] },
+  { type:"view",      label:"視聴方法",     cats:["tv","radio"] },
+];
+const CAT_LABELS = { anime:"Anime", drama:"Drama", movie:"Movie", manga:"Comic", tv:"TV",
+  book:"Book", youtube:"YouTube", radio:"Radio", live:"Live", article:"Web" };
+
+function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
+  const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
+  const NEW_G2 = { bg:"#FFFFFF", surface:"#FFFFFF", alt:"#F6F6F6",
+    border:"#E8E2DA", ink:"#221E18", grey:"#A09890", dark:"#6A625A" };
+
+  const [selType, setSelType] = useState(OPTION_TYPES[0].type);
+  const [selCat,  setSelCat]  = useState(OPTION_TYPES[0].cats[0]);
+  const [newLabel, setNewLabel] = useState("");
+
+  const curTypeDef = OPTION_TYPES.find(t => t.type === selType);
+
+  // selType が変わったらカテゴリもリセット
+  const handleTypeChange = (t) => {
+    setSelType(t);
+    setSelCat(OPTION_TYPES.find(o => o.type === t).cats[0]);
+  };
+
+  const key = `${selType}:${selCat}`;
+  const defaults = selType==="genre"     ? getGenreOptions(selCat)
+                 : selType==="streaming" ? getStreamingOptions(selCat)
+                 : selType==="reading"   ? getReadingOptions(selCat)
+                 : getViewOptions(selCat);
+
+  const userOpts = userOptions?.[key] || { hidden:[], order:[], custom:[] };
+  const allItems = [...defaults, ...(userOpts.custom||[]).filter(c => !defaults.find(d=>d.key===c.key))];
+  // order を適用して並び替え
+  const ordered = userOpts.order?.length > 0
+    ? [...userOpts.order.map(k => allItems.find(o=>o.key===k)).filter(Boolean),
+       ...allItems.filter(o => !(userOpts.order||[]).includes(o.key))]
+    : allItems;
+
+  const isHidden = (k) => (userOpts.hidden||[]).includes(k);
+
+  const updateOpts = (patch) => {
+    const next = { hidden:[], order:[], custom:[], ...userOpts, ...patch };
+    saveUserOpt(selType, selCat, next);
+  };
+
+  const toggleHidden = (k) => {
+    const hidden = isHidden(k)
+      ? (userOpts.hidden||[]).filter(h => h !== k)
+      : [...(userOpts.hidden||[]), k];
+    updateOpts({ hidden });
+  };
+
+  const moveUp = (idx) => {
+    if (idx === 0) return;
+    const order = ordered.map(o => o.key);
+    [order[idx-1], order[idx]] = [order[idx], order[idx-1]];
+    updateOpts({ order });
+  };
+
+  const moveDown = (idx) => {
+    if (idx >= ordered.length-1) return;
+    const order = ordered.map(o => o.key);
+    [order[idx], order[idx+1]] = [order[idx+1], order[idx]];
+    updateOpts({ order });
+  };
+
+  const addCustom = () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    const key2 = `custom_${Date.now()}`;
+    const custom = [...(userOpts.custom||[]), { key:key2, label }];
+    updateOpts({ custom });
+    setNewLabel("");
+  };
+
+  const removeCustom = (k) => {
+    const custom = (userOpts.custom||[]).filter(c => c.key !== k);
+    const hidden = (userOpts.hidden||[]).filter(h => h !== k);
+    const order  = (userOpts.order||[]).filter(o => o !== k);
+    saveUserOpt(selType, selCat, { ...userOpts, custom, hidden, order });
+  };
+
+  const resetToDefault = () => {
+    saveUserOpt(selType, selCat, { hidden:[], order:[], custom:[] });
+  };
+
+  const btnStyle = (active) => ({
+    padding:"6px 12px", borderRadius:8, border:`1.5px solid ${active ? NEW_G2.ink : NEW_G2.border}`,
+    background: active ? NEW_G2.ink : NEW_G2.surface,
+    color: active ? "#fff" : NEW_G2.dark,
+    fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em",
+    flexShrink:0,
+  });
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:NEW_G2.bg, zIndex:500,
+      display:"flex", flexDirection:"column", fontFamily:FC }}>
+      {/* Header */}
+      <div style={{ padding:"24px 18px 14px", borderBottom:`1px solid ${NEW_G2.border}`,
+        display:"flex", alignItems:"center", gap:12, flexShrink:0 }}>
+        <button onClick={onClose}
+          style={{ background:"none", border:"none", cursor:"pointer",
+            color:NEW_G2.grey, fontSize:22, lineHeight:1, padding:0 }}>‹</button>
+        <span style={{ fontSize:16, fontWeight:700, color:NEW_G2.ink,
+          letterSpacing:"0.04em" }}>選択肢のカスタマイズ</span>
+      </div>
+
+      {/* Type selector */}
+      <div style={{ display:"flex", gap:6, padding:"12px 16px 8px",
+        overflowX:"auto", flexShrink:0, borderBottom:`1px solid ${NEW_G2.border}` }}>
+        {OPTION_TYPES.map(t => (
+          <button key={t.type} onClick={()=>handleTypeChange(t.type)}
+            style={btnStyle(selType===t.type)}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* Category selector */}
+      <div style={{ display:"flex", gap:6, padding:"10px 16px 8px",
+        overflowX:"auto", flexShrink:0, borderBottom:`1px solid ${NEW_G2.border}` }}>
+        {curTypeDef.cats.map(c => (
+          <button key={c} onClick={()=>setSelCat(c)}
+            style={btnStyle(selCat===c)}>{CAT_LABELS[c]||c}</button>
+        ))}
+      </div>
+
+      {/* List */}
+      <div style={{ flex:1, overflowY:"auto", padding:"12px 16px 24px" }}>
+        <div style={{ fontSize:11, color:NEW_G2.grey, marginBottom:10,
+          letterSpacing:"0.04em", lineHeight:1.6 }}>
+          👁 非表示にしたい項目はタップ。↑↓ で並び替えできます。
+        </div>
+        {ordered.map((opt, idx) => {
+          const hidden = isHidden(opt.key);
+          const isCustom = (userOpts.custom||[]).some(c=>c.key===opt.key);
+          return (
+            <div key={opt.key} style={{ display:"flex", alignItems:"center", gap:8,
+              padding:"10px 12px", marginBottom:6, borderRadius:10,
+              background: hidden ? "#F9F9F9" : NEW_G2.surface,
+              border:`1px solid ${hidden ? NEW_G2.border : NEW_G2.border}`,
+              opacity: hidden ? 0.5 : 1 }}>
+              {/* 非表示トグル */}
+              <button onClick={()=>toggleHidden(opt.key)}
+                style={{ width:28, height:28, borderRadius:7, border:`1px solid ${NEW_G2.border}`,
+                  background: hidden ? NEW_G2.alt : NEW_G2.alt,
+                  cursor:"pointer", display:"flex",
+                  alignItems:"center", justifyContent:"center", flexShrink:0,
+                  color: hidden ? NEW_G2.grey : NEW_G2.grey }}>
+                {hidden
+                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22"/>
+                    </svg>
+                  : <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                }</button>
+              {/* Label */}
+              <span style={{ flex:1, fontSize:13, fontWeight:500, color:NEW_G2.ink,
+                letterSpacing:"0.03em",
+                textDecoration: hidden ? "line-through" : "none" }}>
+                {opt.label}
+              </span>
+              {/* Up/Down */}
+              <button onClick={()=>moveUp(idx)} disabled={idx===0}
+                style={{ width:26, height:26, borderRadius:6, border:`1px solid ${NEW_G2.border}`,
+                  background:NEW_G2.surface, cursor:"pointer", fontSize:12,
+                  opacity: idx===0 ? 0.3 : 1, flexShrink:0 }}>↑</button>
+              <button onClick={()=>moveDown(idx)} disabled={idx>=ordered.length-1}
+                style={{ width:26, height:26, borderRadius:6, border:`1px solid ${NEW_G2.border}`,
+                  background:NEW_G2.surface, cursor:"pointer", fontSize:12,
+                  opacity: idx>=ordered.length-1 ? 0.3 : 1, flexShrink:0 }}>↓</button>
+              {/* カスタム項目の削除 */}
+              {isCustom && (
+                <button onClick={()=>removeCustom(opt.key)}
+                  style={{ width:26, height:26, borderRadius:6, border:`1px solid #F0C0C0`,
+                    background:"#FFF5F5", cursor:"pointer", fontSize:12,
+                    color:"#B05050", flexShrink:0 }}>×</button>
+              )}
+            </div>
+          );
+        })}
+
+        {/* カスタム追加 */}
+        <div style={{ marginTop:16, padding:"14px", borderRadius:12,
+          border:`1.5px dashed ${NEW_G2.border}`, background:NEW_G2.alt }}>
+          <div style={{ fontSize:11, fontWeight:700, color:NEW_G2.grey,
+            letterSpacing:"0.06em", marginBottom:8 }}>＋ 選択肢を追加</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <input value={newLabel} onChange={e=>setNewLabel(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&addCustom()}
+              placeholder="新しい項目名を入力"
+              style={{ flex:1, padding:"9px 12px", borderRadius:8, fontSize:13,
+                border:`1.5px solid ${NEW_G2.border}`, outline:"none",
+                fontFamily:FC, color:NEW_G2.ink }}/>
+            <button onClick={addCustom}
+              style={{ padding:"9px 16px", borderRadius:8, border:"none",
+                background:NEW_G2.ink, color:"#fff", fontSize:12,
+                fontWeight:700, cursor:"pointer", fontFamily:FC, flexShrink:0 }}>
+              追加
+            </button>
+          </div>
+        </div>
+
+        {/* リセット */}
+        <button onClick={resetToDefault}
+          style={{ width:"100%", padding:"11px", marginTop:12, borderRadius:10,
+            border:`1px solid ${NEW_G2.border}`, background:"transparent",
+            color:NEW_G2.grey, fontSize:12, fontWeight:500, cursor:"pointer",
+            fontFamily:FC, letterSpacing:"0.04em" }}>
+          このカテゴリの設定をリセット
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOptions, saveUserOpt }) {
   const F2 = "'Outfit','Hiragino Sans','Noto Sans JP',sans-serif";
   const [confirmLogout, setConfirmLogout] = useState(false);
-  const [deleteStep, setDeleteStep] = useState(0); // 0=none,1=first,2=second
+  const [deleteStep, setDeleteStep] = useState(0);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
 
   // 利用開始日を計算（最古のコンテンツ追加日 or localStorage初回保存日）
   const startDate = (() => {
@@ -5516,6 +5948,20 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
         )}
       </div>
 
+      {/* 選択肢のカスタマイズ */}
+      <div style={{ background:NEW_G.surface, borderRadius:18, padding:"18px", marginBottom:14 }}>
+        <div style={{ fontSize:10, fontWeight:700, color:NEW_G.greyMid, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>カスタマイズ</div>
+        <button onClick={()=>setCustomizerOpen(true)}
+          style={{ width:"100%", padding:"13px", borderRadius:12,
+            border:`1.5px solid ${NEW_G.border}`, background:NEW_G.surfaceAlt,
+            color:NEW_G.greyDark, fontSize:13, fontWeight:600,
+            cursor:"pointer", fontFamily:F2, letterSpacing:"0.03em",
+            display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span>ジャンル・配信サービスなどの選択肢</span>
+          <span style={{ color:NEW_G.greyMid, fontSize:16 }}>›</span>
+        </button>
+      </div>
+
       {/* App info */}
       <div style={{ background:NEW_G.surface, borderRadius:18, padding:"18px", marginBottom:14 }}>
         <div style={{ fontSize:10, fontWeight:700, color:NEW_G.greyMid, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>App Info</div>
@@ -5526,6 +5972,15 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
           </div>
         </div>
       </div>
+
+      {/* OptionsCustomizer overlay */}
+      {customizerOpen && (
+        <OptionsCustomizer
+          userOptions={userOptions}
+          saveUserOpt={saveUserOpt}
+          onClose={()=>setCustomizerOpen(false)}
+        />
+      )}
 
       {/* Logout */}
       {user && onLogout && (
@@ -5599,7 +6054,7 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll }) {
 }
 
 // ─── Add Page Screen (full-page, 2-step) ──────────────────────────────────
-function AddPageScreen({ onAdd, onDone, F2 }) {
+function AddPageScreen({ onAdd, onDone, F2, userOptions = {} }) {
   const [step, setStep] = useState(1);          // 1=カテゴリ選択, 2=フォーム
   const [selectedCat, setSelectedCat] = useState(null);
   const [addKey, setAddKey] = useState(0);
@@ -5711,6 +6166,7 @@ function AddPageScreen({ onAdd, onDone, F2 }) {
         }}
         inlineMode={true}
         defaultCategory={selectedCat}
+        userOptions={userOptions}
       />
     </div>
   );
@@ -5793,6 +6249,8 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const [watchQueue,   setWatchQueue] = useState([]);
   const [activityLog,  setActivityLog]= useState({});
   const [loaded,       setLoaded]     = useState(false);
+  // ユーザーカスタム選択肢: { "genre:anime": {hidden:[], order:[], custom:[]}, ... }
+  const [userOptions,  setUserOptions] = useState({});
   // Today's Focus 手動選択: localStorage + Supabase で永続化
   const [manualFocusId, setManualFocusIdRaw] = useState(() => {
     try { return localStorage.getItem(LS_FOCUS) || null; } catch { return null; }
@@ -5954,6 +6412,14 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         const wq = await wsGet(LS_WQ, null); if (Array.isArray(wq)) setWatchQueue(wq);
         const al = await wsGet(LS_DATES, null); if (al && typeof al==="object") setActivityLog(sanitizeLog(al));
       }
+      // userOptions: Supabase からロード
+      if (userId && sbOps?.loadUserOptions) {
+        try {
+          const opts = await sbOps.loadUserOptions(userId);
+          if (opts) setUserOptions(opts);
+        } catch(e) { console.error("loadUserOptions:", e); }
+      }
+
       setLoaded(true);
     })();
   }, [userId]);
@@ -6249,6 +6715,16 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const addItem = useCallback((item)=>setItems(p=>[...p,item]),[setItems]);
   const reorder = useCallback((listItems,idx,dir)=>{const si=idx+dir;if(si<0||si>=listItems.length)return;const arr=[...listItems];[arr[idx],arr[si]]=[arr[si],arr[idx]];setItems(prev=>{const ids=arr.map(i=>i.id);return prev.map(it=>{const qi=ids.indexOf(it.id);return qi>=0?{...it,priority:qi}:it;});});},[setItems]);
 
+  // ユーザーカスタム選択肢の保存
+  const saveUserOpt = useCallback((optionType, category, optionsData) => {
+    const key = `${optionType}:${category}`;
+    setUserOptions(prev => ({ ...prev, [key]: optionsData }));
+    if (userId && sbOps?.saveUserOption) {
+      sbOps.saveUserOption(userId, optionType, category, optionsData)
+        .catch(e => console.error("saveUserOpt:", e));
+    }
+  }, [userId, sbOps]);
+
   const active   = items.filter(i=>i.status==="active").sort((a,b)=>a.priority-b.priority);
   const wqValidIds = watchQueue.filter(id=>items.find(i=>i.id===id&&i.status==="queue"));
 
@@ -6312,6 +6788,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
               onStatusChange={statusChange}
               removeActivityLog={removeActivity}
               onReorder={reorder}
+              userOptions={userOptions}
             />
           </div>
         ) : (
@@ -6332,7 +6809,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
               />
             )}
             {navTab===2 && (
-              <AddPageScreen onAdd={(item)=>{ addItem(item); setGlobalToast("コンテンツを追加しました！"); }} onDone={()=>setNavTab(1)} F2={F2}/>
+              <AddPageScreen onAdd={(item)=>{ addItem(item); setGlobalToast("コンテンツを追加しました！"); }} onDone={()=>setNavTab(1)} F2={F2} userOptions={userOptions}/>
             )}
             {navTab===3 && (
               <ReportPageScreen items={items} activityLog={activityLog} F2={F2}
@@ -6345,11 +6822,14 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 onLogout={onLogout}
                 syncStatus={syncStatus}
                 items={items}
+                userOptions={userOptions}
+                saveUserOpt={saveUserOpt}
                 onDeleteAll={async () => {
                   setItems([]);
                   setActivityLog({});
                   setWatchQueue([]);
-                  setManualFocusId(null);  // Today's Focus 手動選択もクリア
+                  setManualFocusId(null);
+                  setUserOptions({});  // Today's Focus 手動選択もクリア
                   lsSet(LS_ITEMS, []);
                   lsSet(LS_DATES, {});
                   lsSet(LS_WQ, []);
@@ -6363,6 +6843,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                         }
                       }
                       if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, [], null);
+                      if (sbOps.deleteUserOptions) await sbOps.deleteUserOptions(userId);
                     } catch(e) { console.error("deleteAll error:", e); }
                   }
                 }}
@@ -6426,7 +6907,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       </div>
 
       {/* ── Modals (global) ── */}
-      {editItem && <EditModal item={editItem} onClose={()=>setEdit(null)} onSave={saveEdit} onDelete={deleteItem}/>}
+      {editItem && <EditModal item={editItem} onClose={()=>setEdit(null)} onSave={saveEdit} onDelete={deleteItem} userOptions={userOptions}/>}
       {nvChooseOpen && <NVChoosePrompt queueItems={items.filter(i=>i.status==="queue")} onSelect={(id)=>{ setWatchQueue(prev=>[id,...prev.filter(x=>x!==id)]); setNvChooseOpen(false); }} onDismiss={()=>setNvChooseOpen(false)}/>}
       {showConfetti && <Confetti onDone={()=>setConfetti(false)}/>}
       {globalToast && <Toast msg={globalToast} onHide={()=>setGlobalToast(null)}/>}

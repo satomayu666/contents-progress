@@ -103,7 +103,39 @@ export async function sbSaveWatchQueue(userId, queue, manualFocusId = null) {
   if (error) console.error("sbSaveWatchQueue:", error);
 }
  
-// ─── user_progress CRUD ───────────────────────────────────────────────────────
+// ─── user_options CRUD ────────────────────────────────────────────────────────
+// テーブル: user_options(user_id, option_type, category, options_data JSONB)
+// option_type: "genre" | "streaming" | "reading" | "view"
+// options_data: { hidden:[], order:[], custom:[{key,label}] }
+ 
+export async function sbLoadUserOptions(userId) {
+  const sb = getSupabase(); if (!sb) return null;
+  const { data, error } = await sb
+    .from("user_options").select("option_type, category, options_data").eq("user_id", userId);
+  if (error) { if (error.code !== "PGRST116") console.error("sbLoadUserOptions:", error); return null; }
+  // { "genre:anime": {hidden,order,custom}, "streaming:movie": {...}, ... }
+  const result = {};
+  for (const row of data) {
+    result[`${row.option_type}:${row.category}`] = row.options_data;
+  }
+  return result;
+}
+ 
+export async function sbSaveUserOption(userId, optionType, category, optionsData) {
+  const sb = getSupabase(); if (!sb) return;
+  const { error } = await sb.from("user_options").upsert(
+    { user_id: userId, option_type: optionType, category, options_data: optionsData,
+      updated_at: new Date().toISOString() },
+    { onConflict: "user_id,option_type,category" }
+  );
+  if (error) console.error("sbSaveUserOption:", error);
+}
+ 
+export async function sbDeleteUserOptions(userId) {
+  const sb = getSupabase(); if (!sb) return;
+  const { error } = await sb.from("user_options").delete().eq("user_id", userId);
+  if (error) console.error("sbDeleteUserOptions:", error);
+}
  
 /**
  * DB行 → UserProgress オブジェクトへマッピング
@@ -314,7 +346,11 @@ export default function AuthProvider() {
         loadActivityLog:    (uid)           => sbLoadActivityLog(uid),
         upsertActivity:     (uid,d,c,n)     => sbUpsertActivityLog(uid,d,c,n),
         loadWatchQueue:     (uid)           => sbLoadWatchQueue(uid),
-        saveWatchQueue:     (uid, q)        => sbSaveWatchQueue(uid, q),
+        saveWatchQueue:     (uid, q, f)     => sbSaveWatchQueue(uid, q, f),
+        // ── user_options ──
+        loadUserOptions:    (uid)           => sbLoadUserOptions(uid),
+        saveUserOption:     (uid,t,c,d)     => sbSaveUserOption(uid,t,c,d),
+        deleteUserOptions:  (uid)           => sbDeleteUserOptions(uid),
         // ── Level / EXP progress ──
         getUserProgress:    (uid)           => sbGetUserProgress(uid),
         createUserProgress: (uid, progress) => sbCreateUserProgress(uid, progress),
@@ -323,4 +359,3 @@ export default function AuthProvider() {
     />
   );
 }
- 
