@@ -5783,18 +5783,26 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const [manualFocusId, setManualFocusIdRaw] = useState(() => {
     try { return localStorage.getItem(LS_FOCUS) || null; } catch { return null; }
   });
+  // ref で最新値を保持（stale closure 防止）
+  const manualFocusIdRef = useRef(manualFocusId);
+  useEffect(() => { manualFocusIdRef.current = manualFocusId; }, [manualFocusId]);
+
   const setManualFocusId = (id) => {
     setManualFocusIdRaw(id);
+    manualFocusIdRef.current = id; // ref も即時更新
     // localStorage に即時保存
     try {
       if (id) localStorage.setItem(LS_FOCUS, id);
       else localStorage.removeItem(LS_FOCUS);
     } catch {}
-    // Supabase にも保存（userId が確定していれば即時、なければ dirtyWQ 経由で次回 flush 時）
-    if (userId && sbOps?.saveWatchQueue) {
-      sbOps.saveWatchQueue(userId, watchQueueRef.current, id).catch(() => {});
+    // Supabase に即時保存（userIdRef で最新userId を参照）
+    const uid = userIdRef.current ?? userId;
+    if (uid && sbOps?.saveWatchQueue) {
+      sbOps.saveWatchQueue(uid, watchQueueRef.current, id).catch(e => {
+        console.error('manualFocusId save error:', e);
+      });
     } else {
-      // userId 未確定時は dirty フラグを立てて次回 flush 時に保存
+      // userId 未確定時は dirty フラグで次回 flush 時に保存
       dirtyWQ.current = true;
     }
   };
@@ -5806,6 +5814,9 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const dirtyWQ      = useRef(false);
   const flushTimer   = useRef(null);
   const userId = user?.id ?? null;
+  // ref で常に最新 userId を保持（stale closure 防止）
+  const userIdRef = useRef(userId);
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
 
   // ── Nav state ────────────────────────────────────────────────────────────
   const [navTab, setNavTab] = useState(0); // 0=home,1=contents,2=add,3=report,4=settings
@@ -5918,12 +5929,13 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         await Promise.all(ids.map(id => { const item = currentItems.find(i=>i.id===id); return item ? sbOps.saveItem(userId,item) : sbOps.deleteItem(userId,id); }));
         if (dirtyWQ.current) {
           dirtyWQ.current = false;
-          await sbOps.saveWatchQueue(userId, currentWQ, manualFocusId);
+          // manualFocusIdRef.current で最新値を参照（stale closure 回避）
+          await sbOps.saveWatchQueue(userId, currentWQ, manualFocusIdRef.current);
         }
         markSaved();
       } catch(e) { console.error("flush error:", e); markError(); }
     }, 600);
-  }, [userId, sbOps, manualFocusId]);
+  }, [userId, sbOps]);
 
   // iOS PWA対策: バックグラウンド移行直前に即時保存
   // items/activityLog を ref で保持して stale closure を防ぐ
@@ -5949,7 +5961,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       if (dirtyWQ.current) {
         dirtyWQ.current = false;
         sbOps.saveWatchQueue(userId, watchQueueRef.current,
-          lsGet(LS_FOCUS)).catch(() => {});
+          manualFocusIdRef.current).catch(() => {});
       }
 
       // activityLog を即時保存（stale closure を避けるため ref から読む）
