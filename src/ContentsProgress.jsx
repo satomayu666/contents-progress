@@ -1580,8 +1580,14 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
 // ─── URL Button — opens directly in new tab, no confirmation ─────────────────
 function UrlButton({ url, color, label="URLを開く" }) {
   if (!url) return null;
+  const handleOpen = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // iOS PWAでtarget="_blank"が無視されるためwindow.openで強制外部起動
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer"
+    <a href={url} onClick={handleOpen}
       style={{ fontSize:12, color:dk(color), fontWeight:600, display:"inline-flex", alignItems:"center", gap:4, textDecoration:"none", background:tint(color), borderRadius:7, padding:"3px 10px" }}>
       <ICONS.link/> {label}
     </a>
@@ -1895,10 +1901,10 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
 
           {/* startedAt + duration */}
           {item.startedAt&&(
-            <div style={{ fontSize:11,color:G.greyMid,marginTop:8,display:"flex",alignItems:"center",gap:4 }}>
+            <div style={{ fontSize:11,color:"#767676",marginTop:8,display:"flex",alignItems:"center",gap:4 }}>
               <ICONS.clock/>
               {item.startedAt} 開始
-              {durationDays&&<span style={{ marginLeft:4,fontWeight:600,color:G.greyDark }}>（{durationDays}日{item.status==="active"?"経過":"かけて完了"}）</span>}
+              {durationDays&&<span style={{ marginLeft:4,fontWeight:600,color:"#767676" }}>（{durationDays}日{item.status==="active"?"経過":"かけて完了"}）</span>}
             </div>
           )}
 
@@ -2107,7 +2113,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
       {showConfetti&&<Confetti onDone={()=>setShowConfetti(false)}/>}
       {pastRecordOpen&&<PastRecordModal item={item} onSave={handlePastRecord} onClose={()=>setPastRecord(false)}/>}
 
-      <div style={{ display:"flex",gap:10,marginTop:8,fontSize:9,color:G.borderMid,flexWrap:"wrap",lineHeight:1.5 }}>
+      <div style={{ display:"flex",gap:10,marginTop:8,fontSize:9,color:"#BFBFBF",flexWrap:"wrap",lineHeight:1.5 }}>
         <span>追加: {item.addedAt}</span>
         {item.lastUpdated&&<span>更新: {item.lastUpdated}</span>}
         {item.completedAt&&<span>完了: {item.completedAt}</span>}
@@ -2477,7 +2483,7 @@ function ContentReport({ items, onSelectItem }) {
                       {/* Title */}
                       <div style={{ fontSize:13, fontWeight:600, color:"#1A1A1A",
                         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                        letterSpacing:"0.03em", marginBottom:3 }}>
+                        letterSpacing:"0.06em", marginBottom:3 }}>
                         {item.title}
                       </div>
                       {/* Sub info */}
@@ -2750,19 +2756,58 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
     return days;
   }, [year, month, activityLog]);
 
+  // ── 記録回数の定義に基づくカウント計算 ───────────────────────────────────────
+  // 定義：
+  //   Web/Live/YouTube/Radio/TV/Movie : 完了ステータスになったら1回
+  //   Book   : 30ページ進めるごとに1回（余りもまとめて1回）。30P未満の本は完了で1回
+  //   Anime/Drama : 1話完了ごとに1回
+  //   Comic(巻) : 1巻ごとに1回 / Comic(話) : 4話ごとに1回（余りもまとめて1回）
+  const calcActionCount = (item, histEntries) => {
+    const cat = item.category;
+    // Web/Live/YouTube/Radio/TV/Movie : 完了ステータスで1回
+    if (["article","live","youtube","radio","tv","movie"].includes(cat)) {
+      return histEntries.filter(h => h.completedViaButton ||
+        (item.status==="done" && h.to >= item.total && item.total > 0)).length > 0 ? 1 : 0;
+    }
+    // Anime/Drama : 1話ごとに1回
+    if (["anime","drama"].includes(cat)) {
+      return histEntries.reduce((s, h) => s + (h.delta||0), 0);
+    }
+    // Book : 30Pごとに1回（余りもまとめて1回）
+    if (cat === "book") {
+      const totalPages = histEntries.reduce((s, h) => s + (h.delta||0), 0);
+      if (item.total < 30) {
+        return item.status==="done" ? 1 : 0;
+      }
+      return Math.ceil(totalPages / 30);
+    }
+    // Comic : 巻/話で分岐
+    if (cat === "manga") {
+      const unit = item.mangaUnit || "巻";
+      const totalDelta = histEntries.reduce((s, h) => s + (h.delta||0), 0);
+      if (unit === "巻") return totalDelta;
+      // 話単位: 4話ごとに1回
+      return Math.ceil(totalDelta / 4);
+    }
+    return histEntries.reduce((s, h) => s + (h.delta||0), 0);
+  };
+
+  // 定義ポップアップの state
+  const [defPopup, setDefPopup] = useState(false);
+
   // ── Stats ────────────────────────────────────────────────────────────────
   const stats = React.useMemo(() => {
     const daysInMonth = new Date(year, month, 0).getDate();
     const prefix = `${year}-${String(month).padStart(2,"0")}`;
 
-    // Activity counts
-    let activeDays = 0, totalActions = 0;
+    // アクティブ日カウント（従来通り activityLog ベース）
+    let activeDays = 0;
     for (let d=1; d<=daysInMonth; d++) {
       const ymd = `${prefix}-${String(d).padStart(2,"0")}`;
       const log = activityLog[ymd];
       if (log && typeof log==="object") {
         const cnt = Object.values(log).reduce((a,b)=>a+b,0);
-        if (cnt > 0) { activeDays++; totalActions += cnt; }
+        if (cnt > 0) activeDays++;
       }
     }
 
@@ -2771,18 +2816,66 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
       i.status==="done" && i.completedAt && i.completedAt.startsWith(prefix)
     ).sort((a,b)=>(b.completedAt||"").localeCompare(a.completedAt||""));
 
-    // カテゴリ別ドーナツグラフ用カウント（進捗記録件数ベース）
+    // 新定義に基づくカテゴリ別カウント・記録回数
     const catCounts = {};
     CAT_KEYS.forEach(k => { catCounts[k] = 0; });
-    for (let d=1; d<=daysInMonth; d++) {
-      const ymd = `${prefix}-${String(d).padStart(2,"0")}`;
-      const log = activityLog[ymd];
-      if (log && typeof log==="object") {
-        Object.entries(log).forEach(([cat,cnt]) => {
-          if (catCounts[cat] !== undefined) catCounts[cat] += cnt;
-        });
+    let totalActions = 0;
+
+    items.forEach(item => {
+      const cat = item.category;
+      if (!catCounts.hasOwnProperty(cat)) return;
+
+      // その月の progressHistory エントリを抽出
+      const monthHist = (item.progressHistory||[]).filter(h =>
+        h.date && h.date.startsWith(prefix)
+      );
+
+      // Web/Live/YouTube/Radio/TV/Movie: 完了ステータスになったら1回
+      if (["article","live","youtube","radio","tv","movie"].includes(cat)) {
+        if (item.status==="done" && item.completedAt && item.completedAt.startsWith(prefix)) {
+          catCounts[cat] += 1;
+          totalActions += 1;
+        }
+        return;
       }
-    }
+
+      // Anime/Drama: 1話ごとに1回
+      if (["anime","drama"].includes(cat)) {
+        const cnt = monthHist.reduce((s, h) => s + (h.delta||0), 0);
+        catCounts[cat] += cnt;
+        totalActions += cnt;
+        return;
+      }
+
+      // Book: 30Pごとに1回（余りもまとめて1回）
+      if (cat === "book") {
+        const totalPages = monthHist.reduce((s, h) => s + (h.delta||0), 0);
+        if (totalPages === 0) return;
+        const cnt = item.total < 30
+          ? (item.status==="done" && item.completedAt?.startsWith(prefix) ? 1 : 0)
+          : Math.ceil(totalPages / 30);
+        catCounts[cat] += cnt;
+        totalActions += cnt;
+        return;
+      }
+
+      // Comic: 巻→1巻ごと / 話→4話ごと（余りもまとめて1回）
+      if (cat === "manga") {
+        const totalDelta = monthHist.reduce((s, h) => s + (h.delta||0), 0);
+        if (totalDelta === 0) return;
+        const unit = item.mangaUnit || "巻";
+        const cnt = unit === "巻" ? totalDelta : Math.ceil(totalDelta / 4);
+        catCounts[cat] += cnt;
+        totalActions += cnt;
+        return;
+      }
+
+      // その他（フォールバック）
+      const cnt = monthHist.reduce((s, h) => s + (h.delta||0), 0);
+      catCounts[cat] += cnt;
+      totalActions += cnt;
+    });
+
     const totalCatCount = Object.values(catCounts).reduce((a,b)=>a+b,0);
 
     return { activeDays, daysInMonth, totalActions, completedItems, catCounts, totalCatCount };
@@ -2862,9 +2955,18 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
 
       {/* ── Analysis (ドーナツ + 凡例) ── */}
       <div style={{ marginBottom:16 }}>
-        <div style={{ fontSize:11, fontWeight:700, color:"#8A8A8A",
-          letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
-          Analysis
+        {/* Section header with definition button */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#8A8A8A",
+            letterSpacing:"0.1em", textTransform:"uppercase" }}>
+            Analysis
+          </div>
+          <button onClick={()=>setDefPopup(true)}
+            style={{ background:"none", border:"1px solid #E0DEDC", borderRadius:8,
+              padding:"3px 9px", fontSize:9, fontWeight:600, color:"#6A6A6A",
+              cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em" }}>
+            記録回数について
+          </button>
         </div>
         <div style={{ background:"#F6F6F6", borderRadius:16, padding:"16px",
           display:"flex", alignItems:"center", gap:20 }}>
@@ -2939,6 +3041,48 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                   letterSpacing:"0.03em" }}>{it.title}</span>
                 <span style={{ fontSize:10, fontWeight:400, color:"#A0A0A0",
                   flexShrink:0, marginLeft:8 }}>{it.completedAt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 記録回数の定義ポップアップ ── */}
+      {defPopup && (
+        <div onClick={()=>setDefPopup(false)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.32)", zIndex:650,
+            display:"flex", alignItems:"flex-end" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#FFFFFF", borderRadius:"20px 20px 0 0",
+              width:"100%", maxHeight:"80vh", overflowY:"auto",
+              padding:"22px 20px 48px",
+              boxShadow:"0 -6px 30px rgba(0,0,0,0.12)", fontFamily:FC }}>
+            <div style={{ display:"flex", justifyContent:"space-between",
+              alignItems:"center", marginBottom:18 }}>
+              <span style={{ fontSize:13, fontWeight:700, color:"#1A1A1A",
+                letterSpacing:"0.04em" }}>記録回数の定義</span>
+              <button onClick={()=>setDefPopup(false)}
+                style={{ background:"none", border:"none", cursor:"pointer",
+                  color:"#A0A0A0", fontSize:18, lineHeight:1, padding:4 }}>×</button>
+            </div>
+            {[
+              { cats:"Web / Live / YouTube / Radio / TV / Movie",
+                desc:"1つのコンテンツが「完了」ステータスになったら 1回" },
+              { cats:"Book",
+                desc:"30ページ進めるごとに 1回（余りのページもまとめて 1回）。30ページ未満の本は完了ごとに 1回" },
+              { cats:"Anime / Drama",
+                desc:"1話完了ごとに 1回" },
+              { cats:"Comic（巻単位）",
+                desc:"1巻進めるごとに 1回" },
+              { cats:"Comic（話単位）",
+                desc:"4話進めるごとに 1回（余りの話もまとめて 1回）" },
+            ].map(({ cats, desc }, i, arr) => (
+              <div key={i} style={{ padding:"12px 0",
+                borderBottom: i < arr.length-1 ? "1px solid #F0EEEC" : "none" }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"#3A3A3A",
+                  letterSpacing:"0.04em", marginBottom:4 }}>{cats}</div>
+                <div style={{ fontSize:12, fontWeight:400, color:"#767676",
+                  letterSpacing:"0.03em", lineHeight:1.7 }}>{desc}</div>
               </div>
             ))}
           </div>
@@ -3427,7 +3571,85 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
   }
 
   // Expose export functions to parent via ref (runs after both are defined)
-  if (exportRef) exportRef.current = { exportImage, exportAllItems };
+  if (exportRef) exportRef.current = {
+    exportImage,
+    exportAllItems,
+    selectedItemId,
+    items,
+    exportSingleItem: (item) => {
+      if (!item) return;
+      const cat = CATS[item.category];
+      const W = 600;
+      const hist = [...(item.progressHistory||[])].sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+      const totalH = 100 + 140 + hist.length * 52 + 60;
+      const c = document.createElement("canvas"); c.width=W; c.height=totalH;
+      const ctx = c.getContext("2d");
+      function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();ctx.fill();}
+
+      ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,totalH);
+      const grad=ctx.createLinearGradient(0,0,W,0);
+      CONFETTI_COLORS.forEach((col,i)=>grad.addColorStop(i/(CONFETTI_COLORS.length-1),col));
+      ctx.fillStyle=grad; ctx.fillRect(0,0,W,5);
+
+      // Header
+      ctx.fillStyle=G.ink; ctx.font="bold 18px 'Outfit',sans-serif";
+      ctx.fillText("Contents Progress",30,38);
+      ctx.fillStyle=G.greyMid; ctx.font="12px sans-serif";
+      ctx.fillText(`${cat.label}`,30,58);
+
+      // Item card
+      let y = 72;
+      ctx.fillStyle=cat.color; rr(30,y,4,36,2); // left accent bar
+      ctx.fillStyle=G.ink; ctx.font="bold 15px sans-serif";
+      ctx.fillText(item.title.slice(0,36), 42, y+14);
+      ctx.fillStyle=G.greyMid; ctx.font="11px sans-serif";
+      const unit = item.category==="manga"?(item.mangaUnit||"巻"):cat.unit||"";
+      ctx.fillText(`${item.current}/${item.total} ${unit}`, 42, y+30);
+      if (item.status==="done" && item.completedAt) {
+        ctx.fillText(`完了日: ${item.completedAt}`, 200, y+30);
+      }
+      y += 56;
+
+      // History header
+      ctx.fillStyle=G.ink; ctx.font="bold 12px sans-serif";
+      ctx.fillText("記録履歴", 30, y); y += 20;
+
+      // History rows
+      hist.forEach((h, i) => {
+        const isEven = i % 2 === 0;
+        ctx.fillStyle = isEven ? "#F8F8F8" : "#FFFFFF";
+        ctx.fillRect(30, y-2, W-60, 42);
+
+        ctx.fillStyle = cat.color;
+        ctx.beginPath(); ctx.arc(42, y+14, 5, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle=G.ink; ctx.font="bold 13px sans-serif";
+        const deltaStr = h.delta>0 ? `+${h.delta}${unit}` : h.completedViaButton ? "完了" : "記録";
+        ctx.fillText(deltaStr, 56, y+14);
+
+        ctx.fillStyle=G.greyMid; ctx.font="11px sans-serif";
+        const fromTo = h.from!==undefined ? `${h.from}→${h.to}${unit}` : "";
+        ctx.fillText(fromTo, 56, y+30);
+        ctx.fillText(h.date||"", W-120, y+14);
+        y += 46;
+      });
+
+      if (hist.length === 0) {
+        ctx.fillStyle=G.greyMid; ctx.font="12px sans-serif";
+        ctx.fillText("記録なし", 30, y); y += 30;
+      }
+
+      // Footer
+      ctx.fillStyle="#F5F5F5"; ctx.fillRect(0,totalH-28,W,28);
+      ctx.fillStyle=G.greyMid; ctx.font="10px sans-serif";
+      ctx.fillText(`Contents Progress — ${new Date().toLocaleDateString("ja-JP")}`, 30, totalH-10);
+
+      const url=c.toDataURL("image/png");
+      const a=document.createElement("a"); a.href=url;
+      a.download=`cp-${item.id}-${today()}.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    },
+  };
 
   const reportInner = (
     <div style={{ background:"#FFFFFF", ...(inlineMode ? { borderRadius:0, padding:"20px 18px 60px" } : { borderRadius:"24px 24px 0 0", width:"100%", padding:"26px 20px 52px", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -10px 50px rgba(0,0,0,0.15)" }) }}>
@@ -3755,7 +3977,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
   };
 
   return (
-    <div style={{ background:"#FFFFFF", minHeight:"100vh", fontFamily:FC,
+    <div style={{ background:"#FFFFFF", fontFamily:FC,
       display:"flex", flexDirection:"column", padding:"0 0 100px" }}>
 
       {/* ① Header */}
@@ -5051,9 +5273,9 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
           )}
 
           {/* Row 7: Footer meta — 追加/更新/完了日 */}
-          <div style={{ display:"flex", gap:10, fontSize:9, fontWeight:300,
-            color:NEW_G.greyLight, flexWrap:"wrap",
-            marginTop:4, lineHeight:1.6, letterSpacing:"0.03em", fontFamily:FC }}>
+          <div style={{ display:"flex", gap:10, fontSize:10, fontWeight:400,
+            color:NEW_G.greyMid, flexWrap:"wrap",
+            marginTop:4, lineHeight:1.6, letterSpacing:"0.04em", fontFamily:FC }}>
             <span>追加: {item.addedAt}</span>
             {item.lastUpdated && <span>更新: {item.lastUpdated}</span>}
             {item.completedAt && <span>完了: {item.completedAt}</span>}
@@ -5295,7 +5517,7 @@ function AddPageScreen({ onAdd, onDone, F2 }) {
 
   // ── Step 1: Category selection ────────────────────────────────────────
   if (step === 1) return (
-    <div style={{ minHeight:"100vh", background:NEW_G.surface, fontFamily:FC }}>
+    <div style={{ background:NEW_G.surface, fontFamily:FC }}>
       <div style={{ padding:"24px 20px 18px", position:"sticky", top:0, zIndex:10,
         background:NEW_G.surface, borderBottom:`1px solid ${NEW_G.border}` }}>
       <div style={{ fontSize:22, fontWeight:700, color:NEW_G.ink, letterSpacing:"0.1em",
@@ -5345,7 +5567,7 @@ function AddPageScreen({ onAdd, onDone, F2 }) {
 
   // ── Step 2: Form for selected category ───────────────────────────────
   return (
-    <div style={{ minHeight:"100vh", background:NEW_G.bg, fontFamily:FC }}>
+    <div style={{ background:NEW_G.bg, fontFamily:FC }}>
       <div style={{ padding:"16px 18px 14px", background:NEW_G.surface,
         borderBottom:`1px solid ${NEW_G.border}`,
         position:"sticky", top:0, zIndex:10,
@@ -5401,14 +5623,21 @@ function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, rem
     if (currentMode === "period") {
       exportRef.current.exportImage();
     } else {
-      exportRef.current.exportAllItems();
+      // コンテンツ別: 詳細画面なら1件、一覧なら全件
+      const ref = exportRef.current;
+      if (ref.selectedItemId) {
+        const item = (ref.items || []).find(i => i.id === ref.selectedItemId);
+        ref.exportSingleItem(item);
+      } else {
+        ref.exportAllItems();
+      }
     }
     setExportDoneHdr(true);
     setTimeout(() => setExportDoneHdr(false), 2500);
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"#FFFFFF", fontFamily:F2 }}>
+    <div style={{ background:"#FFFFFF", fontFamily:F2 }}>
       {/* Header */}
       <div style={{ padding:"24px 18px 14px", background:NEW_G.surface,
         borderBottom:`1px solid ${NEW_G.border}`, position:"sticky", top:0, zIndex:10,
@@ -5422,7 +5651,8 @@ function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, rem
             padding:"6px 8px", borderRadius:8, display:"flex", alignItems:"center",
             color: exportDoneHdr ? "#7C8F5E" : NEW_G.greyDark,
             transition:"color .2s" }}
-          title={currentMode === "period" ? "期間別レポートを出力" : "コンテンツ別レポートを出力"}>
+          title={currentMode === "period" ? "期間別レポートを出力" :
+            exportRef.current?.selectedItemId ? "このコンテンツを画像で出力" : "コンテンツ一覧を画像で出力"}>
           {exportDoneHdr ? (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -5484,27 +5714,75 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   // ── Load ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
-      if (userId && sbOps) {
-        const [sbItems, sbLog, sbWQ] = await Promise.all([sbOps.loadItems(userId), sbOps.loadActivityLog(userId), sbOps.loadWatchQueue(userId)]);
-        if (sbItems && sbItems.length > 0) setItemsRaw(sbItems);
-        else {
-          const local = await wsGet(LS_ITEMS, null);
-          if (local && Array.isArray(local) && local.length > 0) { setItemsRaw(local); await Promise.all(local.map(it => sbOps.saveItem(userId, it))); }
+      // activityLog のゼロ・マイナス値エントリを除去するヘルパー
+      const sanitizeLog = (log) => {
+        if (!log || typeof log !== "object") return {};
+        const result = {};
+        for (const [date, cats] of Object.entries(log)) {
+          if (!cats || typeof cats !== "object") continue;
+          const clean = {};
+          for (const [cat, cnt] of Object.entries(cats)) {
+            if (typeof cnt === "number" && cnt > 0) clean[cat] = cnt;
+          }
+          if (Object.keys(clean).length > 0) result[date] = clean;
         }
-        if (sbLog && Object.keys(sbLog).length > 0) setActivityLog(sbLog);
-        else {
-          const local = await wsGet(LS_DATES, null);
-          if (local && typeof local === "object") {
-            setActivityLog(local);
-            for (const [date, cats] of Object.entries(local)) { if (typeof cats==="object") { for (const [cat,count] of Object.entries(cats)) await sbOps.upsertActivity(userId,date,cat,count); } }
+        return result;
+      };
+
+      if (userId && sbOps) {
+        const [sbItems, sbLog, sbWQ] = await Promise.all([
+          sbOps.loadItems(userId),
+          sbOps.loadActivityLog(userId),
+          sbOps.loadWatchQueue(userId),
+        ]);
+
+        // Items: Supabase優先、なければlocalStorage。両方なければDEFAULTSのまま
+        if (sbItems && sbItems.length > 0) {
+          setItemsRaw(sbItems);
+          lsSet(LS_ITEMS, sbItems); // Supabase → localStorage に書き戻す
+        } else {
+          const local = await wsGet(LS_ITEMS, null);
+          if (local && Array.isArray(local) && local.length > 0) {
+            setItemsRaw(local);
+            // localStorageのデータをSupabaseに同期
+            await Promise.all(local.map(it => sbOps.saveItem(userId, it)));
           }
         }
-        if (sbWQ && sbWQ.length > 0) setWatchQueue(sbWQ);
-        else { const local = await wsGet(LS_WQ, null); if (Array.isArray(local)) { setWatchQueue(local); if (local.length>0) await sbOps.saveWatchQueue(userId, local); } }
-      } else {
+
+        // ActivityLog: Supabase優先、なければlocalStorage
+        if (sbLog && Object.keys(sbLog).length > 0) {
+          const cleaned = sanitizeLog(sbLog);
+          setActivityLog(cleaned);
+          lsSet(LS_DATES, cleaned);
+        } else {
+          const local = await wsGet(LS_DATES, null);
+          if (local && typeof local === "object") {
+            const cleaned = sanitizeLog(local);
+            setActivityLog(cleaned);
+            // localStorageのデータをSupabaseに同期
+            for (const [date, cats] of Object.entries(cleaned)) {
+              if (typeof cats === "object") {
+                for (const [cat, count] of Object.entries(cats)) {
+                  await sbOps.upsertActivity(userId, date, cat, count);
+                }
+              }
+            }
+          }
+        }
+
+        // WatchQueue: Supabase優先、なければlocalStorage
+        if (sbWQ && sbWQ.length > 0) {
+          setWatchQueue(sbWQ);
+        } else {
+          const local = await wsGet(LS_WQ, null);
+          if (Array.isArray(local)) {
+            setWatchQueue(local);
+            if (local.length > 0) await sbOps.saveWatchQueue(userId, local);
+          }
+        }
         const si = await wsGet(LS_ITEMS, null); if (si && Array.isArray(si) && si.length>0) setItemsRaw(si);
         const wq = await wsGet(LS_WQ, null); if (Array.isArray(wq)) setWatchQueue(wq);
-        const al = await wsGet(LS_DATES, null); if (al && typeof al==="object") setActivityLog(al);
+        const al = await wsGet(LS_DATES, null); if (al && typeof al==="object") setActivityLog(sanitizeLog(al));
       }
       setLoaded(true);
     })();
@@ -5525,20 +5803,70 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
     }, 600);
   }, [userId, sbOps]);
 
+  // iOS PWA対策: バックグラウンド移行直前に即時保存
+  // items/activityLog を ref で保持して stale closure を防ぐ
+  const itemsRef = useRef(items);
+  useEffect(() => { itemsRef.current = items; }, [items]);
+  const activityLogRef = useRef(activityLog);
+  useEffect(() => { activityLogRef.current = activityLog; }, [activityLog]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== "hidden" || !userId || !sbOps) return;
+
+      // items の dirty分を即時 flush
+      clearTimeout(flushTimer.current);
+      const ids = [...dirtyItems.current];
+      dirtyItems.current.clear();
+      if (ids.length > 0) {
+        Promise.all(ids.map(id => {
+          const item = itemsRef.current.find(i=>i.id===id);
+          return item ? sbOps.saveItem(userId, item) : sbOps.deleteItem(userId, id);
+        })).catch(e => console.error("visibility flush items:", e));
+      }
+      if (dirtyWQ.current) {
+        dirtyWQ.current = false;
+        sbOps.saveWatchQueue(userId, watchQueueRef.current).catch(() => {});
+      }
+
+      // activityLog を即時保存（stale closure を避けるため ref から読む）
+      const al = activityLogRef.current;
+      if (al && typeof al === "object") {
+        Object.entries(al).forEach(([date, cats]) => {
+          if (typeof cats !== "object") return;
+          Object.entries(cats).forEach(([cat, cnt]) => {
+            if (cnt > 0) sbOps.upsertActivity(userId, date, cat, cnt).catch(() => {});
+          });
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [userId, sbOps]); // items/activityLog は ref で参照するので deps 不要
+
+  // watchQueue の最新値を ref で保持（setItems 内の stale closure を防ぐ）
+  const watchQueueRef = useRef(watchQueue);
+  useEffect(() => { watchQueueRef.current = watchQueue; }, [watchQueue]);
+
   const setItems = useCallback((updater) => {
     setItemsRaw(prev => {
       const next = typeof updater==="function" ? updater(prev) : updater;
       if (loaded) {
         try { localStorage.setItem(LS_ITEMS, JSON.stringify(next)); } catch {}
         if (userId && sbOps) {
-          next.forEach(item => { const old=prev.find(p=>p.id===item.id); if(!old||JSON.stringify(old)!==JSON.stringify(item)) dirtyItems.current.add(item.id); });
-          prev.forEach(item => { if(!next.find(n=>n.id===item.id)) dirtyItems.current.add(item.id); });
-          scheduleFlush(next, watchQueue);
+          next.forEach(item => {
+            const old = prev.find(p=>p.id===item.id);
+            if (!old || JSON.stringify(old) !== JSON.stringify(item)) dirtyItems.current.add(item.id);
+          });
+          prev.forEach(item => {
+            if (!next.find(n=>n.id===item.id)) dirtyItems.current.add(item.id);
+          });
+          scheduleFlush(next, watchQueueRef.current);
         }
       }
       return next;
     });
-  }, [loaded, userId, sbOps, scheduleFlush, watchQueue]);
+  }, [loaded, userId, sbOps, scheduleFlush]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -5550,6 +5878,17 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
     if (!loaded) return;
     lsSet(LS_DATES, activityLog);
     try { if (window.storage) window.storage.set(LS_DATES, JSON.stringify(activityLog)); } catch {}
+    // Supabase にも全件同期（差分検知は難しいので全カテゴリをupsert）
+    if (userId && sbOps) {
+      Object.entries(activityLog).forEach(([date, cats]) => {
+        if (typeof cats !== "object") return;
+        Object.entries(cats).forEach(([cat, cnt]) => {
+          if (typeof cnt === "number" && cnt >= 0) {
+            sbOps.upsertActivity(userId, date, cat, cnt).catch(() => {});
+          }
+        });
+      });
+    }
   }, [activityLog, loaded]);
 
   // ── Activity log ──────────────────────────────────────────────────────────
@@ -5565,16 +5904,37 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   const removeActivity = useCallback((date, category) => {
     if (!date) return;
     setActivityLog(prev => {
-      const day = prev[date]; if (!day||typeof day!=="object") return prev;
-      const cur=day[category]||0, newCount=cur-1;
-      if (userId && sbOps) sbOps.upsertActivity(userId,date,category,newCount);
-      if (newCount<=0) { const next={...day}; delete next[category]; if(Object.keys(next).length===0){const top={...prev};delete top[date];return top;} return {...prev,[date]:next}; }
-      return {...prev,[date]:{...day,[category]:newCount}};
+      const day = prev[date];
+      if (!day || typeof day !== "object") return prev;
+      const cur = day[category] || 0;
+      if (cur <= 0) return prev; // すでに0なら何もしない
+      const newCount = cur - 1;
+      // Supabase同期: 0以下なら0をupsert（マイナス値を防ぐ）
+      if (userId && sbOps) sbOps.upsertActivity(userId, date, category, Math.max(0, newCount));
+      if (newCount <= 0) {
+        const next = { ...day };
+        delete next[category];
+        if (Object.keys(next).length === 0) {
+          const top = { ...prev };
+          delete top[date];
+          return top;
+        }
+        return { ...prev, [date]: next };
+      }
+      return { ...prev, [date]: { ...day, [category]: newCount } };
     });
   }, [userId, sbOps]);
 
   // ── Item callbacks ────────────────────────────────────────────────────────
-  const update  = useCallback((id,patch)=>setItems(p=>p.map(it=>it.id===id?{...it,...patch}:it)),[setItems]);
+  const update = useCallback((id, patch) => setItems(p => p.map(it => {
+    if (it.id !== id) return it;
+    const merged = { ...it, ...patch };
+    // progressHistory が渡された場合は必ず新しい配列参照にする（useMemo 再計算を保証）
+    if (patch.progressHistory !== undefined) {
+      merged.progressHistory = [...(patch.progressHistory || [])];
+    }
+    return merged;
+  })), [setItems]);
   const saveEdit = useCallback((updated) => {
     setItems(prev => {
       const old = prev.find(it=>it.id===updated.id);
@@ -5751,19 +6111,6 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         {/* Contentsタブのみ固定高さスクロール。他は自然な高さ（余白スクロールなし） */}
         {navTab===1 ? (
           <div style={{ overflowY:"auto", height:"100vh", paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
-          {navTab===0 && (
-            <HomeScreen
-              items={items}
-              activityLog={activityLog}
-              onUpdate={update}
-              onMove={move}
-              onActivityLog={logActivity}
-              onEdit={setEdit}
-              onStatusChange={statusChange}
-              removeActivityLog={removeActivity}
-            />
-          )}
-          {navTab===1 && (
             <ContentsScreen
               items={items}
               watchQueue={watchQueue}
@@ -5777,103 +6124,57 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
               removeActivityLog={removeActivity}
               onReorder={reorder}
             />
-          )}
-          {navTab===2 && (
-            <AddPageScreen onAdd={(item)=>{ addItem(item); setGlobalToast("コンテンツを追加しました！"); }} onDone={()=>setNavTab(1)} F2={F2}/>
-          )}
-          {navTab===3 && (
-            <ReportPageScreen items={items} activityLog={activityLog} F2={F2}
-              onUpdate={update} onActivityLog={logActivity}
-              removeActivityLog={removeActivity}/>
-          )}
-          {navTab===4 && (
-            <SettingsScreen
-              user={user}
-              onLogout={onLogout}
-              syncStatus={syncStatus}
-              items={items}
-              onDeleteAll={async () => {
-                // 全データ削除: items/activityLog/watchQueue/progress をリセット
-                setItems([]);
-                setActivityLog({});
-                setWatchQueue([]);
-                lsSet(LS_ITEMS, []);
-                lsSet(LS_DATES, {});
-                lsSet(LS_WQ, []);
-                // Supabase側も削除
-                if (userId && sbOps) {
-                  try {
-                    // アイテム全削除
-                    const allItems = items;
-                    await Promise.all(allItems.map(it => sbOps.deleteItem(userId, it.id)));
-                    // activityLog全削除（全カテゴリ×全日付を0に）
-                    const dates = Object.keys(activityLog);
-                    for (const date of dates) {
-                      const cats = Object.keys(activityLog[date]||{});
-                      for (const cat of cats) {
-                        await sbOps.upsertActivity(userId, date, cat, 0);
-                      }
-                    }
-                    if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, []);
-                  } catch(e) { console.error("deleteAll error:", e); }
-                }
-              }}
-            />
-          )}
-        </div>
+          </div>
         ) : (
           /* Home / + / Report / Settings: 自然な高さ（余白スクロールなし） */
           <div style={{ paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
-          {navTab===0 && (
-            <HomeScreen
-              items={items}
-              activityLog={activityLog}
-              onUpdate={update}
-              onMove={move}
-              onActivityLog={logActivity}
-              onEdit={setEdit}
-              onStatusChange={statusChange}
-              removeActivityLog={removeActivity}
-            />
-          )}
-          {navTab===2 && (
-            <AddPageScreen onAdd={(item)=>{ addItem(item); setGlobalToast("コンテンツを追加しました！"); }} onDone={()=>setNavTab(1)} F2={F2}/>
-          )}
-          {navTab===3 && (
-            <ReportPageScreen items={items} activityLog={activityLog} F2={F2}
-              onUpdate={update} onActivityLog={logActivity}
-              removeActivityLog={removeActivity}/>
-          )}
-          {navTab===4 && (
-            <SettingsScreen
-              user={user}
-              onLogout={onLogout}
-              syncStatus={syncStatus}
-              items={items}
-              onDeleteAll={async () => {
-                setItems([]);
-                setActivityLog({});
-                setWatchQueue([]);
-                lsSet(LS_ITEMS, []);
-                lsSet(LS_DATES, {});
-                lsSet(LS_WQ, []);
-                if (userId && sbOps) {
-                  try {
-                    const allItems = items;
-                    await Promise.all(allItems.map(it => sbOps.deleteItem(userId, it.id)));
-                    const dates = Object.keys(activityLog);
-                    for (const date of dates) {
-                      const cats = Object.keys(activityLog[date]||{});
-                      for (const cat of cats) {
-                        await sbOps.upsertActivity(userId, date, cat, 0);
+            {navTab===0 && (
+              <HomeScreen
+                items={items}
+                activityLog={activityLog}
+                onUpdate={update}
+                onMove={move}
+                onActivityLog={logActivity}
+                onEdit={setEdit}
+                onStatusChange={statusChange}
+                removeActivityLog={removeActivity}
+              />
+            )}
+            {navTab===2 && (
+              <AddPageScreen onAdd={(item)=>{ addItem(item); setGlobalToast("コンテンツを追加しました！"); }} onDone={()=>setNavTab(1)} F2={F2}/>
+            )}
+            {navTab===3 && (
+              <ReportPageScreen items={items} activityLog={activityLog} F2={F2}
+                onUpdate={update} onActivityLog={logActivity}
+                removeActivityLog={removeActivity}/>
+            )}
+            {navTab===4 && (
+              <SettingsScreen
+                user={user}
+                onLogout={onLogout}
+                syncStatus={syncStatus}
+                items={items}
+                onDeleteAll={async () => {
+                  setItems([]);
+                  setActivityLog({});
+                  setWatchQueue([]);
+                  lsSet(LS_ITEMS, []);
+                  lsSet(LS_DATES, {});
+                  lsSet(LS_WQ, []);
+                  if (userId && sbOps) {
+                    try {
+                      await Promise.all(items.map(it => sbOps.deleteItem(userId, it.id)));
+                      for (const date of Object.keys(activityLog)) {
+                        for (const cat of Object.keys(activityLog[date]||{})) {
+                          await sbOps.upsertActivity(userId, date, cat, 0);
+                        }
                       }
-                    }
-                    if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, []);
-                  } catch(e) { console.error("deleteAll error:", e); }
-                }
-              }}
-            />
-          )}
+                      if (sbOps.saveWatchQueue) await sbOps.saveWatchQueue(userId, []);
+                    } catch(e) { console.error("deleteAll error:", e); }
+                  }
+                }}
+              />
+            )}
           </div>
         )}
 
