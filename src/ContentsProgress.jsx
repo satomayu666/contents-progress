@@ -6055,9 +6055,9 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOp
         {deleteStep === 0 && (
           <button onClick={()=>setDeleteStep(1)}
             style={{ width:"100%", padding:"13px", borderRadius:12,
-              border:"1.5px solid #E8E2DA", background:"transparent",
-              color:"#767676", fontSize:13, fontWeight:600,
-              cursor:"pointer", fontFamily:F2, letterSpacing:"0.02em" }}>
+              border:`1.5px solid ${NEW_G.border}`, background:"#FFFFFF",
+              color:NEW_G.greyDark, fontSize:13, fontWeight:600,
+              cursor:"pointer", fontFamily:F2, letterSpacing:"0.03em" }}>
             全てのデータを削除
           </button>
         )}
@@ -6071,7 +6071,9 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOp
               <button onClick={()=>setDeleteStep(0)}
                 style={{ flex:1, padding:"12px", borderRadius:12, border:`1.5px solid ${NEW_G.border}`, background:"transparent", color:NEW_G.greyDark, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F2 }}>キャンセル</button>
               <button onClick={()=>setDeleteStep(2)}
-                style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#BFBFBF", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F2 }}>次へ</button>
+                style={{ flex:1, padding:"12px", borderRadius:12, border:"none",
+                  background:"#767676", color:"#ffffff", fontSize:13, fontWeight:700,
+                  cursor:"pointer", fontFamily:F2 }}>次へ</button>
             </div>
           </div>
         )}
@@ -6085,7 +6087,9 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOp
               <button onClick={()=>setDeleteStep(0)}
                 style={{ flex:1, padding:"12px", borderRadius:12, border:`1.5px solid ${NEW_G.border}`, background:"transparent", color:NEW_G.greyDark, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F2 }}>キャンセル</button>
               <button onClick={()=>{ setDeleteStep(0); onDeleteAll&&onDeleteAll(); }}
-                style={{ flex:1, padding:"12px", borderRadius:12, border:"none", background:"#BFBFBF", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F2 }}>削除する</button>
+                style={{ flex:1, padding:"12px", borderRadius:12, border:"none",
+                  background:"#767676", color:"#ffffff", fontSize:13, fontWeight:700,
+                  cursor:"pointer", fontFamily:F2 }}>削除する</button>
             </div>
           </div>
         )}
@@ -6832,6 +6836,8 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         html { background:#FFFFFF; }
         body { margin:0; background:#FFFFFF; font-family:'Inter','Noto Sans JP','Hiragino Sans',sans-serif; letter-spacing:0.02em; font-size:13px; }
         ::-webkit-scrollbar { display:none; }
+        * { scrollbar-width:none; }
+        *::-webkit-scrollbar { display:none; }
         @keyframes fadeUp { from{opacity:0;transform:translate(-50%,10px);}to{opacity:1;transform:translate(-50%,0);} }
         @keyframes spin { to { transform:rotate(360deg); } }
         input[type="date"], input[type="datetime-local"] {
