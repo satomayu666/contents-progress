@@ -484,82 +484,106 @@ function MultiSelect({ options, value, onChange, otherKey, otherValue, onOtherCh
 
 // Streaming service options for anime/drama
 // ─── 配信サービス ────────────────────────────────────────────────────────────
-const STREAMING_OPTIONS = [           // Anime・Drama・TV 共通
-  { key:"netflix",   label:"Netflix" },
-  { key:"amazon",    label:"Amazon Prime" },
-  { key:"hulu",      label:"Hulu" },
-  { key:"disney",    label:"Disney+" },
-  { key:"abema",     label:"ABEMA" },
-  { key:"tver",      label:"TVer" },
-  { key:"danimation",label:"dアニメストア" },
-  { key:"unext",     label:"U-NEXT" },
-  { key:"other",     label:"その他" },
-];
-const MOVIE_STREAMING_OPTIONS = [     // Movie 専用
-  { key:"cinema",    label:"映画館" },
-  { key:"netflix",   label:"Netflix" },
-  { key:"amazon",    label:"Amazon Prime" },
-  { key:"hulu",      label:"Hulu" },
-  { key:"disney",    label:"Disney+" },
-  { key:"unext",     label:"U-NEXT" },
-  { key:"abema",     label:"ABEMA" },
-  { key:"other",     label:"その他" },
-];
-const ANIME_STREAMING_OPTIONS = [     // Anime 専用
-  { key:"netflix",   label:"Netflix" },
-  { key:"amazon",    label:"Amazon Prime" },
-  { key:"hulu",      label:"Hulu" },
-  { key:"disney",    label:"Disney+" },
-  { key:"abema",     label:"ABEMA" },
-  { key:"tver",      label:"TVer" },
-  { key:"danimation",label:"dアニメストア" },
-  { key:"unext",     label:"U-NEXT" },
-  { key:"nicovideo", label:"ニコニコ動画" },
-  { key:"other",     label:"その他" },
-];
-const DRAMA_STREAMING_OPTIONS = [     // Drama 専用
-  { key:"netflix",   label:"Netflix" },
-  { key:"amazon",    label:"Amazon Prime" },
-  { key:"hulu",      label:"Hulu" },
-  { key:"disney",    label:"Disney+" },
-  { key:"tver",      label:"TVer" },
-  { key:"unext",     label:"U-NEXT" },
-  { key:"abema",     label:"ABEMA" },
+// ─── 複数選択肢定数（カテゴリ別） ────────────────────────────────────────────
+
+// Web: ジャンル
+const WEB_GENRE_OPTIONS = [
+  { key:"research",  label:"情報収集" },
+  { key:"music",     label:"音楽" },
   { key:"other",     label:"その他" },
 ];
 
-// ─── 閲覧方法 ────────────────────────────────────────────────────────────────
-const READING_OPTIONS = [             // Book 専用
-  { key:"paper",   label:"紙書籍を購入" },
-  { key:"ebook",   label:"電子書籍を購入" },
-  { key:"sub",     label:"サブスクリプション" },
-  { key:"library", label:"図書館" },
-  { key:"other",   label:"その他" },
+// Live: 視聴方法
+const LIVE_VIEW_OPTIONS = [
+  { key:"dvd",      label:"DVD" },
+  { key:"bluray",   label:"BluRay" },
+  { key:"youtube",  label:"YouTube" },
+  { key:"other",    label:"その他" },
 ];
-const MANGA_READING_OPTIONS = [       // Comic 専用
-  { key:"paper",   label:"紙書籍を購入" },
-  { key:"ebook",   label:"電子書籍を購入" },
-  { key:"sub",     label:"サブスクリプション" },
-  { key:"app",     label:"無料アプリ" },
-  { key:"library", label:"図書館" },
+
+// Radio: ジャンル
+const RADIO_GENRE_OPTIONS = [
+  { key:"music",   label:"音楽" },
+  { key:"comedy",  label:"お笑い" },
   { key:"other",   label:"その他" },
 ];
 
-// ─── 視聴方法 ────────────────────────────────────────────────────────────────
-const TV_VIEW_OPTIONS = [             // TV 専用
+// Radio: 聴取方法
+const RADIO_VIEW_OPTIONS = [
+  { key:"live",    label:"リアルタイム聴取" },
+  { key:"radiko",  label:"Radiko" },
+  { key:"podcast", label:"Podcast" },
+  { key:"other",   label:"その他" },
+];
+
+// TV: ジャンル
+const TV_GENRE_OPTIONS = [
+  { key:"variety",    label:"バラエティ" },
+  { key:"news",       label:"ニュース・報道" },
+  { key:"drama",      label:"ドラマ" },
+  { key:"documentary",label:"ドキュメンタリー" },
+  { key:"anime",      label:"アニメ" },
+  { key:"sports",     label:"スポーツ" },
+  { key:"music",      label:"音楽" },
+  { key:"education",  label:"教育・情報" },
+  { key:"other",      label:"その他" },
+];
+
+// TV: 視聴方法
+const TV_VIEW_OPTIONS = [
   { key:"live",    label:"リアルタイム視聴" },
   { key:"record",  label:"録画" },
   { key:"tver",    label:"TVer" },
   { key:"other",   label:"その他" },
 ];
-const RADIO_VIEW_OPTIONS = [          // Radio 専用
-  { key:"live",    label:"リアルタイム視聴" },
-  { key:"radiko",  label:"radiko" },
-  { key:"podcast", label:"Podcast" },
+
+// Movie: 視聴方法
+const MOVIE_VIEW_OPTIONS = [
+  { key:"cinema",  label:"映画館" },
+  { key:"netflix", label:"Netflix" },
+  { key:"amazon",  label:"Amazon Prime" },
+  { key:"hulu",    label:"Hulu" },
+  { key:"disney",  label:"Disney+" },
+  { key:"unext",   label:"U-NEXT" },
+  { key:"abema",   label:"ABEMA" },
+  { key:"dvd",     label:"DVD/BluRay" },
   { key:"other",   label:"その他" },
 ];
 
-// ─── ジャンル ─────────────────────────────────────────────────────────────────
+// Book: ジャンル
+const BOOK_GENRE_OPTIONS = [
+  { key:"novel",       label:"小説" },
+  { key:"shortstory",  label:"短編" },
+  { key:"business",    label:"ビジネス書" },
+  { key:"essay",       label:"エッセイ" },
+  { key:"biography",   label:"自伝" },
+  { key:"magazine",    label:"雑誌" },
+  { key:"music_book",  label:"音楽" },
+  { key:"lifestyle",   label:"暮らし" },
+  { key:"infosharing", label:"情報発信" },
+  { key:"money",       label:"お金" },
+  { key:"it",          label:"IT" },
+  { key:"health",      label:"健康" },
+  { key:"cooking",     label:"料理" },
+  { key:"mystery",     label:"ミステリー" },
+  { key:"romance",     label:"恋愛" },
+  { key:"scifi",       label:"SF" },
+  { key:"fantasy",     label:"ファンタジー" },
+  { key:"history",     label:"歴史" },
+  { key:"documentary", label:"ノンフィクション" },
+  { key:"other",       label:"その他" },
+];
+
+// Book: 閲覧方法
+const READING_OPTIONS = [
+  { key:"paper",   label:"紙書籍を購入" },
+  { key:"ebook",   label:"電子書籍を購入" },
+  { key:"sub",     label:"サブスクリプション" },
+  { key:"library", label:"図書館" },
+  { key:"other",   label:"その他" },
+];
+
+// Anime: ジャンル
 const ANIME_GENRE_OPTIONS = [
   { key:"action",    label:"アクション" },
   { key:"shonen",    label:"少年漫画原作" },
@@ -579,7 +603,25 @@ const ANIME_GENRE_OPTIONS = [
   { key:"moe",       label:"日常・萌え" },
   { key:"other",     label:"その他" },
 ];
+
+// Anime: 配信サービス
+const ANIME_STREAMING_OPTIONS = [
+  { key:"netflix",   label:"Netflix" },
+  { key:"amazon",    label:"Amazon Prime" },
+  { key:"hulu",      label:"Hulu" },
+  { key:"disney",    label:"Disney+" },
+  { key:"abema",     label:"ABEMA" },
+  { key:"tver",      label:"TVer" },
+  { key:"danimation",label:"dアニメストア" },
+  { key:"unext",     label:"U-NEXT" },
+  { key:"other",     label:"その他" },
+];
+
+// Drama: ジャンル
 const DRAMA_GENRE_OPTIONS = [
+  { key:"domestic",  label:"国内" },
+  { key:"foreign",   label:"海外" },
+  { key:"korean",    label:"韓国" },
   { key:"romance",   label:"恋愛" },
   { key:"comedy",    label:"コメディ" },
   { key:"mystery",   label:"ミステリー" },
@@ -592,29 +634,22 @@ const DRAMA_GENRE_OPTIONS = [
   { key:"horror",    label:"ホラー" },
   { key:"action",    label:"アクション" },
   { key:"sports",    label:"スポーツ" },
-  { key:"domestic",  label:"国内" },
-  { key:"foreign",   label:"海外" },
-  { key:"korean",    label:"韓国" },
   { key:"other",     label:"その他" },
 ];
-const MOVIE_GENRE_OPTIONS = [
-  { key:"action",    label:"アクション" },
-  { key:"adventure", label:"アドベンチャー" },
-  { key:"comedy",    label:"コメディ" },
-  { key:"romance",   label:"恋愛" },
-  { key:"drama",     label:"ヒューマンドラマ" },
-  { key:"mystery",   label:"ミステリー" },
-  { key:"suspense",  label:"サスペンス" },
-  { key:"horror",    label:"ホラー" },
-  { key:"scifi",     label:"SF" },
-  { key:"fantasy",   label:"ファンタジー" },
-  { key:"history",   label:"歴史・時代劇" },
-  { key:"animation", label:"アニメ映画" },
-  { key:"documentary",label:"ドキュメンタリー" },
-  { key:"domestic",  label:"国内" },
-  { key:"foreign",   label:"海外" },
+
+// Drama: 配信サービス
+const DRAMA_STREAMING_OPTIONS = [
+  { key:"netflix",   label:"Netflix" },
+  { key:"amazon",    label:"Amazon Prime" },
+  { key:"hulu",      label:"Hulu" },
+  { key:"disney",    label:"Disney+" },
+  { key:"tver",      label:"TVer" },
+  { key:"unext",     label:"U-NEXT" },
+  { key:"abema",     label:"ABEMA" },
   { key:"other",     label:"その他" },
 ];
+
+// Comic: ジャンル
 const MANGA_GENRE_OPTIONS = [
   { key:"shonen",    label:"少年漫画" },
   { key:"shojo",     label:"少女漫画" },
@@ -632,41 +667,42 @@ const MANGA_GENRE_OPTIONS = [
   { key:"slice",     label:"日常" },
   { key:"other",     label:"その他" },
 ];
-const TV_GENRE_OPTIONS = [
-  { key:"variety",   label:"バラエティ" },
-  { key:"news",      label:"ニュース・報道" },
-  { key:"drama",     label:"ドラマ" },
+
+// Comic: 閲覧方法
+const MANGA_READING_OPTIONS = [
+  { key:"paper",   label:"紙書籍を購入" },
+  { key:"ebook",   label:"電子書籍を購入" },
+  { key:"sub",     label:"サブスクリプション" },
+  { key:"app",     label:"無料アプリ" },
+  { key:"library", label:"図書館" },
+  { key:"other",   label:"その他" },
+];
+
+// Movie: ジャンル
+const MOVIE_GENRE_OPTIONS = [
+  { key:"domestic",   label:"国内" },
+  { key:"foreign",    label:"海外" },
+  { key:"action",     label:"アクション" },
+  { key:"adventure",  label:"アドベンチャー" },
+  { key:"comedy",     label:"コメディ" },
+  { key:"romance",    label:"恋愛" },
+  { key:"drama",      label:"ヒューマンドラマ" },
+  { key:"mystery",    label:"ミステリー" },
+  { key:"suspense",   label:"サスペンス" },
+  { key:"horror",     label:"ホラー" },
+  { key:"scifi",      label:"SF" },
+  { key:"fantasy",    label:"ファンタジー" },
+  { key:"history",    label:"歴史・時代劇" },
+  { key:"animation",  label:"アニメ映画" },
   { key:"documentary",label:"ドキュメンタリー" },
-  { key:"anime",     label:"アニメ" },
-  { key:"sports",    label:"スポーツ" },
-  { key:"music",     label:"音楽" },
-  { key:"education", label:"教育・情報" },
-  { key:"other",     label:"その他" },
+  { key:"other",      label:"その他" },
 ];
-const BOOK_GENRE_OPTIONS = [
-  { key:"novel",       label:"小説" },
-  { key:"shortstory",  label:"短編" },
-  { key:"business",    label:"ビジネス書" },
-  { key:"essay",       label:"エッセイ" },
-  { key:"biography",   label:"自伝" },
-  { key:"magazine",    label:"雑誌" },
-  { key:"music_book",  label:"音楽" },
-  { key:"lifestyle",   label:"暮らし" },
-  { key:"infosharing", label:"情報発信" },
-  { key:"money",       label:"お金" },
-  { key:"bizbook",     label:"ビジネス" },
-  { key:"it",          label:"IT" },
-  { key:"mystery",     label:"ミステリー" },
-  { key:"romance",     label:"恋愛" },
-  { key:"scifi",       label:"SF" },
-  { key:"fantasy",     label:"ファンタジー" },
-  { key:"history",     label:"歴史" },
-  { key:"documentary", label:"ノンフィクション" },
-  { key:"other",       label:"その他" },
-];
+
+// YouTube: ジャンル
 const YOUTUBE_GENRE_OPTIONS = [
   { key:"music",     label:"音楽" },
-  { key:"vlog",      label:"Vlog" },
+  { key:"vlog",      label:"日常" },
+  { key:"comedy",    label:"お笑い" },
   { key:"tech",      label:"スマホ/アプリ" },
   { key:"beauty",    label:"美容" },
   { key:"fitness",   label:"運動" },
@@ -674,27 +710,29 @@ const YOUTUBE_GENRE_OPTIONS = [
   { key:"game",      label:"ゲーム" },
   { key:"news",      label:"ニュース・解説" },
   { key:"education", label:"教育・学習" },
-  { key:"quiz",      label:"QuizKnock" },
   { key:"other",     label:"その他" },
 ];
 
-// カテゴリ別オプション取得ヘルパー（デフォルト）
-const getGenreOptions    = (cat) => cat==="anime"  ? ANIME_GENRE_OPTIONS
-                                  : cat==="drama"  ? DRAMA_GENRE_OPTIONS
-                                  : cat==="movie"  ? MOVIE_GENRE_OPTIONS
-                                  : cat==="manga"  ? MANGA_GENRE_OPTIONS
-                                  : cat==="tv"     ? TV_GENRE_OPTIONS
-                                  : cat==="book"   ? BOOK_GENRE_OPTIONS
-                                  : cat==="youtube"? YOUTUBE_GENRE_OPTIONS
-                                  : [];
-const getStreamingOptions= (cat) => cat==="movie"  ? MOVIE_STREAMING_OPTIONS
-                                  : cat==="anime"  ? ANIME_STREAMING_OPTIONS
-                                  : cat==="drama"  ? DRAMA_STREAMING_OPTIONS
-                                  : STREAMING_OPTIONS;
-const getReadingOptions  = (cat) => cat==="manga"  ? MANGA_READING_OPTIONS
-                                  : READING_OPTIONS;
-const getViewOptions     = (cat) => cat==="radio"  ? RADIO_VIEW_OPTIONS
-                                  : TV_VIEW_OPTIONS;
+// ─── カテゴリ別オプション取得ヘルパー ─────────────────────────────────────────
+const getGenreOptions     = (cat) => cat==="article" ? WEB_GENRE_OPTIONS
+                                   : cat==="radio"   ? RADIO_GENRE_OPTIONS
+                                   : cat==="anime"   ? ANIME_GENRE_OPTIONS
+                                   : cat==="drama"   ? DRAMA_GENRE_OPTIONS
+                                   : cat==="tv"      ? TV_GENRE_OPTIONS
+                                   : cat==="book"    ? BOOK_GENRE_OPTIONS
+                                   : cat==="manga"   ? MANGA_GENRE_OPTIONS
+                                   : cat==="youtube" ? YOUTUBE_GENRE_OPTIONS
+                                   : cat==="movie"   ? MOVIE_GENRE_OPTIONS
+                                   : [];
+const getStreamingOptions = (cat) => cat==="anime"   ? ANIME_STREAMING_OPTIONS
+                                   : cat==="drama"   ? DRAMA_STREAMING_OPTIONS
+                                   : [];
+const getReadingOptions   = (cat) => cat==="manga"   ? MANGA_READING_OPTIONS
+                                   : READING_OPTIONS;
+const getViewOptions      = (cat) => cat==="live"    ? LIVE_VIEW_OPTIONS
+                                   : cat==="radio"   ? RADIO_VIEW_OPTIONS
+                                   : cat==="movie"   ? MOVIE_VIEW_OPTIONS
+                                   : TV_VIEW_OPTIONS;
 
 /**
  * ユーザーカスタム設定を適用して最終的な選択肢リストを返す
@@ -1268,174 +1306,155 @@ function EditModal({ item, onClose, onSave, onDelete, userOptions = {} }) {
 
         <FF label="タイトル"><input style={INP} value={f.title} onChange={e=>set("title",e.target.value)}/></FF>
 
-        {showProgress&&f.category!=="manga"&&(
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-            <div><label style={LBL}>現在 ({c.unit})</label><input type="number" style={INP} value={f.current} onChange={e=>set("current",e.target.value)}/></div>
-            <div><label style={LBL}>合計 ({c.unit})</label><input type="number" style={INP} value={f.total} onChange={e=>set("total",e.target.value)}/></div>
-          </div>
-        )}
-        {/* 漫画：単位選択 + 現在/合計 */}
-        {f.category==="manga"&&(
-          <>
-            <div style={{ marginBottom:10 }}>
-              <label style={LBL}>単位</label>
-              <div style={{ display:"flex", gap:8 }}>
-                {["巻","話"].map(u=>(
-                  <button key={u} type="button" onClick={()=>set("mangaUnit",u)}
-                    style={{ padding:"8px 18px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,
-                      border:`1.5px solid ${(f.mangaUnit||"巻")===u?CATS.manga.color:G.border}`,
-                      background:(f.mangaUnit||"巻")===u?tint(CATS.manga.color):G.surfaceAlt,
-                      color:(f.mangaUnit||"巻")===u?dk(CATS.manga.color):G.greyDark }}>
-                    {u}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-              <div><label style={LBL}>現在 ({f.mangaUnit||"巻"})</label><input type="number" style={INP} value={f.current} onChange={e=>set("current",e.target.value)}/></div>
-              <div><label style={LBL}>合計 ({f.mangaUnit||"巻"})</label><input type="number" style={INP} value={f.total} onChange={e=>set("total",e.target.value)}/></div>
-            </div>
-          </>
-        )}
-        {isEpBased&&<FF label="1話の時間 (分)"><input type="number" style={INP} value={f.episodeMin||""} onChange={e=>set("episodeMin",e.target.value)}/></FF>}
-        {(isTimed&&!isEpBased)&&f.category!=="youtube"&&f.category!=="movie"&&(
-          <FF label="合計時間 (分)"><input type="number" style={INP} placeholder="例: 120" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></FF>
-        )}
-        {/* Live: アーティスト名 + 現在(分) */}
-        {f.category==="live"&&(
-          <>
-            <FF label="アーティスト名（任意）">
-              <input style={INP} placeholder="例: UNISON SQUARE GARDEN" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
-            </FF>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-              <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
-              <div><label style={LBL}>合計時間 (分)</label><input type="number" style={INP} placeholder="例: 120" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></div>
-            </div>
-          </>
-        )}
-        {f.category==="movie"&&(
-          <>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-              <div><label style={LBL}>視聴済み (分)</label><input type="number" style={INP} value={f.current} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
-              <div><label style={LBL}>上映時間 (分)</label><input type="number" style={INP} value={f.episodeMin||""} onChange={e=>set("episodeMin",e.target.value)}/></div>
-            </div>
-          </>
-        )}
-        {f.category==="youtube"&&(
-          <>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-              <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
-              <div><label style={LBL}>動画の長さ (分)</label><input type="number" style={INP} placeholder="例: 15" value={f.videoDurationMin||""} onChange={e=>set("videoDurationMin",e.target.value)}/></div>
-            </div>
-            <FF label="URL"><input style={INP} placeholder="https://youtube.com/watch?v=..." value={f.videoUrl||""} onChange={e=>set("videoUrl",e.target.value)}/></FF>
-          </>
-        )}
-        {(f.category==="anime"||f.category==="drama")&&(
-          <FF label="配信サービス">
-            <MultiSelect options={resolveOptions(getStreamingOptions(f.category), userOptions[`streaming:${f.category}`])} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/>
-          </FF>
-        )}
-        {f.category==="movie"&&(
-          <FF label="視聴方法">
-            <MultiSelect options={resolveOptions(getStreamingOptions(f.category), userOptions[`streaming:${f.category}`])} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/>
-          </FF>
-        )}
-        {(f.category==="book"||f.category==="manga")&&(
-          <FF label="閲覧方法">
-            <MultiSelect
-              options={resolveOptions(getReadingOptions(f.category), userOptions[`reading:${f.category}`])}
-              value={f.readingMethod||[]}
-              onChange={v=>set("readingMethod",v)}
-              otherKey={f.readingMethod?.includes("sub") ? "sub" : f.readingMethod?.includes("other") ? "other" : null}
-              otherValue={f.readingMethod?.includes("sub") ? (f.readingSubOther||"") : (f.readingOther||"")}
-              onOtherChange={v => f.readingMethod?.includes("sub") ? set("readingSubOther",v) : set("readingOther",v)}
-            />
-          </FF>
-        )}
-        {f.category==="radio"&&(
-          <>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-              <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
-              <div><label style={LBL}>合計時間 (分)</label><input type="number" style={INP} placeholder="例: 60" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></div>
-            </div>
-            <FF label="ラジオ局"><input style={INP} placeholder="例: NHK FM" value={f.station||""} onChange={e=>set("station",e.target.value)}/></FF>
-            <div style={{ marginBottom:14 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
-                <label style={LBL}>放送日時</label>
-                {f.airDate&&<button type="button" onClick={()=>set("airDate","")} style={{ fontSize:10,fontWeight:600,color:G.greyMid,background:"none",border:"none",cursor:"pointer",padding:"0 2px",fontFamily:F }}>× クリア</button>}
-              </div>
-              <input type="datetime-local" style={INP_DATE} value={f.airDate||""} onChange={e=>set("airDate",e.target.value)}/>
-            </div>
-            <FF label="URL"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
-          </>
-        )}
-        {f.category==="tv"&&(
-          <>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-              <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
-              <div><label style={LBL}>合計時間 (分)</label><input type="number" style={INP} placeholder="例: 30" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></div>
-            </div>
-            <FF label="テレビ局"><input style={INP} placeholder="例: NHK" value={f.tvStation||""} onChange={e=>set("tvStation",e.target.value)}/></FF>
-            <FF label="視聴方法">
-              <MultiSelect options={resolveOptions(getViewOptions(f.category), userOptions[`view:${f.category}`])} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/>
-            </FF>
-            <div style={{ marginBottom:14 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
-                <label style={LBL}>OA日時</label>
-                {f.airDate&&<button type="button" onClick={()=>set("airDate","")} style={{ fontSize:10,fontWeight:600,color:G.greyMid,background:"none",border:"none",cursor:"pointer",padding:"0 2px",fontFamily:F }}>× クリア</button>}
-              </div>
-              <input type="datetime-local" style={INP_DATE} value={f.airDate||""} onChange={e=>set("airDate",e.target.value)}/>
-            </div>
-            <FF label="URL"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
-          </>
-        )}
-        {["book","anime","drama","movie","manga"].includes(f.category)&&(
-          <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
-        )}
-        {f.category==="article"&&(
+        {/* ── Web ── */}
+        {f.category==="article"&&(<>
           <FF label="URL">
             <input style={INP} placeholder="https://…" value={f.articleUrl||""} onChange={e=>handleArticleUrlChange(e.target.value)}/>
-            {articleFetching && (
-              <div style={{ fontSize:11, color:G.greyMid, marginTop:5, display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{ display:"inline-block", width:10, height:10, borderRadius:"50%", border:`2px solid ${G.greyMid}`, borderTopColor:"transparent", animation:"spin .6s linear infinite" }}/>
-                文字数を取得中…
-              </div>
-            )}
-            {!articleFetching && articleMinutes && (
-              <div style={{ fontSize:11, color:dk(CATS.article.color), marginTop:5, fontWeight:600 }}>
-                ✓ 推定読了時間：約{fmtGap(articleMinutes)}
-              </div>
-            )}
+            {articleFetching && <div style={{ fontSize:11, color:G.greyMid, marginTop:5, display:"flex", alignItems:"center", gap:5 }}><span style={{ display:"inline-block", width:10, height:10, borderRadius:"50%", border:`2px solid ${G.greyMid}`, borderTopColor:"transparent", animation:"spin .6s linear infinite" }}/>文字数を取得中…</div>}
+            {!articleFetching && articleMinutes && <div style={{ fontSize:11, color:dk(CATS.article.color), marginTop:5, fontWeight:600 }}>✓ 推定読了時間：約{fmtGap(articleMinutes)}</div>}
           </FF>
-        )}
+          <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("article"), userOptions[`genre:article`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
+          <FFDate label={startedAtLabel("article")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        </>)}
 
-        <FFDate label={startedAtLabel(f.category)} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        {/* ── Live ── */}
+        {f.category==="live"&&(<>
+          <FF label="アーティスト名（任意）"><input style={INP} placeholder="例: UNISON SQUARE GARDEN" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/></FF>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+            <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+            <div><label style={LBL}>合計時間 (分)</label><input type="number" style={INP} placeholder="例: 120" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></div>
+          </div>
+          <FF label="視聴方法"><MultiSelect options={resolveOptions(getViewOptions("live"), userOptions[`view:live`])} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/></FF>
+          <FF label="URL（任意）"><input style={INP} placeholder="例: https://example.com/live" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+          <FFDate label={startedAtLabel("live")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        </>)}
 
-        {/* ジャンル選択 */}
-        {["tv","book","anime","drama","movie","manga"].includes(f.category)&&(
-          <FF label="ジャンル（任意）">
-            <MultiSelect
-              options={resolveOptions(getGenreOptions(f.category), userOptions[`genre:${f.category}`])}
-              value={f.genres||[]}
-              onChange={v=>set("genres",v)}
-              otherKey="other"
-              otherValue={f.genreOther||""}
-              onOtherChange={v=>set("genreOther",v)}
-            />
-          </FF>
-        )}
-        {f.category==="youtube"&&(
-          <FF label="ジャンル（任意）">
-            <MultiSelect
-              options={resolveOptions(getGenreOptions(f.category), userOptions[`genre:${f.category}`])}
-              value={f.genres||[]}
-              onChange={v=>set("genres",v)}
-              otherKey="other"
-              otherValue={f.genreOther||""}
-              onOtherChange={v=>set("genreOther",v)}
-            />
-          </FF>
-        )}
+        {/* ── YouTube ── */}
+        {f.category==="youtube"&&(<>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+            <div><label style={LBL}>動画の長さ (分)</label><input type="number" style={INP} placeholder="例: 15" value={f.videoDurationMin||""} onChange={e=>set("videoDurationMin",e.target.value)}/></div>
+            <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+          </div>
+          <FF label="URL"><input style={INP} placeholder="https://youtube.com/watch?v=..." value={f.videoUrl||""} onChange={e=>set("videoUrl",e.target.value)}/></FF>
+          <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("youtube"), userOptions[`genre:youtube`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
+          <FFDate label={startedAtLabel("youtube")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        </>)}
+
+        {/* ── Radio ── */}
+        {f.category==="radio"&&(<>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+            <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+            <div><label style={LBL}>合計時間 (分)</label><input type="number" style={INP} placeholder="例: 60" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></div>
+          </div>
+          <FF label="聴取方法"><MultiSelect options={resolveOptions(getViewOptions("radio"), userOptions[`view:radio`])} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/></FF>
+          <FF label="ラジオ局"><input style={INP} placeholder="例: NHK FM" value={f.station||""} onChange={e=>set("station",e.target.value)}/></FF>
+          <FF label="URL"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+          <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("radio"), userOptions[`genre:radio`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
+          <FFDate label={startedAtLabel("radio")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
+              <label style={LBL}>放送日時</label>
+              {f.airDate&&<button type="button" onClick={()=>set("airDate","")} style={{ fontSize:10,fontWeight:600,color:G.greyMid,background:"none",border:"none",cursor:"pointer",padding:"0 2px",fontFamily:F }}>× クリア</button>}
+            </div>
+            <input type="datetime-local" style={INP_DATE} value={f.airDate||""} onChange={e=>set("airDate",e.target.value)}/>
+          </div>
+        </>)}
+
+        {/* ── TV ── */}
+        {f.category==="tv"&&(<>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+            <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+            <div><label style={LBL}>合計時間 (分)</label><input type="number" style={INP} placeholder="例: 30" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></div>
+          </div>
+          <FF label="視聴方法"><MultiSelect options={resolveOptions(getViewOptions("tv"), userOptions[`view:tv`])} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/></FF>
+          <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+          <FF label="テレビ局"><input style={INP} placeholder="例: NHK" value={f.tvStation||""} onChange={e=>set("tvStation",e.target.value)}/></FF>
+          <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("tv"), userOptions[`genre:tv`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
+              <label style={LBL}>OA日時</label>
+              {f.airDate&&<button type="button" onClick={()=>set("airDate","")} style={{ fontSize:10,fontWeight:600,color:G.greyMid,background:"none",border:"none",cursor:"pointer",padding:"0 2px",fontFamily:F }}>× クリア</button>}
+            </div>
+            <input type="datetime-local" style={INP_DATE} value={f.airDate||""} onChange={e=>set("airDate",e.target.value)}/>
+          </div>
+          <FFDate label={startedAtLabel("tv")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        </>)}
+
+        {/* ── Book ── */}
+        {f.category==="book"&&(<>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+            <div><label style={LBL}>現在 (P)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+            <div><label style={LBL}>合計 (P)</label><input type="number" style={INP} value={f.total||""} onChange={e=>set("total",e.target.value)}/></div>
+          </div>
+          <FF label="閲覧方法"><MultiSelect options={resolveOptions(getReadingOptions("book"), userOptions[`reading:book`])} value={f.readingMethod||[]} onChange={v=>set("readingMethod",v)} otherKey="other" otherValue={f.readingOther||""} onOtherChange={v=>set("readingOther",v)}/></FF>
+          <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+          <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("book"), userOptions[`genre:book`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
+          <FFDate label={startedAtLabel("book")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        </>)}
+
+        {/* ── Anime ── */}
+        {f.category==="anime"&&(<>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+            <div><label style={LBL}>現在 (話)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+            <div><label style={LBL}>合計 (話)</label><input type="number" style={INP} value={f.total||""} onChange={e=>set("total",e.target.value)}/></div>
+          </div>
+          <FF label="1話の時間 (分)"><input type="number" style={INP} value={f.episodeMin||""} onChange={e=>set("episodeMin",e.target.value)}/></FF>
+          <FF label="配信サービス"><MultiSelect options={resolveOptions(getStreamingOptions("anime"), userOptions[`streaming:anime`])} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/></FF>
+          <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+          <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("anime"), userOptions[`genre:anime`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
+          <FFDate label={startedAtLabel("anime")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        </>)}
+
+        {/* ── Drama ── */}
+        {f.category==="drama"&&(<>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+            <div><label style={LBL}>現在 (話)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+            <div><label style={LBL}>合計 (話)</label><input type="number" style={INP} value={f.total||""} onChange={e=>set("total",e.target.value)}/></div>
+          </div>
+          <FF label="1話の時間 (分)"><input type="number" style={INP} value={f.episodeMin||""} onChange={e=>set("episodeMin",e.target.value)}/></FF>
+          <FF label="配信サービス"><MultiSelect options={resolveOptions(getStreamingOptions("drama"), userOptions[`streaming:drama`])} value={f.streamingServices||[]} onChange={v=>set("streamingServices",v)} otherKey="other" otherValue={f.streamingOther||""} onOtherChange={v=>set("streamingOther",v)}/></FF>
+          <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+          <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("drama"), userOptions[`genre:drama`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
+          <FFDate label={startedAtLabel("drama")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        </>)}
+
+        {/* ── Movie ── */}
+        {f.category==="movie"&&(<>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+            <div><label style={LBL}>視聴済み (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+            <div><label style={LBL}>上映時間 (分)</label><input type="number" style={INP} value={f.episodeMin||""} onChange={e=>set("episodeMin",e.target.value)}/></div>
+          </div>
+          <FF label="視聴方法"><MultiSelect options={resolveOptions(getViewOptions("movie"), userOptions[`view:movie`])} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/></FF>
+          <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+          <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("movie"), userOptions[`genre:movie`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
+          <FFDate label={startedAtLabel("movie")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        </>)}
+
+        {/* ── Comic ── */}
+        {f.category==="manga"&&(<>
+          <div style={{ marginBottom:10 }}>
+            <label style={LBL}>単位</label>
+            <div style={{ display:"flex", gap:8 }}>
+              {["巻","話"].map(u=>(
+                <button key={u} type="button" onClick={()=>set("mangaUnit",u)}
+                  style={{ padding:"8px 18px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,
+                    border:`1.5px solid ${(f.mangaUnit||"巻")===u?CATS.manga.color:G.border}`,
+                    background:(f.mangaUnit||"巻")===u?tint(CATS.manga.color):G.surfaceAlt,
+                    color:(f.mangaUnit||"巻")===u?dk(CATS.manga.color):G.greyDark }}>
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
+            <div><label style={LBL}>現在 ({f.mangaUnit||"巻"})</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+            <div><label style={LBL}>合計 ({f.mangaUnit||"巻"})</label><input type="number" style={INP} value={f.total||""} onChange={e=>set("total",e.target.value)}/></div>
+          </div>
+          <FF label="閲覧方法"><MultiSelect options={resolveOptions(getReadingOptions("manga"), userOptions[`reading:manga`])} value={f.readingMethod||[]} onChange={v=>set("readingMethod",v)} otherKey="other" otherValue={f.readingOther||""} onOtherChange={v=>set("readingOther",v)}/></FF>
+          <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+          <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("manga"), userOptions[`genre:manga`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
+          <FFDate label={startedAtLabel("manga")} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
+        </>)}
 
         <FF label="メモ">
           <textarea style={{ ...INP,minHeight:64,resize:"vertical" }} value={f.notes} onChange={e=>set("notes",e.target.value)}/>
@@ -1664,9 +1683,6 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
           </div>
         )}
         {isEpBased&&<FF label="1話の時間 (分)"><input type="number" style={INP} placeholder="例: 24" value={f.episodeMin} onChange={e=>set("episodeMin",e.target.value)}/></FF>}
-        {(["live","tv","radio"].includes(f.category))&&(
-          <FF label="合計時間 (分)"><input type="number" style={INP} placeholder="例: 120" value={f.totalDurationMin} onChange={e=>set("totalDurationMin",e.target.value)}/></FF>
-        )}
         {f.category==="movie"&&<FF label="上映時間 (分)"><input type="number" style={INP} placeholder="例: 169" value={f.episodeMin} onChange={e=>set("episodeMin",e.target.value)}/></FF>}
         {f.category==="youtube"&&(
           <>
@@ -1686,33 +1702,36 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
             />
           </FF>
         )}
-        {f.category==="movie"&&(
-          <FF label="視聴方法">
-            <MultiSelect
-              options={resolveOptions(getStreamingOptions(f.category), userOptions[`streaming:${f.category}`])}
-              value={f.streamingServices}
-              onChange={v=>set("streamingServices",v)}
-              otherKey="other"
-              otherValue={f.streamingOther}
-              onOtherChange={v=>set("streamingOther",v)}
-            />
+        {/* Live: アーティスト名をタイトルの直後（合計の前）に */}
+        {f.category==="live"&&(
+          <FF label="アーティスト名（任意）">
+            <input style={INP} placeholder="例: UNISON SQUARE GARDEN" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
+          </FF>
+        )}
+        {(f.category==="live"||f.category==="radio"||f.category==="tv")&&(
+          <FF label="合計時間 (分)"><input type="number" style={INP} placeholder="例: 60" value={f.totalDurationMin||""} onChange={e=>set("totalDurationMin",e.target.value)}/></FF>
+        )}
+        {(f.category==="live"||f.category==="radio"||f.category==="tv"||f.category==="movie")&&(
+          <FF label={f.category==="radio" ? "聴取方法" : "視聴方法"}>
+            <MultiSelect options={resolveOptions(getViewOptions(f.category), userOptions[`view:${f.category}`])} value={f.tvViewMethod||[]} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther||""} onOtherChange={v=>set("tvViewOther",v)}/>
           </FF>
         )}
         {(f.category==="book"||f.category==="manga")&&(
           <FF label="閲覧方法">
             <MultiSelect
               options={resolveOptions(getReadingOptions(f.category), userOptions[`reading:${f.category}`])}
-              value={f.readingMethod}
+              value={f.readingMethod||[]}
               onChange={v=>set("readingMethod",v)}
-              otherKey={f.readingMethod?.includes("sub") ? "sub" : f.readingMethod?.includes("other") ? "other" : null}
-              otherValue={f.readingMethod?.includes("sub") ? f.readingSubOther : f.readingOther}
-              onOtherChange={v => f.readingMethod?.includes("sub") ? set("readingSubOther",v) : set("readingOther",v)}
+              otherKey="other"
+              otherValue={f.readingOther||""}
+              onOtherChange={v=>set("readingOther",v)}
             />
           </FF>
         )}
         {f.category==="radio"&&(
           <>
             <FF label="ラジオ局"><input style={INP} placeholder="例: NHK FM" value={f.station} onChange={e=>set("station",e.target.value)}/></FF>
+            <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl} onChange={e=>set("contentUrl",e.target.value)}/></FF>
             <div style={{ marginBottom:14 }}>
               <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
                 <label style={LBL}>放送日時</label>
@@ -1720,75 +1739,76 @@ function AddModal({ onClose, onAdd, inlineMode = false, defaultCategory = "anime
               </div>
               <input type="datetime-local" style={INP_DATE} value={f.airDate} onChange={e=>set("airDate",e.target.value)}/>
             </div>
-            <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl} onChange={e=>set("contentUrl",e.target.value)}/></FF>
           </>
         )}
         {f.category==="live"&&(
-          <FF label="アーティスト名（任意）">
-            <input style={INP} placeholder="例: UNISON SQUARE GARDEN" value={f.artistName||""} onChange={e=>set("artistName",e.target.value)}/>
+          <FF label="URL（任意）">
+            <input style={INP} placeholder="例: https://example.com/live" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/>
           </FF>
         )}
         {f.category==="tv"&&(
           <>
-            <FF label="テレビ局（任意）"><input style={INP} placeholder="例: NHK" value={f.tvStation} onChange={e=>set("tvStation",e.target.value)}/></FF>
-            <FF label="視聴方法">
-              <MultiSelect options={resolveOptions(getViewOptions(f.category), userOptions[`view:${f.category}`])} value={f.tvViewMethod} onChange={v=>set("tvViewMethod",v)} otherKey="other" otherValue={f.tvViewOther} onOtherChange={v=>set("tvViewOther",v)}/>
-            </FF>
-            <div style={{ marginBottom:14 }}>
-              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
-                <label style={LBL}>OA日時（任意）</label>
-                {f.airDate&&<button type="button" onClick={()=>set("airDate","")} style={{ fontSize:10,fontWeight:600,color:G.greyMid,background:"none",border:"none",cursor:"pointer",padding:"0 2px",fontFamily:F }}>× クリア</button>}
-              </div>
-              <input type="datetime-local" style={INP_DATE} value={f.airDate} onChange={e=>set("airDate",e.target.value)}/>
-            </div>
             <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+            <FF label="テレビ局（任意）"><input style={INP} placeholder="例: NHK" value={f.tvStation} onChange={e=>set("tvStation",e.target.value)}/></FF>
           </>
         )}
-        {["book","anime","drama","movie","manga"].includes(f.category)&&(
+        {["anime","drama","movie","manga"].includes(f.category)&&(
           <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl} onChange={e=>set("contentUrl",e.target.value)}/></FF>
         )}
         {f.category==="article"&&(
-          <FF label="URL">
-            <input style={INP} placeholder="https://…" value={f.articleUrl} onChange={e=>handleArticleUrlChange(e.target.value)}/>
-            {articleFetching && (
-              <div style={{ fontSize:11, color:G.greyMid, marginTop:5, display:"flex", alignItems:"center", gap:5 }}>
-                <span style={{ display:"inline-block", width:10, height:10, borderRadius:"50%", border:`2px solid ${G.greyMid}`, borderTopColor:"transparent", animation:"spin .6s linear infinite" }}/>
-                文字数を取得中…
-              </div>
-            )}
-            {!articleFetching && articleMinutes && (
-              <div style={{ fontSize:11, color:dk(CATS.article.color), marginTop:5, fontWeight:600 }}>
-                ✓ 推定読了時間：約{fmtGap(articleMinutes)}
-              </div>
-            )}
+          <>
+            <FF label="URL">
+              <input style={INP} placeholder="https://…" value={f.articleUrl} onChange={e=>handleArticleUrlChange(e.target.value)}/>
+              {articleFetching && (
+                <div style={{ fontSize:11, color:G.greyMid, marginTop:5, display:"flex", alignItems:"center", gap:5 }}>
+                  <span style={{ display:"inline-block", width:10, height:10, borderRadius:"50%", border:`2px solid ${G.greyMid}`, borderTopColor:"transparent", animation:"spin .6s linear infinite" }}/>
+                  文字数を取得中…
+                </div>
+              )}
+              {!articleFetching && articleMinutes && (
+                <div style={{ fontSize:11, color:dk(CATS.article.color), marginTop:5, fontWeight:600 }}>
+                  ✓ 推定読了時間：約{fmtGap(articleMinutes)}
+                </div>
+              )}
+            </FF>
+            <FF label="ジャンル（任意）">
+              <MultiSelect
+                options={resolveOptions(getGenreOptions("article"), userOptions[`genre:article`])}
+                value={f.genres||[]}
+                onChange={v=>set("genres",v)}
+                otherKey="other"
+                otherValue={f.genreOther||""}
+                onOtherChange={v=>set("genreOther",v)}
+              />
+            </FF>
+          </>
+        )}
+        {/* ジャンル選択（Web以外） */}
+        {f.category==="book"&&(
+          <FF label="URL（任意）"><input style={INP} placeholder="https://…" value={f.contentUrl||""} onChange={e=>set("contentUrl",e.target.value)}/></FF>
+        )}
+        {["radio","tv","book","anime","drama","manga","youtube","movie"].includes(f.category)&&(
+          <FF label="ジャンル（任意）">
+            <MultiSelect
+              options={resolveOptions(getGenreOptions(f.category), userOptions[`genre:${f.category}`])}
+              value={f.genres||[]}
+              onChange={v=>set("genres",v)}
+              otherKey="other"
+              otherValue={f.genreOther||""}
+              onOtherChange={v=>set("genreOther",v)}
+            />
           </FF>
+        )}
+        {f.category==="tv"&&(
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5 }}>
+              <label style={LBL}>OA日時（任意）</label>
+              {f.airDate&&<button type="button" onClick={()=>set("airDate","")} style={{ fontSize:10,fontWeight:600,color:G.greyMid,background:"none",border:"none",cursor:"pointer",padding:"0 2px",fontFamily:F }}>× クリア</button>}
+            </div>
+            <input type="datetime-local" style={INP_DATE} value={f.airDate} onChange={e=>set("airDate",e.target.value)}/>
+          </div>
         )}
         <FFDate label={`${startedAtLabel(f.category)}（任意）`} value={f.startedAt||""} onChange={v=>set("startedAt",v)}/>
-        {/* ジャンル選択 */}
-        {["tv","book","anime","drama","movie","manga"].includes(f.category)&&(
-          <FF label="ジャンル（任意）">
-            <MultiSelect
-              options={resolveOptions(getGenreOptions(f.category), userOptions[`genre:${f.category}`])}
-              value={f.genres||[]}
-              onChange={v=>set("genres",v)}
-              otherKey="other"
-              otherValue={f.genreOther||""}
-              onOtherChange={v=>set("genreOther",v)}
-            />
-          </FF>
-        )}
-        {f.category==="youtube"&&(
-          <FF label="ジャンル（任意）">
-            <MultiSelect
-              options={resolveOptions(getGenreOptions(f.category), userOptions[`genre:${f.category}`])}
-              value={f.genres||[]}
-              onChange={v=>set("genres",v)}
-              otherKey="other"
-              otherValue={f.genreOther||""}
-              onOtherChange={v=>set("genreOther",v)}
-            />
-          </FF>
-        )}
         <FF label="メモ（任意）">
           <input style={INP} placeholder="メモ…" value={f.notes} onChange={e=>set("notes",e.target.value)}/>
         </FF>
@@ -1863,8 +1883,8 @@ function PastRecordModal({ item, onSave, onClose }) {
   };
 
   return (
-    <div style={{ position:"fixed",inset:0,background:"rgba(34,34,34,0.32)",zIndex:910,display:"flex",alignItems:"flex-end" }}>
-      <div style={{ background:G.surface,borderRadius:"22px 22px 0 0",width:"100%",padding:"26px 20px 44px",boxShadow:"0 -8px 40px rgba(0,0,0,0.12)" }}>
+    <div onClick={e=>e.stopPropagation()} style={{ position:"fixed",inset:0,background:"rgba(34,34,34,0.32)",zIndex:910,display:"flex",alignItems:"flex-end" }}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:G.surface,borderRadius:"22px 22px 0 0",width:"100%",padding:"26px 20px 44px",boxShadow:"0 -8px 40px rgba(0,0,0,0.12)" }}>
         <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18 }}>
           <span style={{ fontSize:16,fontWeight:800,color:G.greyDeep,display:"flex",alignItems:"center",gap:7 }}>
             <ICONS.calendar/> 過去の記録
@@ -2849,6 +2869,8 @@ function DonutChart({ catCounts, completedCount, colorMap }) {
   );
 
   let cumAngle = -90; // start from top
+  // 各セグメントの開始角度を記録（境界線描画用）
+  const dividerAngles = [];
   return (
     <svg width={size} height={size}>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EEECE9" strokeWidth={stroke}/>
@@ -2856,6 +2878,7 @@ function DonutChart({ catCounts, completedCount, colorMap }) {
         const dashLen = seg.count / total * circ;
         const gap = circ - dashLen;
         const rotation = cumAngle;
+        dividerAngles.push(cumAngle);
         cumAngle += seg.count / total * 360;
         return (
           <circle key={seg.key} cx={cx} cy={cy} r={r} fill="none"
@@ -2865,8 +2888,22 @@ function DonutChart({ catCounts, completedCount, colorMap }) {
             style={{ transform:`rotate(${rotation}deg)`, transformOrigin:`${cx}px ${cy}px` }}/>
         );
       })}
+      {/* セグメント間の境界線（グレーの細線） */}
+      {segments.length > 1 && dividerAngles.map((angle, i) => {
+        const rad = angle * Math.PI / 180;
+        const inner = r - stroke / 2;
+        const outer = r + stroke / 2;
+        const x1 = cx + inner * Math.cos(rad);
+        const y1 = cy + inner * Math.sin(rad);
+        const x2 = cx + outer * Math.cos(rad);
+        const y2 = cy + outer * Math.sin(rad);
+        return (
+          <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
+            stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="butt"/>
+        );
+      })}
       {/* Center text */}
-      <text x={cx} y={cy-12} textAnchor="middle" fontSize="9" fontWeight="500" fill="#A09890" fontFamily={FC}>完了数</text>
+      <text x={cx} y={cy-12} textAnchor="middle" fontSize="9" fontWeight="500" fill="#A09890" fontFamily={FC}>記録回数</text>
       <text x={cx} y={cy+13} textAnchor="middle" fontSize="18" fontWeight="700" fill="#1A1A1A" fontFamily={FC}>{completedCount}</text>
     </svg>
   );
@@ -3221,7 +3258,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
         </div>
         <div style={{ background:"#F6F6F6", borderRadius:16, padding:"16px",
           display:"flex", alignItems:"center", gap:20 }}>
-          <DonutChart catCounts={stats.catCounts} completedCount={stats.completedItems.length}
+          <DonutChart catCounts={stats.catCounts} completedCount={stats.totalActions}
             colorMap={{
               article:"#DDE1E0", live:"#EEE6D6", youtube:"#EDE2D9",
               radio:"#DDE1E0",   tv:"#DDE1E0",   book:"#DDE1E0",
@@ -3261,13 +3298,13 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
             <span style={{ fontSize:13, fontWeight:400, color:"#A0A0A0", letterSpacing:"0.12em" }}>/{stats.daysInMonth}</span>
           </div>
         </div>
-        {/* 記録回数 */}
+        {/* 完了数 */}
         <div style={{ background:"#F6F6F6", borderRadius:14, padding:"16px 14px", textAlign:"center" }}>
           <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
-            letterSpacing:"0.12em", marginBottom:8, lineHeight:1.4 }}>記録回数</div>
+            letterSpacing:"0.12em", marginBottom:8, lineHeight:1.4 }}>完了数</div>
           <div style={{ fontSize:20, fontWeight:700, color:"#1A1A1A", lineHeight:1, letterSpacing:"0.12em" }}>
-            {stats.totalActions}
-            <span style={{ fontSize:13, fontWeight:400, color:"#A0A0A0", letterSpacing:"0.12em" }}>回</span>
+            {stats.completedItems.length}
+            <span style={{ fontSize:13, fontWeight:400, color:"#A0A0A0", letterSpacing:"0.12em" }}>件</span>
           </div>
         </div>
       </div>
@@ -3284,9 +3321,10 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
               <div key={it.id} style={{ display:"flex", alignItems:"center",
                 padding:"11px 14px",
                 borderBottom: i<arr.length-1 ? "1px solid #ECEAE7" : "none" }}>
-                {/* カテゴリカラーの ● */}
+                {/* ドーナツグラフと同じカラーの ● */}
                 <div style={{ width:8, height:8, borderRadius:"50%",
-                  background:CATS[it.category].color, flexShrink:0, marginRight:10 }}/>
+                  background:CAL_DOT_COLOR[it.category] || CATS[it.category].color,
+                  flexShrink:0, marginRight:10 }}/>
                 <span style={{ flex:1, fontSize:12, fontWeight:500, color:"#1A1A1A",
                   overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                   letterSpacing:"0.03em" }}>{it.title}</span>
@@ -5354,7 +5392,7 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
               )}
             </div>
           )}
-          {(isTV||isRadio) && viewLabels.length > 0 && (
+          {(isTV || isRadio || item.category==="live" || item.category==="movie") && viewLabels.length > 0 && (
             <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
               {viewLabels.map((lbl,i) => (
                 <span key={i} style={{ fontSize:10, fontWeight:400, color:NEW_G.greyDark,
@@ -5397,11 +5435,16 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
               ))}
             </div>
           )}
-          {/* Live: アーティスト名 */}
+          {/* Live: アーティスト名 + URL */}
           {item.category==="live" && item.artistName && (
             <div style={{ fontSize:11, fontWeight:500, color:NEW_G.greyDark,
               letterSpacing:"0.03em", marginBottom:6 }}>
               {item.artistName}
+            </div>
+          )}
+          {item.category==="live" && item.contentUrl && (
+            <div style={{ marginBottom:6 }}>
+              <UrlButton url={item.contentUrl} color={c.color} label="URLを開く"/>
             </div>
           )}
           {isYT && item.videoUrl && (
@@ -5669,11 +5712,13 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
 // ─── Settings Screen ──────────────────────────────────────────────────────
 // ─── Options Customizer ──────────────────────────────────────────────────────
 const OPTION_TYPES = [
-  { type:"genre",     label:"ジャンル",     cats:["anime","drama","movie","manga","tv","book","youtube"] },
-  { type:"streaming", label:"配信サービス", cats:["anime","drama","movie","tv","radio","live","youtube"] },
+  { type:"genre",     label:"ジャンル",     cats:["article","radio","tv","book","anime","drama","manga","youtube","movie"] },
+  { type:"streaming", label:"配信サービス", cats:["anime","drama"] },
   { type:"reading",   label:"閲覧方法",     cats:["book","manga"] },
-  { type:"view",      label:"視聴方法",     cats:["tv","radio"] },
+  { type:"view",      label:"視聴方法",     cats:["live","radio","tv","movie"] },
 ];
+// カテゴリ選択の表示順（Web,Live,YouTube,Radio,TV,Book,Anime,Drama,Movie,Comic）
+const CAT_ORDER = ["article","live","youtube","radio","tv","book","anime","drama","movie","manga"];
 const CAT_LABELS = { anime:"Anime", drama:"Drama", movie:"Movie", manga:"Comic", tv:"TV",
   book:"Book", youtube:"YouTube", radio:"Radio", live:"Live", article:"Web" };
 
@@ -5682,16 +5727,29 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
   const NEW_G2 = { bg:"#FFFFFF", surface:"#FFFFFF", alt:"#F6F6F6",
     border:"#E8E2DA", ink:"#221E18", grey:"#A09890", dark:"#6A625A" };
 
-  const [selType, setSelType] = useState(OPTION_TYPES[0].type);
-  const [selCat,  setSelCat]  = useState(OPTION_TYPES[0].cats[0]);
+  // 1行目: 全カテゴリ（CAT_ORDER順）
+  // 2行目: 選択カテゴリに存在するタイプのみ
+  const getTypesForCat = (cat) =>
+    OPTION_TYPES.filter(t => t.cats.includes(cat));
+
+  const [selCat,  setSelCat]  = useState(CAT_ORDER[0]);
+  const [selType, setSelType] = useState(getTypesForCat(CAT_ORDER[0])[0]?.type || "genre");
   const [newLabel, setNewLabel] = useState("");
 
-  const curTypeDef = OPTION_TYPES.find(t => t.type === selType);
+  const typesForCat = getTypesForCat(selCat);
+  const curTypeDef  = OPTION_TYPES.find(t => t.type === selType) || typesForCat[0];
 
-  // selType が変わったらカテゴリもリセット
+  // カテゴリが変わったらタイプをそのカテゴリの最初のものにリセット
+  const handleCatChange = (cat) => {
+    setSelCat(cat);
+    const types = getTypesForCat(cat);
+    setSelType(types[0]?.type || "genre");
+    setResetConfirm(false);
+    setNewLabel("");
+  };
+
   const handleTypeChange = (t) => {
     setSelType(t);
-    setSelCat(OPTION_TYPES.find(o => o.type === t).cats[0]);
     setResetConfirm(false);
   };
 
@@ -5780,26 +5838,34 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
           letterSpacing:"0.04em" }}>選択肢のカスタマイズ</span>
       </div>
 
-      {/* Type selector */}
+      {/* 1行目: カテゴリ選択（全カテゴリ・CAT_ORDER順） */}
       <div style={{ display:"flex", gap:6, padding:"12px 16px 8px",
         overflowX:"auto", flexShrink:0, borderBottom:`1px solid ${NEW_G2.border}` }}>
-        {OPTION_TYPES.map(t => (
-          <button key={t.type} onClick={()=>handleTypeChange(t.type)}
-            style={btnStyle(selType===t.type)}>{t.label}</button>
-        ))}
-      </div>
-
-      {/* Category selector */}
-      <div style={{ display:"flex", gap:6, padding:"10px 16px 8px",
-        overflowX:"auto", flexShrink:0, borderBottom:`1px solid ${NEW_G2.border}` }}>
-        {curTypeDef.cats.map(c => (
-          <button key={c} onClick={()=>setSelCat(c)}
+        {CAT_ORDER.map(c => (
+          <button key={c} onClick={()=>handleCatChange(c)}
             style={btnStyle(selCat===c)}>{CAT_LABELS[c]||c}</button>
         ))}
       </div>
 
+      {/* 2行目: 選択カテゴリに存在するタイプ */}
+      {typesForCat.length > 0 ? (
+        <div style={{ display:"flex", gap:6, padding:"10px 16px 8px",
+          overflowX:"auto", flexShrink:0, borderBottom:`1px solid ${NEW_G2.border}` }}>
+          {typesForCat.map(t => (
+            <button key={t.type} onClick={()=>handleTypeChange(t.type)}
+              style={btnStyle(selType===t.type)}>{t.label}</button>
+          ))}
+        </div>
+      ) : (
+        <div style={{ padding:"14px 16px", fontSize:11, color:NEW_G2.grey,
+          borderBottom:`1px solid ${NEW_G2.border}`, letterSpacing:"0.04em" }}>
+          このカテゴリにカスタマイズできる選択肢はありません
+        </div>
+      )}
+
       {/* List */}
       <div style={{ flex:1, overflowY:"auto", padding:"12px 16px 24px" }}>
+        {typesForCat.length === 0 ? null : (<>
         <div style={{ fontSize:11, color:NEW_G2.grey, marginBottom:10,
           letterSpacing:"0.04em", lineHeight:1.6, display:"flex", alignItems:"center", gap:5 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
@@ -5923,6 +5989,7 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
             </div>
           </div>
         )}
+      </>)}
       </div>
     </div>
   );
