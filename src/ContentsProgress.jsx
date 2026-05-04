@@ -1951,17 +1951,47 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
   const hasNotes = item.notes && item.notes.trim().length > 0;
 
   const handlePastRecord = ({ date, amount }) => {
-    const nx = Math.min(item.total, item.current + amount);
-    const newSt = resolveStatus(nx, item.total);
-    const histEntry = { date, delta: nx - item.current, from: item.current, to: nx };
-    const patch = { current: nx, lastUpdated: date, status: newSt,
-      progressHistory: [...(item.progressHistory||[]), histEntry] };
-    onActivityLog(date, item.category);
-    if (nx >= item.total) Object.assign(patch, { status:"done", completedAt: date, current: item.total });
-    onUpdate(item.id, patch);
-    setPastRecord(false);
-    setToast(`${date} の記録を追加しました`);
-    if (nx >= item.total) { setShowConfetti(true); }
+    try {
+      if (!date || !amount || amount <= 0) {
+        setToast("日付と記録量を入力してください");
+        return;
+      }
+      const isTimedPast = ["youtube","tv","radio","live"].includes(item.category);
+      // timed カテゴリで合計時間未設定(total=0)の場合は上限なしで加算
+      const effectiveTotal = isTimedPast && item.total <= 0
+        ? Infinity
+        : item.total;
+      const nx = effectiveTotal === Infinity
+        ? item.current + amount
+        : Math.min(effectiveTotal, item.current + amount);
+      const newSt = effectiveTotal === Infinity
+        ? (item.status === "queue" ? "active" : item.status)
+        : resolveStatus(nx, effectiveTotal);
+      const delta = nx - item.current;
+      if (delta <= 0 && effectiveTotal !== Infinity) {
+        setToast("記録量が不正です");
+        return;
+      }
+      const histEntry = { date, delta: Math.max(delta, amount), from: item.current, to: nx };
+      const patch = { current: nx, lastUpdated: date, status: newSt,
+        progressHistory: [...(item.progressHistory||[]), histEntry] };
+      // timed: 記録分数をそのままカウントとして加算。standard: 1操作=1カウント
+      const logAmt = isTimedPast ? amount : 1;
+      onActivityLog(date, item.category, logAmt);
+      if (effectiveTotal !== Infinity && nx >= effectiveTotal) {
+        Object.assign(patch, { status:"done", completedAt: date, current: effectiveTotal });
+      }
+      if (!item.firstActiveAt && newSt === "active" && item.status === "queue") {
+        patch.firstActiveAt = date;
+      }
+      onUpdate(item.id, patch);
+      setPastRecord(false);
+      setToast(`${date} の記録を追加しました`);
+      if (effectiveTotal !== Infinity && nx >= effectiveTotal) setShowConfetti(true);
+    } catch(err) {
+      console.error('handlePastRecord error:', err);
+      setToast(`エラーが発生しました: ${err.message}`);
+    }
   };
 
   const totalMin =
@@ -1990,8 +2020,16 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
     : "読了";
 
   const quickAdd = (amt) => {
-    const nx = Math.min(item.total, item.current+amt);
-    const newSt = resolveStatus(nx, item.total);
+    // timed カテゴリで合計時間未設定(total=0)の場合は上限なしで加算
+    const effectiveTotal = isTimedProgress && item.total <= 0
+      ? Infinity
+      : item.total;
+    const nx = effectiveTotal === Infinity
+      ? item.current + amt
+      : Math.min(effectiveTotal, item.current + amt);
+    const newSt = effectiveTotal === Infinity
+      ? (item.status === "queue" ? "active" : item.status)
+      : resolveStatus(nx, effectiveTotal);
     const histEntry = { date:today(), delta:nx-item.current, from:item.current, to:nx };
     const patch = { current:nx, lastUpdated:today(), status:newSt,
       progressHistory:[...(item.progressHistory||[]), histEntry] };
@@ -1999,15 +2037,12 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
     if (newSt === "active" && item.status === "queue" && !item.firstActiveAt) {
       patch.firstActiveAt = today();
     }
-    // timed（Live/YouTube/Radio/TV）は+10分タップごとにはActivityLog記録しない（完了時のみ1回）
-    if (!isTimedProgress) {
-      onActivityLog(today(), item.category);
-    }
+    // timed: 操作した分数をそのままカウントとして記録。standard: 1操作=1カウント
+    const logAmt = isTimedProgress ? amt : 1;
+    onActivityLog(today(), item.category, logAmt);
     if (newSt === "active" && item.status === "queue") onStatusChange && onStatusChange(item.id, "active");
-    if (nx >= item.total) {
-      Object.assign(patch, { status:"done", completedAt:today(), current:item.total });
-      // timed: 完了時に1回記録
-      if (isTimedProgress) onActivityLog(today(), item.category);
+    if (effectiveTotal !== Infinity && nx >= effectiveTotal) {
+      Object.assign(patch, { status:"done", completedAt:today(), current:effectiveTotal });
       onUpdate(item.id, patch);
       setToast("完了！おめでとうございます 🎉");
       setShowConfetti(true);
@@ -2019,7 +2054,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         const newMin = nx;
         const totalMin2 = item.total;
         if (totalMin2 > 0) setToast(`${newMin}分 / ${totalMin2}分 記録しました`);
-        else setToast(`+${qa}分 記録しました`);
+        else setToast(`+${amt}分 記録しました`);
       }
       else setToast(`${ql} を記録しました`);
     }
@@ -2032,7 +2067,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
       onActivityLog(today(), item.category);
     }
     // progressHistory にも完了エントリを追記
-    const histEntry = { date:today(), delta:rem, from:item.current, to:item.total, completedViaButton:true };
+    const histEntry = { date:today(), delta:Math.max(rem,0), from:item.current, to:item.total, completedViaButton:true };
     const patch = { progressHistory: [...(item.progressHistory||[]), histEntry] };
     // ③ queue から直接完了にした場合も firstActiveAt を記録
     if (!item.firstActiveAt && item.status === "queue") {
@@ -2491,8 +2526,8 @@ function ContentDetail({ item, items, activityLog, onBack,
       </button>
 
       {/* ── コンテンツ情報カード ── */}
-      <div style={{ background:"#F6F6F6", borderRadius:16, padding:"16px",
-        marginBottom:20 }}>
+      <div style={{ background:"#FFFFFF", borderRadius:16, padding:"16px",
+        border:"1.5px solid #D8D4CE", marginBottom:20 }}>
         {/* Category badge */}
         <span style={{ display:"inline-flex", alignItems:"center", gap:4,
           background:badgeBg, borderRadius:7, padding:"3px 9px",
@@ -2529,7 +2564,7 @@ function ContentDetail({ item, items, activityLog, onBack,
       </div>
 
       {/* ── 記録履歴カード ── */}
-      <div style={{ background:"#F6F6F6", borderRadius:16, padding:"16px" }}>
+      <div style={{ background:"#FFFFFF", borderRadius:16, padding:"16px", border:"1.5px solid #D8D4CE" }}>
         <div style={{ fontSize:13, fontWeight:700, color:"#1A1A1A",
           letterSpacing:"0.06em", marginBottom:14 }}>記録履歴</div>
 
@@ -2733,8 +2768,8 @@ function ContentReport({ items, onSelectItem }) {
                     style={{ width:"100%", display:"flex", alignItems:"center",
                       gap:12, padding:"12px 14px",
                       marginBottom: idx < list.length-1 ? 8 : 0,
-                      borderRadius:14, border:"1px solid #ECEAE7",
-                      background:"#FAFAFA", cursor:"pointer",
+                      borderRadius:14, border:"1.5px solid #D8D4CE",
+                      background:"#FFFFFF", cursor:"pointer",
                       textAlign:"left", fontFamily:FC,
                       transition:"background .15s" }}>
 
@@ -2769,7 +2804,9 @@ function ContentReport({ items, onSelectItem }) {
                             {item.lastUpdated && (
                               <span>更新日 {item.lastUpdated}</span>
                             )}
-                            <span>{(item.progressHistory||[]).length}回記録</span>
+                            <span>{["youtube","tv","radio","live"].includes(item.category)
+                              ? `${(item.progressHistory||[]).reduce((s,h)=>s+(h.delta||0),0)}分記録`
+                              : `${(item.progressHistory||[]).length}回記録`}</span>
                           </>
                         )}
                         {/* 完了: 完了日 */}
@@ -2778,7 +2815,9 @@ function ContentReport({ items, onSelectItem }) {
                             {item.completedAt && (
                               <span>完了日 {item.completedAt}</span>
                             )}
-                            <span>{(item.progressHistory||[]).length}回記録</span>
+                            <span>{["youtube","tv","radio","live"].includes(item.category)
+                              ? `${(item.progressHistory||[]).reduce((s,h)=>s+(h.delta||0),0)}分記録`
+                              : `${(item.progressHistory||[]).length}回記録`}</span>
                           </>
                         )}
                       </div>
@@ -2816,7 +2855,7 @@ function ContentReport({ items, onSelectItem }) {
                 padding:"5px 13px", borderRadius:99, fontSize:11, fontWeight:600,
                 border: "none", cursor:"pointer", whiteSpace:"nowrap",
                 flexShrink:0, fontFamily:FC,
-                background: isAct ? (k ? bg : "#BFBFBF") : "#F6F6F6",
+                background: isAct ? (k ? bg : "#BFBFBF") : "#FFFFFF",
                 color: isAct ? (k ? fg2 : "#fff") : "#6A625A",
                 transition:"all .15s" }}>
               {k && <CatIco cat={k} color={isAct ? fg2 : "#A0A0A0"}/>}
@@ -3003,16 +3042,16 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
 
   // カレンダードット専用カラー（指定値）
   const CAL_DOT_COLOR = {
-    article: "#DDE1E0",
-    live:    "#EEE6D6",
-    youtube: "#EDE2D9",
-    radio:   "#DDE1E0",
-    tv:      "#DDE1E0",
-    book:    "#DDE1E0",
-    anime:   "#EEE6D6",
-    drama:   "#EDE2D9",
-    movie:   "#DDE1E0",
-    manga:   "#DDE1E0",
+    article: "#DADCD1",
+    live:    "#EDE6D6",
+    youtube: "#EBE1D8",
+    radio:   "#DCE1DF",
+    tv:      "#DFDAD7",
+    book:    "#DADCD1",
+    anime:   "#EDE6D6",
+    drama:   "#EBE1D8",
+    movie:   "#DCE1DF",
+    manga:   "#DFDAD7",
   };
 
   // ── Calendar grid (月間) ──────────────────────────────────────────────────
@@ -3201,7 +3240,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
           letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
           Activity Log
         </div>
-        <div style={{ background:"#F6F6F6", borderRadius:16, padding:"14px 10px" }}>
+        <div style={{ background:"#FFFFFF", borderRadius:16, padding:"14px 10px", border:"1.5px solid #D8D4CE" }}>
           {/* 曜日ヘッダー */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:6 }}>
             {DAY_LABELS.map(d => (
@@ -3256,18 +3295,18 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
             記録回数について
           </button>
         </div>
-        <div style={{ background:"#F6F6F6", borderRadius:16, padding:"16px",
+        <div style={{ background:"#FFFFFF", borderRadius:16, padding:"16px", border:"1.5px solid #D8D4CE",
           display:"flex", alignItems:"center", gap:20 }}>
           <DonutChart catCounts={stats.catCounts} completedCount={stats.totalActions}
             colorMap={{
-              article:"#DDE1E0", live:"#EEE6D6", youtube:"#EDE2D9",
-              radio:"#DDE1E0",   tv:"#DDE1E0",   book:"#DDE1E0",
-              anime:"#EEE6D6",   drama:"#EDE2D9", movie:"#DDE1E0", manga:"#DDE1E0",
+              article:"#DADCD1", live:"#EDE6D6", youtube:"#EBE1D8",
+              radio:"#DCE1DF",   tv:"#DFDAD7",   book:"#DADCD1",
+              anime:"#EDE6D6",   drama:"#EBE1D8", movie:"#DCE1DF", manga:"#DFDAD7",
             }}/>
           {/* 凡例 */}
           <div style={{ flex:1, minWidth:0 }}>
             {CAT_KEYS.filter(k=>stats.catCounts[k]>0).map(k => {
-              const donutColor = { article:"#DDE1E0",live:"#EEE6D6",youtube:"#EDE2D9",radio:"#DDE1E0",tv:"#DDE1E0",book:"#DDE1E0",anime:"#EEE6D6",drama:"#EDE2D9",movie:"#DDE1E0",manga:"#DDE1E0" };
+              const donutColor = { article:"#DADCD1",live:"#EDE6D6",youtube:"#EBE1D8",radio:"#DCE1DF",tv:"#DFDAD7",book:"#DADCD1",anime:"#EDE6D6",drama:"#EBE1D8",movie:"#DCE1DF",manga:"#DFDAD7" };
               return (
                 <div key={k} style={{ display:"flex", alignItems:"center", gap:7, marginBottom:6 }}>
                   <div style={{ width:10, height:10, borderRadius:"50%",
@@ -3290,7 +3329,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
       {/* ── 統計カード ── */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
         {/* アクティブ日 */}
-        <div style={{ background:"#F6F6F6", borderRadius:14, padding:"16px 14px", textAlign:"center" }}>
+        <div style={{ background:"#FFFFFF", borderRadius:14, padding:"16px 14px", textAlign:"center", border:"1.5px solid #D8D4CE" }}>
           <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
             letterSpacing:"0.12em", marginBottom:8, lineHeight:1.4 }}>アクティブ日</div>
           <div style={{ fontSize:20, fontWeight:700, color:"#1A1A1A", lineHeight:1, letterSpacing:"0.12em" }}>
@@ -3299,7 +3338,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
           </div>
         </div>
         {/* 完了数 */}
-        <div style={{ background:"#F6F6F6", borderRadius:14, padding:"16px 14px", textAlign:"center" }}>
+        <div style={{ background:"#FFFFFF", borderRadius:14, padding:"16px 14px", textAlign:"center", border:"1.5px solid #D8D4CE" }}>
           <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
             letterSpacing:"0.12em", marginBottom:8, lineHeight:1.4 }}>完了数</div>
           <div style={{ fontSize:20, fontWeight:700, color:"#1A1A1A", lineHeight:1, letterSpacing:"0.12em" }}>
@@ -3316,7 +3355,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
             letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
             完了コンテンツ
           </div>
-          <div style={{ background:"#F6F6F6", borderRadius:16, overflow:"hidden" }}>
+          <div style={{ background:"#FFFFFF", borderRadius:16, overflow:"hidden", border:"1.5px solid #D8D4CE" }}>
             {stats.completedItems.map((it, i, arr) => (
               <div key={it.id} style={{ display:"flex", alignItems:"center",
                 padding:"11px 14px",
@@ -3565,9 +3604,19 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
 }
 function ReportModal({ items, activityLog, onClose, inlineMode = false,
   onUpdate, onActivityLog, removeActivityLog,
-  onModeChange, exportRef }) {
+  onModeChange, exportRef, externalMode }) {
   const now = new Date();
-  const [reportMode, setReportMode] = useState("period");   // "period" | "content"
+  const [reportMode, setReportModeInternal] = useState(externalMode || "period");
+  const setReportMode = (mode) => {
+    setReportModeInternal(mode);
+    onModeChange && onModeChange(mode);
+  };
+  // externalModeが変わったらreportModeを同期
+  React.useEffect(() => {
+    if (externalMode && externalMode !== reportMode) {
+      setReportModeInternal(externalMode);
+    }
+  }, [externalMode]);
   const [year,  setYear]  = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [view,  setView]  = useState("month");
@@ -3945,7 +3994,7 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
   };
 
   const reportInner = (
-    <div style={{ background:"#FFFFFF", ...(inlineMode ? { borderRadius:0, padding:"20px 18px 60px" } : { borderRadius:"24px 24px 0 0", width:"100%", padding:"26px 20px 52px", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -10px 50px rgba(0,0,0,0.15)" }) }}>
+    <div style={{ background:"#F7F7F7", ...(inlineMode ? { borderRadius:0, padding:"20px 18px 60px" } : { borderRadius:"24px 24px 0 0", width:"100%", padding:"26px 20px 52px", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -10px 50px rgba(0,0,0,0.15)" }) }}>
 
         {/* Header */}
         {!inlineMode && (
@@ -3957,7 +4006,8 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
           </div>
         )}
 
-        {/* Mode toggle — pill style matching Contents tab */}
+        {/* Mode toggle — inlineMode以外のみ表示（inlineModeはReportPageScreenのヘッダーに表示） */}
+        {!inlineMode && (
         <div style={{ display:"flex", background:"#F6F6F6", borderRadius:11, padding:3, gap:2, marginBottom:18 }}>
           {[["period","期間別"],["content","コンテンツ別"]].map(([mode,label])=>(
             <button key={mode} onClick={()=>{ setReportMode(mode); setSelectedItemId(null); onModeChange&&onModeChange(mode); }}
@@ -3972,6 +4022,7 @@ function ReportModal({ items, activityLog, onClose, inlineMode = false,
             </button>
           ))}
         </div>
+        )}
 
         {/* ── PERIOD VIEW (新デザイン) ── */}
         {reportMode==="period" && <PeriodReport
@@ -4089,16 +4140,16 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
 
   // ── Category config (colors + text from spec) ──────────────────────────
   const CAT_CARD = {
-    article: { bg:"#DADCD1", fg:"#465135", dotColor:"#9EA89A" },
-    live:    { bg:"#EDE6D6", fg:"#806C47", dotColor:"#BDAF98" },
-    youtube: { bg:"#EBE1D8", fg:"#7A624C", dotColor:"#B8A99C" },
-    radio:   { bg:"#DCE1DF", fg:"#485950", dotColor:"#A0AAAA" },
-    tv:      { bg:"#DFDAD7", fg:"#534946", dotColor:"#A8A29F" },
-    book:    { bg:"#DADCD1", fg:"#465135", dotColor:"#9EA89A" },
-    anime:   { bg:"#EDE6D6", fg:"#806C47", dotColor:"#BDAF98" },
-    drama:   { bg:"#EBE1D8", fg:"#7A624C", dotColor:"#B8A99C" },
-    movie:   { bg:"#DCE1DF", fg:"#485950", dotColor:"#A0AAAA" },
-    manga:   { bg:"#DFDAD7", fg:"#534946", dotColor:"#A8A29F" },
+    article: { bg:"#DADCD1", fg:"#465135", dotColor:"#DADCD1" },
+    live:    { bg:"#EDE6D6", fg:"#806C47", dotColor:"#EDE6D6" },
+    youtube: { bg:"#EBE1D8", fg:"#7A624C", dotColor:"#EBE1D8" },
+    radio:   { bg:"#DCE1DF", fg:"#485950", dotColor:"#DCE1DF" },
+    tv:      { bg:"#DFDAD7", fg:"#534946", dotColor:"#DFDAD7" },
+    book:    { bg:"#DADCD1", fg:"#465135", dotColor:"#DADCD1" },
+    anime:   { bg:"#EDE6D6", fg:"#806C47", dotColor:"#EDE6D6" },
+    drama:   { bg:"#EBE1D8", fg:"#7A624C", dotColor:"#EBE1D8" },
+    movie:   { bg:"#DCE1DF", fg:"#485950", dotColor:"#DCE1DF" },
+    manga:   { bg:"#DFDAD7", fg:"#534946", dotColor:"#DFDAD7" },
   };
 
   // ── State ─────────────────────────────────────────────────────────────
@@ -4599,15 +4650,29 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
         {/* PastRecordModal for focus item */}
         {pastRecordOpen && focusItem && (
           <PastRecordModal item={focusItem} onSave={({ date, amount }) => {
-            const nx = Math.min(focusItem.total, focusItem.current+amount);
-            const newSt = resolveStatus(nx, focusItem.total);
-            const histEntry = { date, delta:nx-focusItem.current, from:focusItem.current, to:nx };
-            const patch = { current:nx, lastUpdated:date, status:newSt, progressHistory:[...(focusItem.progressHistory||[]),histEntry] };
-            onActivityLog(date, focusItem.category);
-            if (nx>=focusItem.total) Object.assign(patch, { status:"done", completedAt:date, current:focusItem.total });
-            onUpdate(focusItem.id, patch);
-            setPastRecord(false);
-            setFocusToast(`${date} の記録を追加しました`);
+            try {
+              if (!date || !amount || amount <= 0) return;
+              const isTimedFocus = ["youtube","tv","radio","live"].includes(focusItem.category);
+              const effectiveTotalFocus = isTimedFocus && focusItem.total <= 0 ? Infinity : focusItem.total;
+              const nx = effectiveTotalFocus === Infinity
+                ? focusItem.current + amount
+                : Math.min(effectiveTotalFocus, focusItem.current + amount);
+              const newSt = effectiveTotalFocus === Infinity
+                ? (focusItem.status === "queue" ? "active" : focusItem.status)
+                : resolveStatus(nx, effectiveTotalFocus);
+              const delta = nx - focusItem.current;
+              const histEntry = { date, delta: Math.max(delta, amount), from:focusItem.current, to:nx };
+              const patch = { current:nx, lastUpdated:date, status:newSt, progressHistory:[...(focusItem.progressHistory||[]),histEntry] };
+              const logAmtFocus = isTimedFocus ? amount : 1;
+              onActivityLog(date, focusItem.category, logAmtFocus);
+              if (effectiveTotalFocus !== Infinity && nx >= effectiveTotalFocus) {
+                Object.assign(patch, { status:"done", completedAt:date, current:effectiveTotalFocus });
+              }
+              if (!focusItem.firstActiveAt && newSt === "active" && focusItem.status === "queue") patch.firstActiveAt = date;
+              onUpdate(focusItem.id, patch);
+              setPastRecord(false);
+              setFocusToast(`${date} の記録を追加しました`);
+            } catch(err) { console.error('HomeScreen pastRecord error:', err); }
           }} onClose={()=>setPastRecord(false)}/>
         )}
       </div>
@@ -5692,18 +5757,24 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
       {toast && <Toast msg={toast} onHide={()=>setToast(null)}/>}
       {showConfetti && <Confetti onDone={()=>setShowConfetti(false)}/>}
       {pastRecordOpen && <PastRecordModal item={item} onSave={({ date, amount }) => {
-        const nx = Math.min(item.total > 0 ? item.total : Infinity, item.current + amount);
-        const newSt = item.total > 0 ? resolveStatus(nx, item.total) : (nx > 0 ? "active" : item.status);
-        const histEntry = { date, delta:nx-item.current, from:item.current, to:nx };
-        const patch3 = { current:nx, lastUpdated:date, status:newSt, progressHistory:[...(item.progressHistory||[]),histEntry] };
-        // timed カテゴリは完了時のみ1回記録
-        const isTimedCat = ["youtube","tv","radio","live"].includes(item.category);
-        if (!isTimedCat) onActivityLog(date, item.category);
-        if (nx>=item.total && item.total>0) {
-          Object.assign(patch3, { status:"done", completedAt:date, current:item.total });
-          if (isTimedCat) onActivityLog(date, item.category); // 完了時のみ
-        }
-        onUpdate(item.id, patch3); setPastRecord(false); setToast(`${date} の記録を追加しました`);
+        try {
+          if (!date || !amount || amount <= 0) return;
+          const isTimedCat3 = ["youtube","tv","radio","live"].includes(item.category);
+          const effTotal3 = item.total > 0 ? item.total : (isTimedCat3 ? Infinity : 0);
+          const nx = effTotal3 === Infinity ? item.current + amount : Math.min(effTotal3, item.current + amount);
+          const newSt = effTotal3 === Infinity ? (nx > 0 ? "active" : item.status) : resolveStatus(nx, effTotal3);
+          const delta = nx - item.current;
+          const histEntry = { date, delta: Math.max(delta, amount), from:item.current, to:nx };
+          const patch3 = { current:nx, lastUpdated:date, status:newSt, progressHistory:[...(item.progressHistory||[]),histEntry] };
+          const logAmt3 = isTimedCat3 ? amount : 1;
+          onActivityLog(date, item.category, logAmt3);
+          if (effTotal3 !== Infinity && nx >= effTotal3 && effTotal3 > 0) {
+            Object.assign(patch3, { status:"done", completedAt:date, current:effTotal3 });
+          }
+          onUpdate(item.id, patch3);
+          setPastRecord(false);
+          setToast(`${date} の記録を追加しました`);
+        } catch(err) { console.error('ContentsScreen pastRecord error:', err); }
       }} onClose={()=>setPastRecord(false)}/>}
     </div>
   );
@@ -6287,6 +6358,7 @@ function AddPageScreen({ onAdd, onDone, F2, userOptions = {} }) {
 // ─── Report Page Screen (full-page) ───────────────────────────────────────
 function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, removeActivityLog }) {
   const [currentMode, setCurrentMode] = React.useState("period");
+  const reportModeRef = React.useRef(null); // ReportModal の setReportMode を格納
   const exportRef = React.useRef(null); // { exportImage, exportAllItems }
   const [exportDoneHdr, setExportDoneHdr] = React.useState(false);
 
@@ -6309,36 +6381,54 @@ function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, rem
   };
 
   return (
-    <div style={{ background:"#FFFFFF", fontFamily:F2 }}>
-      {/* Header */}
-      <div style={{ padding:"24px 18px 14px", background:NEW_G.surface,
-        borderBottom:`1px solid ${NEW_G.border}`, position:"sticky", top:0, zIndex:10,
-        display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ fontSize:22, fontWeight:700, color:NEW_G.ink, letterSpacing:"0.1em" }}>
-          Report
+    <div style={{ background:"#F7F7F7", fontFamily:F2 }}>
+      {/* Header — sticky, ContentsタブのデザインにそろえたStickyヘッダー */}
+      <div style={{ padding:"24px 18px 12px", background:"#FFFFFF",
+        position:"sticky", top:0, zIndex:10,
+        borderBottom:`1px solid ${NEW_G.border}` }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+          <div style={{ fontSize:22, fontWeight:700, color:NEW_G.ink, letterSpacing:"0.1em" }}>
+            Report
+          </div>
+          {/* Share icon */}
+          <button onClick={handleExport}
+            style={{ background:"none", border:"none", cursor:"pointer",
+              padding:"6px 8px", borderRadius:8, display:"flex", alignItems:"center",
+              color: exportDoneHdr ? "#7C8F5E" : NEW_G.greyMid,
+              transition:"color .2s" }}
+            title={currentMode === "period" ? "期間別レポートを出力" :
+              exportRef.current?.selectedItemId ? "このコンテンツを画像で出力" : "コンテンツ一覧を画像で出力"}>
+            {exportDoneHdr ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+            )}
+          </button>
         </div>
-        {/* Share icon */}
-        <button onClick={handleExport}
-          style={{ background:"none", border:"none", cursor:"pointer",
-            padding:"6px 8px", borderRadius:8, display:"flex", alignItems:"center",
-            color: exportDoneHdr ? "#7C8F5E" : NEW_G.greyDark,
-            transition:"color .2s" }}
-          title={currentMode === "period" ? "期間別レポートを出力" :
-            exportRef.current?.selectedItemId ? "このコンテンツを画像で出力" : "コンテンツ一覧を画像で出力"}>
-          {exportDoneHdr ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
-              <polyline points="16 6 12 2 8 6"/>
-              <line x1="12" y1="2" x2="12" y2="15"/>
-            </svg>
-          )}
-        </button>
+        {/* Mode toggle — ContentsタブのTab selectorと同じpillスタイル */}
+        <div style={{ display:"flex", background:NEW_G.surfaceAlt, borderRadius:11, padding:3, gap:2 }}>
+          {[["period","期間別"],["content","コンテンツ別"]].map(([mode,label]) => (
+            <button key={mode}
+              onClick={()=>{ setCurrentMode(mode); }}
+              style={{ flex:1, padding:"7px 4px", borderRadius:9, border:"none",
+                fontSize:12, fontWeight:currentMode===mode ? 700 : 500,
+                background: currentMode===mode ? NEW_G.surface : "transparent",
+                color: currentMode===mode ? NEW_G.ink : NEW_G.greyMid,
+                cursor:"pointer", fontFamily:F2, transition:"all .15s",
+                boxShadow: currentMode===mode ? "0 1px 4px rgba(0,0,0,0.07)" : "none",
+                letterSpacing:"0.02em" }}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <ReportModal
@@ -6346,6 +6436,7 @@ function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, rem
         onUpdate={onUpdate} onActivityLog={onActivityLog}
         removeActivityLog={removeActivityLog}
         onModeChange={setCurrentMode}
+        externalMode={currentMode}
         exportRef={exportRef}
       />
     </div>
@@ -6449,7 +6540,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
 
   // タブに応じてhtml/bodyの背景色を動的変更（iOS PWAのバウンス時に白が見えるのを防ぐ）
   useEffect(() => {
-    const bg = (navTab===1 || navTab===4) ? "#F7F7F7" : "#FFFFFF";
+    const bg = (navTab===1 || navTab===3 || navTab===4) ? "#F7F7F7" : "#FFFFFF";
     document.documentElement.style.background = bg;
     document.body.style.background = bg;
     return () => {
@@ -6663,43 +6754,51 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
     }
   }, [watchQueue, loaded]);
 
+  const prevActivityLogRef = useRef({});
   useEffect(() => {
     if (!loaded) return;
     lsSet(LS_DATES, activityLog);
     try { if (window.storage) window.storage.set(LS_DATES, JSON.stringify(activityLog)); } catch {}
-    // Supabase にも全件同期（差分検知は難しいので全カテゴリをupsert）
     if (userId && sbOps) {
+      // 追加・更新: activityLog に存在するエントリを upsert
       Object.entries(activityLog).forEach(([date, cats]) => {
         if (typeof cats !== "object") return;
         Object.entries(cats).forEach(([cat, cnt]) => {
-          if (typeof cnt === "number" && cnt >= 0) {
+          if (typeof cnt === "number" && cnt > 0) {
             sbOps.upsertActivity(userId, date, cat, cnt).catch(() => {});
           }
         });
       });
+      // 削除: 前回あったが今回なくなったエントリを delete
+      Object.entries(prevActivityLogRef.current).forEach(([date, cats]) => {
+        if (typeof cats !== "object") return;
+        Object.entries(cats).forEach(([cat]) => {
+          const cur = activityLog[date]?.[cat];
+          if (!cur || cur <= 0) {
+            sbOps.upsertActivity(userId, date, cat, 0).catch(() => {});
+          }
+        });
+      });
     }
+    prevActivityLogRef.current = activityLog;
   }, [activityLog, loaded]);
 
   // ── Activity log ──────────────────────────────────────────────────────────
-  const logActivity = useCallback((date, category) => {
+  const logActivity = useCallback((date, category, amount=1) => {
     setActivityLog(prev => {
       const day = prev[date] && typeof prev[date]==="object" ? prev[date] : {};
-      const newCount = (day[category]||0)+1;
-      if (userId && sbOps) sbOps.upsertActivity(userId,date,category,newCount);
+      const newCount = (day[category]||0) + amount;
       return { ...prev, [date]: { ...day, [category]: newCount } };
     });
-  }, [userId, sbOps]);
+  }, []);
 
-  const removeActivity = useCallback((date, category) => {
+  const removeActivity = useCallback((date, category, amount=1) => {
     if (!date) return;
     setActivityLog(prev => {
       const day = prev[date];
       if (!day || typeof day !== "object") return prev;
       const cur = day[category] || 0;
-      if (cur <= 0) return prev; // すでに0なら何もしない
-      const newCount = cur - 1;
-      // Supabase同期: 0以下なら0をupsert（マイナス値を防ぐ）
-      if (userId && sbOps) sbOps.upsertActivity(userId, date, category, Math.max(0, newCount));
+      const newCount = Math.max(cur - amount, 0);
       if (newCount <= 0) {
         const next = { ...day };
         delete next[category];
@@ -6712,7 +6811,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       }
       return { ...prev, [date]: { ...day, [category]: newCount } };
     });
-  }, [userId, sbOps]);
+  }, []);
 
   // ── Item callbacks ────────────────────────────────────────────────────────
   const update = useCallback((id, patch) => setItems(p => p.map(it => {
@@ -6725,67 +6824,66 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
     return merged;
   })), [setItems]);
   const saveEdit = useCallback((updated) => {
-    setItems(prev => {
-      const old = prev.find(it=>it.id===updated.id);
-      if (old) {
-        const delta = updated.current - old.current;
-        const isTimedCat = ["youtube","tv","radio","live"].includes(updated.category);
+    const old = itemsRef.current.find(it=>it.id===updated.id);
+    if (!old) { setEdit(null); return; }
 
-        // ── progress delta (currentの増減) ──
-        if (delta > 0) {
-          // timed カテゴリは activityLog をカウントしない（完了時のみ1回）
-          if (!isTimedCat) {
-            for (let i=0;i<delta;i++) setActivityLog(log => { const day=log[today()]&&typeof log[today()]==="object"?log[today()]:{};const cur=day[updated.category]||0;const newCount=cur+1;if(userId&&sbOps)sbOps.upsertActivity(userId,today(),updated.category,newCount);return {...log,[today()]:{...day,[updated.category]:newCount}}; });
-          }
-          updated = { ...updated, progressHistory:[...(old.progressHistory||[]), {date:today(),delta,from:old.current,to:updated.current,editedViaModal:true}] };
-        } else if (delta < 0) {
-          // timed カテゴリは activityLog をカウントしない（分数≠記録回数なので引き算しない）
-          if (!isTimedCat) {
-            const removeDelta=Math.abs(delta), date=old.lastUpdated||today();
-            setActivityLog(log => { const day=log[date]&&typeof log[date]==="object"?log[date]:{};const cur=day[updated.category]||0;const next=Math.max(cur-removeDelta,0);if(userId&&sbOps)sbOps.upsertActivity(userId,date,updated.category,next);if(next<=0){const nd={...day};delete nd[updated.category];if(Object.keys(nd).length===0){const tl={...log};delete tl[date];return tl;}return{...log,[date]:nd};}return{...log,[date]:{...day,[updated.category]:next}};});
-          }
-          // progressHistory を部分削除（timed も含む）
-          const removeDelta=Math.abs(delta);
-          const hist=[...(old.progressHistory||[])];let toRemove=removeDelta;
-          while(toRemove>0&&hist.length>0){const last=hist[hist.length-1];if(last.delta<=toRemove){hist.pop();toRemove-=last.delta;}else{hist[hist.length-1]={...last,delta:last.delta-toRemove,to:last.to-toRemove};toRemove=0;}}
-          updated = { ...updated, progressHistory: hist };
-        }
+    const delta = updated.current - old.current;
+    const isTimedCat = ["youtube","tv","radio","live"].includes(updated.category);
+    const cat = updated.category;
 
-        // ── status revert: done → queue/active ──
-        const wasCompleted = old.status==="done" && (updated.status==="queue"||updated.status==="active");
-        if (wasCompleted) {
-          const toRemoveLog = {};
-          (old.progressHistory||[]).forEach(h => {
-            if(!h.date) return;
-            if(!toRemoveLog[h.date]) toRemoveLog[h.date]={};
-            toRemoveLog[h.date][old.category]=(toRemoveLog[h.date][old.category]||0)+(h.delta||1);
-          });
-          if(old.completedAt) {
-            if(!toRemoveLog[old.completedAt]) toRemoveLog[old.completedAt]={};
-            toRemoveLog[old.completedAt][old.category]=(toRemoveLog[old.completedAt][old.category]||0)+1;
-          }
-          setActivityLog(log => {
-            let next={...log};
-            Object.entries(toRemoveLog).forEach(([date,cats]) => {
-              Object.entries(cats).forEach(([cat,cnt]) => {
-                const day=next[date]&&typeof next[date]==="object"?next[date]:{};
-                const cur=day[cat]||0;const nc=Math.max(cur-cnt,0);
-                if(userId&&sbOps) sbOps.upsertActivity(userId,date,cat,nc);
-                if(nc<=0){const nd={...day};delete nd[cat];if(!Object.keys(nd).length){delete next[date];}else{next[date]=nd;}}
-                else{next[date]={...day,[cat]:nc};}
-              });
-            });
-            return next;
-          });
-          // completedAt・progressHistory・firstActiveAtをクリア
-          updated = { ...updated, progressHistory:[], firstActiveAt:null, completedAt:null };
-        }
+    // ── progressHistory を計算 ──
+    if (delta > 0) {
+      updated = { ...updated,
+        progressHistory:[...(old.progressHistory||[]),
+          {date:today(), delta, from:old.current, to:updated.current, editedViaModal:true}]
+      };
+    } else if (delta < 0) {
+      const hist = [...(old.progressHistory||[])];
+      let toRemove = Math.abs(delta);
+      while (toRemove > 0 && hist.length > 0) {
+        const last = hist[hist.length-1];
+        if (last.delta <= toRemove) { hist.pop(); toRemove -= last.delta; }
+        else { hist[hist.length-1] = {...last, delta:last.delta-toRemove, to:last.to-toRemove}; toRemove=0; }
       }
-      // setItems は内部で localStorage + Supabase への即時保存を行う
-      return prev.map(it=>it.id===updated.id ? updated : it);
+      updated = { ...updated, progressHistory: hist };
+    }
+    const wasCompleted = old.status==="done" && (updated.status==="queue"||updated.status==="active");
+    if (wasCompleted) {
+      updated = { ...updated, progressHistory:[], firstActiveAt:null, completedAt:null };
+    }
+
+    // ── items を更新 ──
+    setItems(prev => prev.map(it => it.id!==updated.id ? it :
+      {...it, ...updated, progressHistory:[...(updated.progressHistory||[])]}
+    ));
+
+    // ── ActivityLog を更新（updater で prev から差分計算） ──
+    const oldHist = old.progressHistory||[];
+    const newHist = updated.progressHistory||[];
+    setActivityLog(prev => {
+      let next = {...prev};
+      // 旧progressHistoryの寄与を引く
+      oldHist.forEach(h => {
+        if (!h.date || !h.delta) return;
+        const logAmt = isTimedCat ? h.delta : 1;
+        const day = next[h.date] && typeof next[h.date]==="object" ? next[h.date] : {};
+        const nc = Math.max((day[cat]||0) - logAmt, 0);
+        if (nc<=0){const nd={...day};delete nd[cat];if(!Object.keys(nd).length){const tl={...next};delete tl[h.date];next=tl;}else{next[h.date]=nd;}}
+        else{next[h.date]={...day,[cat]:nc};}
+      });
+      // 新progressHistoryの寄与を足す
+      newHist.forEach(h => {
+        if (!h.date || !h.delta) return;
+        const logAmt = isTimedCat ? h.delta : 1;
+        const day = next[h.date] && typeof next[h.date]==="object" ? next[h.date] : {};
+        const newCount = (day[cat]||0) + logAmt;
+        next[h.date] = {...day, [cat]: newCount};
+      });
+      return next;
     });
+
     setEdit(null);
-  }, [setItems, userId, sbOps]);
+  }, [itemsRef, setItems]);
 
   const deleteItem = useCallback((id) => {
     // アクティビティログのクリーンアップ（削除前のitem情報を使う）
@@ -6794,15 +6892,25 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       if (target) {
         // progressHistoryに基づきアクティビティログから差し引く
         const toRemove = {};
-        (target.progressHistory||[]).forEach(h=>{
-          if(!h.date) return;
-          if(!toRemove[h.date]) toRemove[h.date]={};
-          toRemove[h.date][target.category]=(toRemove[h.date][target.category]||0)+1;
-        });
         const isBin = ["youtube","tv","radio","live","article"].includes(target.category);
-        if(isBin && target.completedAt){
-          if(!toRemove[target.completedAt]) toRemove[target.completedAt]={};
-          toRemove[target.completedAt][target.category]=(toRemove[target.completedAt][target.category]||0)+1;
+        const isTimedDel = ["youtube","tv","radio","live"].includes(target.category);
+        if (isTimedDel) {
+          // timed: progressHistory の各エントリの delta 分ずつ各日付から削除
+          (target.progressHistory||[]).forEach(h => {
+            if(!h.date) return;
+            if(!toRemove[h.date]) toRemove[h.date]={};
+            toRemove[h.date][target.category]=(toRemove[h.date][target.category]||0)+(h.delta||0);
+          });
+        } else {
+          (target.progressHistory||[]).forEach(h=>{
+            if(!h.date) return;
+            if(!toRemove[h.date]) toRemove[h.date]={};
+            toRemove[h.date][target.category]=(toRemove[h.date][target.category]||0)+1;
+          });
+          if(isBin && target.completedAt){
+            if(!toRemove[target.completedAt]) toRemove[target.completedAt]={};
+            toRemove[target.completedAt][target.category]=(toRemove[target.completedAt][target.category]||0)+1;
+          }
         }
         if(Object.keys(toRemove).length > 0){
           setActivityLog(log=>{
@@ -6926,7 +7034,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       `}</style>
 
       <div style={{
-        background: navTab===1 || navTab===4 ? "#F7F7F7" : "#FFFFFF",
+        background: navTab===1 || navTab===3 || navTab===4 ? "#F7F7F7" : "#FFFFFF",
         fontFamily:F2, maxWidth:480, margin:"0 auto" }}>
 
         {/* ── Page content ── */}
