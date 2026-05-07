@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 const G = {
   surface:    "#FFFFFF",
   surfaceAlt: "#F7F7F7",
-  border:     "#E8E4E0",
-  borderMid:  "#D4CFC9",
+  border:     "#E9E9E9",
+  borderMid:  "#E9E9E9",
   grey:       "#D6D6D6",
   greyMid:    "#A8A8A8",
   greyDark:   "#6A6A6A",
@@ -164,6 +164,32 @@ const CATS = {
   manga:   { label:"Comic",  unit:"巻",  unitAlt:"話", color:"#A8A29F", order:9 },
 };
 const CAT_KEYS = Object.keys(CATS).sort((a,b) => CATS[a].order - CATS[b].order);
+
+// ─── カテゴリカラーパレット（5種）────────────────────────────────────────────
+const CAT_COLOR_OPTIONS = [
+  { key:"green",  bg:"#DADCD1", fg:"#465135", label:"グリーン" },
+  { key:"beige",  bg:"#EDE6D6", fg:"#806C47", label:"ベージュ" },
+  { key:"brown",  bg:"#EBE1D8", fg:"#7A624C", label:"ブラウン" },
+  { key:"blue",   bg:"#DCE1DF", fg:"#485950", label:"ブルーグレー" },
+  { key:"gray",   bg:"#DFDAD7", fg:"#534946", label:"グレー" },
+];
+const CAT_COLOR_DEFAULTS = {
+  article:"green", live:"beige", youtube:"brown", radio:"blue",
+  tv:"gray", book:"green", anime:"beige", drama:"brown", movie:"blue", manga:"gray",
+};
+
+// カテゴリ設定を userOptions から解決
+function resolveCatSettings(userOptions) {
+  const saved = userOptions?.["cat_settings:all"] || {};
+  const order  = saved.order  || [...CAT_KEYS];
+  const hidden = saved.hidden || [];
+  const colors = saved.colors || {};
+  // order に含まれていない key を末尾に追加（新規追加対応）
+  const allKeys = [...CAT_KEYS];
+  const fullOrder = [...order, ...allKeys.filter(k => !order.includes(k))];
+  return { order: fullOrder, hidden, colors };
+}
+
 const ALL = "すべて";
 const FILTER_OPTS = [ALL, ...CAT_KEYS.map(k => CATS[k].label)];
 const BY_LABEL = Object.fromEntries(Object.entries(CATS).map(([k,v]) => [v.label, k]));
@@ -466,8 +492,8 @@ function MultiSelect({ options, value, onChange, otherKey, otherValue, onOtherCh
           return (
             <button key={key} onClick={() => toggle(key)} type="button"
               style={{ padding:"6px 12px", borderRadius:99, fontSize:12, fontWeight:600,
-                border:`1.5px solid ${on ? "#BFBFBF" : G.border}`,
-                background: on ? "#BFBFBF" : G.surfaceAlt,
+                border:`1.5px solid ${on ? "#E9E9E9" : G.border}`,
+                background: on ? "#E9E9E9" : G.surfaceAlt,
                 color: on ? "#fff" : G.greyDark,
                 cursor:"pointer", fontFamily:F, transition:"all .15s" }}>
               {label}
@@ -1140,7 +1166,7 @@ function NVChoosePrompt({ queueItems, onSelect, onDismiss }) {
         {/* Header */}
         <div style={{ padding:"24px 20px 0", position:"sticky", top:0,
           background:"#FFFFFF", zIndex:1,
-          borderBottom:`1px solid #F0EEEC`, paddingBottom:16, marginBottom:0 }}>
+          borderBottom:`1px solid #E9E9E9`, paddingBottom:16, marginBottom:0 }}>
           <div style={{ fontSize:15, fontWeight:700, color:"#1A1A1A",
             letterSpacing:"0.06em", marginBottom:6,
             display:"flex", alignItems:"center", gap:8 }}>
@@ -1206,7 +1232,7 @@ function NVChoosePrompt({ queueItems, onSelect, onDismiss }) {
         <div style={{ padding:"4px 16px 48px" }}>
           <button onClick={onDismiss}
             style={{ width:"100%", padding:"12px", borderRadius:12,
-              border:"1px solid #E0DEDC", background:"transparent",
+              border:"1px solid #E9E9E9", background:"transparent",
               fontSize:12, fontWeight:500, color:"#8A8A8A",
               cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em" }}>
             あとで設定する
@@ -2218,7 +2244,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
           {(isBinary&&item.status==="active" || hasNotes) && (
             <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", gap:6, marginTop:8 }}>
               {isBinary&&item.status==="active"&&(
-                <div style={{ display:"inline-flex",alignItems:"center",gap:4,background:"#F0EFED",border:"1px solid #DCDAD7",borderRadius:6,padding:"3px 8px" }}>
+                <div style={{ display:"inline-flex",alignItems:"center",gap:4,background:"#F0EFED",border:"1px solid #E9E9E9",borderRadius:6,padding:"3px 8px" }}>
                   <div style={{ width:4,height:4,borderRadius:"50%",background:"#BCBAB6" }}/>
                   <span style={{ fontSize:10,fontWeight:600,color:"#8A8885" }}>中断中</span>
                 </div>
@@ -2314,7 +2340,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         {item.category==="live" && item.status==="queue" && (
           <>
             <button onClick={()=>{ onActivityLog(today(), item.category); onMove(item.id,"active"); }}
-              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               <ICONS.play/>進行中にする
             </button>
             <button onClick={completeCelebrate} style={{ ...gBt(), fontSize:11, padding:"7px 11px" }}><ICONS.check/>完了にする</button>
@@ -2328,7 +2354,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               onUpdate(item.id, { progressHistory: hist });
               onMove(item.id,"queue");
             }}
-              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからにする
             </button>
             <button onClick={completeCelebrate} style={{ ...gBt(), fontSize:11, padding:"7px 11px" }}><ICONS.check/>完了にする</button>
@@ -2337,7 +2363,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         {item.category==="live" && item.status==="done" && (
           <>
             <button onClick={()=>onMove(item.id,"active")}
-              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               <ICONS.play/>進行中に戻す
             </button>
             <button onClick={()=>{
@@ -2346,7 +2372,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               onUpdate(item.id, { progressHistory: hist });
               onMove(item.id,"queue");
             }}
-              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからに戻す
             </button>
           </>
@@ -2355,7 +2381,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         {/* ── article ── */}
         {item.category==="article" && item.status==="queue" && (
           <button onClick={()=>{ onActivityLog(today(), item.category); onMove(item.id,"active"); }}
-            style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+            style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
             <ICONS.play/>進行中にする
           </button>
         )}
@@ -2367,7 +2393,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               onUpdate(item.id, { progressHistory: hist });
               onMove(item.id,"queue");
             }}
-              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからにする
             </button>
             <button onClick={completeCelebrate} style={{ ...gBt(), fontSize:11, padding:"7px 11px" }}><ICONS.check/>完了にする</button>
@@ -2376,7 +2402,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         {item.category==="article" && item.status==="done" && (
           <>
             <button onClick={()=>onMove(item.id,"active")}
-              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               <ICONS.play/>進行中に戻す
             </button>
             <button onClick={()=>{
@@ -2385,7 +2411,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
               onUpdate(item.id, { progressHistory: hist });
               onMove(item.id,"queue");
             }}
-              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+              style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
               これからに戻す
             </button>
           </>
@@ -2394,7 +2420,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         {/* ── other binary (youtube/tv/radio) ── */}
         {isBinary && !["live","article"].includes(item.category) && item.status==="queue" && (
           <button onClick={()=>{ onActivityLog(today(), item.category); onMove(item.id,"active"); }}
-            style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+            style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
             <ICONS.play/>進行中にする
           </button>
         )}
@@ -2405,7 +2431,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
         {/* ── non-binary ── */}
         {!isBinary && item.status==="queue" && (
           <button onClick={()=>{ onActivityLog(today(), item.category); onMove(item.id,"active"); }}
-            style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #DCDAD7",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
+            style={{ padding:"7px 11px",borderRadius:8,fontSize:11,fontWeight:600,border:"1.5px solid #E9E9E9",background:"#F0EFED",color:"#8A8885",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,fontFamily:F,lineHeight:1 }}>
             <ICONS.play/>開始
           </button>
         )}
@@ -2419,7 +2445,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
       {showConfetti&&<Confetti onDone={()=>setShowConfetti(false)}/>}
       {pastRecordOpen&&<PastRecordModal item={item} onSave={handlePastRecord} onClose={()=>setPastRecord(false)}/>}
 
-      <div style={{ display:"flex",gap:10,marginTop:8,fontSize:9,color:"#BFBFBF",flexWrap:"wrap",lineHeight:1.5 }}>
+      <div style={{ display:"flex",gap:10,marginTop:8,fontSize:9,color:"#E9E9E9",flexWrap:"wrap",lineHeight:1.5 }}>
         <span>追加: {item.addedAt}</span>
         {item.lastUpdated&&<span>更新: {item.lastUpdated}</span>}
         {item.completedAt&&<span>完了: {item.completedAt}</span>}
@@ -2441,7 +2467,7 @@ function ContentDetail({ item, items, activityLog, onBack,
       コンテンツが見つかりません
       <br/>
       <button onClick={onBack}
-        style={{ marginTop:16, background:"none", border:"1px solid #E0DEDC",
+        style={{ marginTop:16, background:"none", border:"1px solid #E9E9E9",
           borderRadius:10, padding:"8px 18px", cursor:"pointer",
           fontFamily:FC, fontSize:12, color:"#6A625A" }}>
         戻る
@@ -2527,7 +2553,7 @@ function ContentDetail({ item, items, activityLog, onBack,
 
       {/* ── コンテンツ情報カード ── */}
       <div style={{ background:"#FFFFFF", borderRadius:16, padding:"16px",
-        border:"1.5px solid #D8D4CE", marginBottom:20 }}>
+        border:"1.5px solid #E9E9E9", marginBottom:20 }}>
         {/* Category badge */}
         <span style={{ display:"inline-flex", alignItems:"center", gap:4,
           background:badgeBg, borderRadius:7, padding:"3px 9px",
@@ -2564,7 +2590,7 @@ function ContentDetail({ item, items, activityLog, onBack,
       </div>
 
       {/* ── 記録履歴カード ── */}
-      <div style={{ background:"#FFFFFF", borderRadius:16, padding:"16px", border:"1.5px solid #D8D4CE" }}>
+      <div style={{ background:"#FFFFFF", borderRadius:16, padding:"16px", border:"1.5px solid #E9E9E9" }}>
         <div style={{ fontSize:13, fontWeight:700, color:"#1A1A1A",
           letterSpacing:"0.06em", marginBottom:14 }}>記録履歴</div>
 
@@ -2663,7 +2689,7 @@ function ContentDetail({ item, items, activityLog, onBack,
             {/* Delete */}
             <button onClick={()=>deleteHistEntry(actionSheet.histIdx)}
               style={{ width:"100%", padding:"14px", borderRadius:12,
-                border:"1.5px solid #E8E2DA", background:"transparent",
+                border:"1.5px solid #E9E9E9", background:"transparent",
                 color:"#B05050", fontSize:13, fontWeight:600,
                 cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em",
                 marginBottom:10 }}>
@@ -2673,7 +2699,7 @@ function ContentDetail({ item, items, activityLog, onBack,
             {/* Cancel */}
             <button onClick={()=>setActionSheet(null)}
               style={{ width:"100%", padding:"14px", borderRadius:12,
-                border:"1.5px solid #E8E2DA", background:"transparent",
+                border:"1.5px solid #E9E9E9", background:"transparent",
                 color:"#6A625A", fontSize:13, fontWeight:500,
                 cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em" }}>
               キャンセル
@@ -2768,7 +2794,7 @@ function ContentReport({ items, onSelectItem }) {
                     style={{ width:"100%", display:"flex", alignItems:"center",
                       gap:12, padding:"12px 14px",
                       marginBottom: idx < list.length-1 ? 8 : 0,
-                      borderRadius:14, border:"1.5px solid #D8D4CE",
+                      borderRadius:14, border:"1.5px solid #E9E9E9",
                       background:"#FFFFFF", cursor:"pointer",
                       textAlign:"left", fontFamily:FC,
                       transition:"background .15s" }}>
@@ -2825,7 +2851,7 @@ function ContentReport({ items, onSelectItem }) {
 
                     {/* Chevron */}
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                      stroke="#C8C4BE" strokeWidth="2" strokeLinecap="round"
+                      stroke="#E9E9E9" strokeWidth="2" strokeLinecap="round"
                       style={{ flexShrink:0 }}>
                       <path d="M9 18l6-6-6-6"/>
                     </svg>
@@ -2847,7 +2873,7 @@ function ContentReport({ items, onSelectItem }) {
         {FILTER_OPTS.map(label => {
           const k = BY_LABEL[label];
           const isAct = catFilter === label;
-          const bg  = k ? (CAT_BADGE[k] || "#BFBFBF") : "#BFBFBF";
+          const bg  = k ? (CAT_BADGE[k] || "#E9E9E9") : "#E9E9E9";
           const fg2 = k ? (CAT_FG[k]   || "#555")     : "#fff";
           return (
             <button key={label} onClick={() => setCatFilter(label)}
@@ -2855,8 +2881,8 @@ function ContentReport({ items, onSelectItem }) {
                 padding:"5px 13px", borderRadius:99, fontSize:11, fontWeight:600,
                 border: "none", cursor:"pointer", whiteSpace:"nowrap",
                 flexShrink:0, fontFamily:FC,
-                background: isAct ? (k ? bg : "#BFBFBF") : "#FFFFFF",
-                color: isAct ? (k ? fg2 : "#fff") : "#6A625A",
+                background: isAct ? (k ? bg : "#E9E9E9") : "#FFFFFF",
+                color: isAct ? (k ? fg2 : "#686868") : "#6A625A",
                 transition:"all .15s" }}>
               {k && <CatIco cat={k} color={isAct ? fg2 : "#A0A0A0"}/>}
               {label}
@@ -3217,7 +3243,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
       {/* Month nav */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
         <button onClick={prevMonth}
-          style={{ background:"none", border:"1px solid #E8E2DA", borderRadius:8,
+          style={{ background:"none", border:"1px solid #E9E9E9", borderRadius:8,
             width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center",
             justifyContent:"center", color:"#6A625A" }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
@@ -3226,7 +3252,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
           {year}年{month}月
         </div>
         <button onClick={nextMonth} disabled={isCurrentMonth}
-          style={{ background:"none", border:"1px solid #E8E2DA", borderRadius:8,
+          style={{ background:"none", border:"1px solid #E9E9E9", borderRadius:8,
             width:32, height:32, cursor:isCurrentMonth?"not-allowed":"pointer",
             display:"flex", alignItems:"center", justifyContent:"center",
             color:isCurrentMonth?"#D0CCC8":"#6A625A", opacity:isCurrentMonth?0.4:1 }}>
@@ -3240,7 +3266,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
           letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
           Activity Log
         </div>
-        <div style={{ background:"#FFFFFF", borderRadius:16, padding:"14px 10px", border:"1.5px solid #D8D4CE" }}>
+        <div style={{ background:"#FFFFFF", borderRadius:16, padding:"14px 10px", border:"1.5px solid #E9E9E9" }}>
           {/* 曜日ヘッダー */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:6 }}>
             {DAY_LABELS.map(d => (
@@ -3262,7 +3288,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                   <div style={{
                     width:22, height:22, borderRadius:"50%", flexShrink:0,
                     background: hasActivity ? day.dotColor : "transparent",
-                    border: hasActivity ? "none" : `1px solid ${isToday ? "#9A9A9A" : "#D8D4CE"}`,
+                    border: hasActivity ? "none" : `1px solid ${isToday ? "#9A9A9A" : "#E9E9E9"}`,
                     display:"flex", alignItems:"center", justifyContent:"center",
                   }}>
                     <span style={{
@@ -3289,13 +3315,13 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
             Analysis
           </div>
           <button onClick={()=>setDefPopup(true)}
-            style={{ background:"none", border:"1px solid #E0DEDC", borderRadius:8,
+            style={{ background:"none", border:"1px solid #E9E9E9", borderRadius:8,
               padding:"3px 9px", fontSize:9, fontWeight:600, color:"#6A6A6A",
               cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em" }}>
             記録回数について
           </button>
         </div>
-        <div style={{ background:"#FFFFFF", borderRadius:16, padding:"16px", border:"1.5px solid #D8D4CE",
+        <div style={{ background:"#FFFFFF", borderRadius:16, padding:"16px", border:"1.5px solid #E9E9E9",
           display:"flex", alignItems:"center", gap:20 }}>
           <DonutChart catCounts={stats.catCounts} completedCount={stats.totalActions}
             colorMap={{
@@ -3329,7 +3355,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
       {/* ── 統計カード ── */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
         {/* アクティブ日 */}
-        <div style={{ background:"#FFFFFF", borderRadius:14, padding:"16px 14px", textAlign:"center", border:"1.5px solid #D8D4CE" }}>
+        <div style={{ background:"#FFFFFF", borderRadius:14, padding:"16px 14px", textAlign:"center", border:"1.5px solid #E9E9E9" }}>
           <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
             letterSpacing:"0.12em", marginBottom:8, lineHeight:1.4 }}>アクティブ日</div>
           <div style={{ fontSize:20, fontWeight:700, color:"#1A1A1A", lineHeight:1, letterSpacing:"0.12em" }}>
@@ -3338,7 +3364,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
           </div>
         </div>
         {/* 完了数 */}
-        <div style={{ background:"#FFFFFF", borderRadius:14, padding:"16px 14px", textAlign:"center", border:"1.5px solid #D8D4CE" }}>
+        <div style={{ background:"#FFFFFF", borderRadius:14, padding:"16px 14px", textAlign:"center", border:"1.5px solid #E9E9E9" }}>
           <div style={{ fontSize:9, fontWeight:600, color:"#A0A0A0",
             letterSpacing:"0.12em", marginBottom:8, lineHeight:1.4 }}>完了数</div>
           <div style={{ fontSize:20, fontWeight:700, color:"#1A1A1A", lineHeight:1, letterSpacing:"0.12em" }}>
@@ -3355,7 +3381,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
             letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
             完了コンテンツ
           </div>
-          <div style={{ background:"#FFFFFF", borderRadius:16, overflow:"hidden", border:"1.5px solid #D8D4CE" }}>
+          <div style={{ background:"#FFFFFF", borderRadius:16, overflow:"hidden", border:"1.5px solid #E9E9E9" }}>
             {stats.completedItems.map((it, i, arr) => (
               <div key={it.id} style={{ display:"flex", alignItems:"center",
                 padding:"11px 14px",
@@ -3406,7 +3432,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                 desc:"4話進めるごとに 1回（余りの話もまとめて 1回）" },
             ].map(({ cats, desc }, i, arr) => (
               <div key={i} style={{ padding:"12px 0",
-                borderBottom: i < arr.length-1 ? "1px solid #F0EEEC" : "none" }}>
+                borderBottom: i < arr.length-1 ? "1px solid #E9E9E9" : "none" }}>
                 <div style={{ fontSize:11, fontWeight:700, color:"#3A3A3A",
                   letterSpacing:"0.04em", marginBottom:4 }}>{cats}</div>
                 <div style={{ fontSize:12, fontWeight:400, color:"#767676",
@@ -3479,7 +3505,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                 );
                 return Object.entries(log).filter(([,v])=>v>0).map(([cat, count]) => (
                   <div key={cat} style={{ display:"flex", alignItems:"center", gap:10,
-                    padding:"10px 0", borderBottom:"1px solid #F0EEEC" }}>
+                    padding:"10px 0", borderBottom:"1px solid #E9E9E9" }}>
                     <span style={{ display:"inline-flex", alignItems:"center", gap:4,
                       background: CAT_BADGE_BG[cat]||"#EBEBEB", borderRadius:7,
                       padding:"3px 9px", flexShrink:0 }}>
@@ -3499,7 +3525,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                 <div key={idx}
                   onClick={() => { setActionSheet({ item, histIdx: idx, hist, ymd: actLogPopup.ymd }); setEditDelta(String(hist.delta || "")); }}
                   style={{ display:"flex", alignItems:"center", gap:10,
-                    padding:"10px 0", borderBottom:"1px solid #F0EEEC",
+                    padding:"10px 0", borderBottom:"1px solid #E9E9E9",
                     cursor:"pointer" }}>
                   <span style={{ display:"inline-flex", alignItems:"center", gap:4,
                     background: CAT_BADGE_BG[item.category]||"#EBEBEB", borderRadius:7,
@@ -3518,7 +3544,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                       letterSpacing:"0.03em", marginTop:1 }}>{amountStr}</div>
                   </div>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                    stroke="#C8C4BE" strokeWidth="2" strokeLinecap="round">
+                    stroke="#E9E9E9" strokeWidth="2" strokeLinecap="round">
                     <path d="M9 18l6-6-6-6"/>
                   </svg>
                 </div>
@@ -3561,7 +3587,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                     value={editDelta}
                     onChange={e=>setEditDelta(e.target.value)}
                     style={{ flex:1, padding:"10px 12px", borderRadius:10,
-                      border:"1.5px solid #E8E2DA", fontSize:14, fontWeight:600,
+                      border:"1.5px solid #E9E9E9", fontSize:14, fontWeight:600,
                       color:"#1A1A1A", fontFamily:FC, outline:"none", textAlign:"center" }}
                     placeholder="修正後の数量"
                   />
@@ -3571,7 +3597,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                   <button
                     onClick={()=>handleEditEntry({ item:actionSheet.item, hist:actionSheet.hist, newDelta:editDelta })}
                     style={{ padding:"10px 18px", borderRadius:10, border:"none",
-                      background:"#BFBFBF", color:"#fff", fontSize:12, fontWeight:700,
+                      background:"#E9E9E9", color:"#fff", fontSize:12, fontWeight:700,
                       cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em", flexShrink:0 }}>
                     修正する
                   </button>
@@ -3582,7 +3608,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
             {/* ── 削除 ── */}
             <button onClick={()=>handleDeleteEntry(actionSheet)}
               style={{ width:"100%", padding:"13px", borderRadius:12,
-                border:"1.5px solid #E8E2DA", background:"transparent",
+                border:"1.5px solid #E9E9E9", background:"transparent",
                 color:"#B05050", fontSize:13, fontWeight:600,
                 cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em",
                 marginBottom:10 }}>
@@ -3591,7 +3617,7 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
 
             <button onClick={()=>setActionSheet(null)}
               style={{ width:"100%", padding:"13px", borderRadius:12,
-                border:"1.5px solid #E8E2DA", background:"transparent",
+                border:"1.5px solid #E9E9E9", background:"transparent",
                 color:"#6A625A", fontSize:13, fontWeight:500,
                 cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em" }}>
               キャンセル
@@ -4095,7 +4121,7 @@ const NEW_G = {
   bg:        "#FFFFFF",
   surface:   "#FFFFFF",
   surfaceAlt:"#F6F6F6",
-  border:    "#E8E2DA",
+  border:    "#E9E9E9",
   greyLight: "#D6D0C8",
   greyMid:   "#A09890",
   greyDark:  "#6A625A",
@@ -4106,13 +4132,13 @@ const NEW_G = {
 };
 
 // ─── SVG Progress Ring (no library needed) ───────────────────────────────
-function ProgressRing({ pct, color, size=56, stroke=5 }) {
+function ProgressRing({ pct, color, size=56, stroke=5, bgColor="#F6F6F6" }) {
   const r = (size - stroke * 2) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (pct / 100) * circ;
   return (
     <svg width={size} height={size} style={{ flexShrink:0, transform:"rotate(-90deg)" }}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#E8E2DA" strokeWidth={stroke}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={bgColor} strokeWidth={stroke}/>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
         strokeDasharray={circ} strokeDashoffset={offset}
         strokeLinecap="round" style={{ transition:"stroke-dashoffset .4s ease" }}/>
@@ -4135,22 +4161,19 @@ const NAV_ICONS = {
 };
 
 // ─── Home Screen ──────────────────────────────────────────────────────────
-function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdit, onStatusChange, removeActivityLog, manualFocusId, setManualFocusId }) {
+function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdit, onStatusChange, removeActivityLog, manualFocusId, setManualFocusId, userOptions={} }) {
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
 
   // ── Category config (colors + text from spec) ──────────────────────────
-  const CAT_CARD = {
-    article: { bg:"#DADCD1", fg:"#465135", dotColor:"#DADCD1" },
-    live:    { bg:"#EDE6D6", fg:"#806C47", dotColor:"#EDE6D6" },
-    youtube: { bg:"#EBE1D8", fg:"#7A624C", dotColor:"#EBE1D8" },
-    radio:   { bg:"#DCE1DF", fg:"#485950", dotColor:"#DCE1DF" },
-    tv:      { bg:"#DFDAD7", fg:"#534946", dotColor:"#DFDAD7" },
-    book:    { bg:"#DADCD1", fg:"#465135", dotColor:"#DADCD1" },
-    anime:   { bg:"#EDE6D6", fg:"#806C47", dotColor:"#EDE6D6" },
-    drama:   { bg:"#EBE1D8", fg:"#7A624C", dotColor:"#EBE1D8" },
-    movie:   { bg:"#DCE1DF", fg:"#485950", dotColor:"#DCE1DF" },
-    manga:   { bg:"#DFDAD7", fg:"#534946", dotColor:"#DFDAD7" },
-  };
+  // カテゴリ設定（並び順・非表示・色）
+  const catSettings = resolveCatSettings(userOptions);
+  const visibleCatKeys = catSettings.order.filter(k => !catSettings.hidden.includes(k));
+
+  const CAT_CARD = Object.fromEntries(CAT_KEYS.map(k => {
+    const colorKey = catSettings.colors[k] || CAT_COLOR_DEFAULTS[k];
+    const palette = CAT_COLOR_OPTIONS.find(p => p.key === colorKey) || CAT_COLOR_OPTIONS[0];
+    return [k, { bg: palette.bg, fg: palette.fg, dotColor: palette.bg }];
+  }));
 
   // ── State ─────────────────────────────────────────────────────────────
   const [selectedCat, setSelectedCat] = useState(null);
@@ -4345,7 +4368,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
             <span style={{ fontSize:10, fontWeight:500, color:"#8A8A8A",
               letterSpacing:"0.04em" }}>{weekLabel}</span>
             <button onClick={()=>setWeekOffset(w=>w-1)}
-              style={{ width:24, height:24, borderRadius:7, border:"1px solid #E0DEDC",
+              style={{ width:24, height:24, borderRadius:7, border:"1px solid #E9E9E9",
                 background:"none", cursor:"pointer", display:"flex",
                 alignItems:"center", justifyContent:"center", padding:0, color:"#6A6A6A" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -4356,7 +4379,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
             <button onClick={()=>setWeekOffset(w=>Math.min(w+1, 0))}
               disabled={weekOffset >= 0}
               style={{ width:24, height:24, borderRadius:7,
-                border:"1px solid #E0DEDC",
+                border:"1px solid #E9E9E9",
                 background:"none", cursor: weekOffset >= 0 ? "default" : "pointer",
                 display:"flex", alignItems:"center", justifyContent:"center",
                 padding:0, color:"#6A6A6A",
@@ -4383,7 +4406,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                 <div style={{
                   width:16, height:16, borderRadius:"50%",
                   background: dotColor || "transparent",
-                  border: dotColor ? "none" : "1.5px solid #C8C4BE",
+                  border: dotColor ? "none" : "1.5px solid #C6C6C6",
                   transition:"background .2s",
                 }}/>
               </div>
@@ -4446,7 +4469,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   const badge = CAT_CARD[cat] || { bg:"#EBEBEB", fg:"#666" };
                   return (
                     <div key={cat} style={{ display:"flex", alignItems:"center", gap:10,
-                      padding:"10px 0", borderBottom:"1px solid #F0EEEC" }}>
+                      padding:"10px 0", borderBottom:"1px solid #E9E9E9" }}>
                       <span style={{ display:"inline-flex", alignItems:"center", gap:4,
                         background:badge.bg, borderRadius:7, padding:"3px 9px", flexShrink:0 }}>
                         <CatIco cat={cat} color={badge.fg}/>
@@ -4464,7 +4487,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   <div key={idx}
                     onClick={() => { setActActionSheet({ item, hist }); setActEditDelta(String(hist.delta || "")); }}
                     style={{ display:"flex", alignItems:"center", gap:10,
-                      padding:"10px 0", borderBottom:"1px solid #F0EEEC", cursor:"pointer" }}>
+                      padding:"10px 0", borderBottom:"1px solid #E9E9E9", cursor:"pointer" }}>
                     <span style={{ display:"inline-flex", alignItems:"center", gap:4,
                       background:badge.bg, borderRadius:7, padding:"3px 9px", flexShrink:0 }}>
                       <CatIco cat={item.category} color={badge.fg}/>
@@ -4478,7 +4501,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                         letterSpacing:"0.03em", marginTop:1 }}>{amountStr}</div>
                     </div>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke="#C8C4BE" strokeWidth="2" strokeLinecap="round">
+                      stroke="#E9E9E9" strokeWidth="2" strokeLinecap="round">
                       <path d="M9 18l6-6-6-6"/>
                     </svg>
                   </div>
@@ -4518,7 +4541,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   <input type="number" min="1" value={actEditDelta}
                     onChange={e=>setActEditDelta(e.target.value)}
                     style={{ flex:1, padding:"10px 12px", borderRadius:10,
-                      border:"1.5px solid #E8E2DA", fontSize:14, fontWeight:600,
+                      border:"1.5px solid #E9E9E9", fontSize:14, fontWeight:600,
                       color:"#1A1A1A", fontFamily:FC, outline:"none", textAlign:"center" }}
                     placeholder="修正後の数量"/>
                   <span style={{ fontSize:12, color:"#6A6A6A", flexShrink:0 }}>
@@ -4527,7 +4550,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   <button
                     onClick={()=>handleActEdit({ item:actActionSheet.item, hist:actActionSheet.hist, newDelta:actEditDelta })}
                     style={{ padding:"10px 18px", borderRadius:10, border:"none",
-                      background:"#BFBFBF", color:"#fff", fontSize:12, fontWeight:700,
+                      background:"#E9E9E9", color:"#fff", fontSize:12, fontWeight:700,
                       cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em", flexShrink:0 }}>
                     修正する
                   </button>
@@ -4538,14 +4561,14 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
             {/* 削除 */}
             <button onClick={()=>handleActDelete(actActionSheet)}
               style={{ width:"100%", padding:"13px", borderRadius:12,
-                border:"1.5px solid #E8E2DA", background:"transparent",
+                border:"1.5px solid #E9E9E9", background:"transparent",
                 color:"#B05050", fontSize:13, fontWeight:600,
                 cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em", marginBottom:10 }}>
               この記録を削除する
             </button>
             <button onClick={()=>setActActionSheet(null)}
               style={{ width:"100%", padding:"13px", borderRadius:12,
-                border:"1.5px solid #E8E2DA", background:"transparent",
+                border:"1.5px solid #E9E9E9", background:"transparent",
                 color:"#6A625A", fontSize:13, fontWeight:500,
                 cursor:"pointer", fontFamily:FC, letterSpacing:"0.03em" }}>
               キャンセル
@@ -4563,7 +4586,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
           {/* 変更するボタン */}
           {items.filter(i=>i.status==="active"||i.status==="queue").length > 0 && (
             <button onClick={()=>setFocusPicker(true)}
-              style={{ background:"none", border:"1px solid #E0DEDC", borderRadius:8,
+              style={{ background:"none", border:"1px solid #E9E9E9", borderRadius:8,
                 padding:"4px 10px", fontSize:10, fontWeight:600, color:"#6A6A6A",
                 cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em" }}>
               変更する
@@ -4615,7 +4638,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   {/* Past record */}
                   <button onClick={()=>setPastRecord(true)}
                     style={{ fontSize:11, fontWeight:500, color:"#5A5A5A",
-                      background:"transparent", border:"1.5px solid #C8C4BE",
+                      background:"transparent", border:"1.5px solid #E9E9E9",
                       borderRadius:8, padding:"4px 12px", cursor:"pointer",
                       fontFamily:FC, letterSpacing:"0.03em", lineHeight:1.4 }}>
                     過去の記録
@@ -4623,7 +4646,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   {/* Complete */}
                   <button onClick={focusComplete}
                     style={{ fontSize:11, fontWeight:500, color:"#5A5A5A",
-                      background:"transparent", border:"1.5px solid #C8C4BE",
+                      background:"transparent", border:"1.5px solid #E9E9E9",
                       borderRadius:8, padding:"4px 12px", cursor:"pointer",
                       fontFamily:FC, letterSpacing:"0.03em", lineHeight:1.4 }}>
                     完了にする
@@ -4633,7 +4656,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
 
               {/* Right: progress ring */}
               <div style={{ flexShrink:0 }}>
-                <ProgressRing pct={focusPct} color={focusCat.color} size={64} stroke={5}/>
+                <ProgressRing pct={focusPct} color={focusCat.color} size={64} stroke={5} bgColor="#E5E5E5"/>
               </div>
             </div>
 
@@ -4687,7 +4710,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
               width:"100%", maxHeight:"75vh", display:"flex", flexDirection:"column",
               boxShadow:"0 -8px 36px rgba(0,0,0,0.12)", fontFamily:FC }}>
             {/* Header */}
-            <div style={{ padding:"20px 20px 14px", borderBottom:"1px solid #F0EEEC", flexShrink:0 }}>
+            <div style={{ padding:"20px 20px 14px", borderBottom:"1px solid #E9E9E9", flexShrink:0 }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <span style={{ fontSize:13, fontWeight:700, color:"#1A1A1A", letterSpacing:"0.04em" }}>
                   Today's Focus を選択
@@ -4771,7 +4794,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                   setFocusPicker(false);
                 }}
                   style={{ width:"100%", padding:"12px", borderRadius:12, marginTop:4,
-                    border:"1px solid #E8E2DA", background:"transparent",
+                    border:"1px solid #E9E9E9", background:"transparent",
                     color:"#6A6A6A", fontSize:12, fontWeight:500,
                     cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em" }}>
                   自動選択に戻す（完了間近を優先）
@@ -4791,7 +4814,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
           overflowX:"auto", paddingBottom:8,
           scrollbarWidth:"none", WebkitOverflowScrolling:"touch",
         }}>
-          {CAT_KEYS.map(k => {
+          {visibleCatKeys.map(k => {
             const cfg = CAT_CARD[k];
             const totalCount = catAllCounts[k];
             return (
@@ -4955,7 +4978,7 @@ function CatDetailSheet({ cat, items, statusInfo, CAT_CARD, FC, STATUS_TABS, onC
                 <div key={item.id} style={{
                   display:"flex", alignItems:"center", justifyContent:"space-between",
                   padding:"11px 0",
-                  borderBottom: idx < filtered.length-1 ? "1px solid #F0EEEC" : "none",
+                  borderBottom: idx < filtered.length-1 ? "1px solid #E9E9E9" : "none",
                 }}>
                   <span style={{ fontSize:13, fontWeight:500, color:"#1A1A1A",
                     flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis",
@@ -5087,12 +5110,12 @@ function ContentsScreen({
           <div style={{ display:"flex", gap:8 }}>
             <button onClick={()=>{ setShowSearch(s=>!s); setShowFilter(false); }}
               style={{ background:showSearch?NEW_G.surfaceAlt:"none", border:showSearch?`1.5px solid ${NEW_G.border}`:"none",
-                borderRadius:9, cursor:"pointer", padding:"6px 8px", color:showSearch?"#BFBFBF":NEW_G.greyMid, display:"flex" }}>
+                borderRadius:9, cursor:"pointer", padding:"6px 8px", color:showSearch?"#E9E9E9":NEW_G.greyMid, display:"flex" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
             </button>
             <button onClick={()=>{ setShowFilter(s=>!s); setShowSearch(false); }}
               style={{ background:showFilter?NEW_G.surfaceAlt:"none", border:showFilter?`1.5px solid ${NEW_G.border}`:"none",
-                borderRadius:9, cursor:"pointer", padding:"6px 8px", color:showFilter?"#BFBFBF":NEW_G.greyMid, display:"flex" }}>
+                borderRadius:9, cursor:"pointer", padding:"6px 8px", color:showFilter?"#E9E9E9":NEW_G.greyMid, display:"flex" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
             </button>
           </div>
@@ -5118,7 +5141,7 @@ function ContentsScreen({
             {FILTER_OPTS.map(label => {
               const k = BY_LABEL[label];
               const isAll = !k; // "すべて"
-              const color = isAll ? "#BFBFBF" : CATS[k].color;
+              const color = isAll ? "#E9E9E9" : CATS[k].color;
               const isAct = filter === label;
               return (
                 <button key={label} onClick={()=>setFilter(label)}
@@ -5126,10 +5149,10 @@ function ContentsScreen({
                     fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0, fontFamily:F2,
                     border: isAct ? "none" : `1.5px solid ${NEW_G.border}`,
                     background: isAct ? color : "transparent",
-                    color: isAct ? "#fff" : NEW_G.greyDark }}>
+                    color: isAct ? (isAll ? "#686868" : "#fff") : NEW_G.greyDark }}>
                   {k && <CatIco cat={k} color={isAct?"#fff":NEW_G.greyMid}/>}
                   {label}
-                  {counts[label]>0 && <span style={{ background:isAct?"rgba(255,255,255,0.3)":"#E8E2DA", color:isAct?"#fff":NEW_G.greyDark, borderRadius:99, padding:"0px 5px", fontSize:9 }}>{counts[label]}</span>}
+                  {counts[label]>0 && <span style={{ background:isAct?"rgba(255,255,255,0.3)":"#E9E9E9", color:isAct?(isAll?"#686868":"#fff"):NEW_G.greyDark, borderRadius:99, padding:"0px 5px", fontSize:9 }}>{counts[label]}</span>}
                 </button>
               );
             })}
@@ -5796,7 +5819,7 @@ const CAT_LABELS = { anime:"Anime", drama:"Drama", movie:"Movie", manga:"Comic",
 function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
   const FC = "'Inter','Noto Sans JP','Hiragino Sans',sans-serif";
   const NEW_G2 = { bg:"#FFFFFF", surface:"#FFFFFF", alt:"#F6F6F6",
-    border:"#E8E2DA", ink:"#221E18", grey:"#A09890", dark:"#6A625A" };
+    border:"#E9E9E9", ink:"#221E18", grey:"#A09890", dark:"#6A625A" };
 
   // 1行目: 全カテゴリ（CAT_ORDER順）
   // 2行目: 選択カテゴリに存在するタイプのみ
@@ -5889,9 +5912,9 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
   };
 
   const btnStyle = (active) => ({
-    padding:"6px 12px", borderRadius:8, border:`1.5px solid ${active ? "#BFBFBF" : NEW_G2.border}`,
-    background: active ? "#BFBFBF" : NEW_G2.surface,
-    color: active ? "#fff" : NEW_G2.dark,
+    padding:"6px 12px", borderRadius:8, border: active ? "none" : `1.5px solid ${NEW_G2.border}`,
+    background: active ? "#E8E8E8" : NEW_G2.surface,
+    color: active ? "#5F5F5F" : NEW_G2.dark,
     fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:FC, letterSpacing:"0.04em",
     flexShrink:0,
   });
@@ -5983,12 +6006,12 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
               <button onClick={()=>moveUp(idx)} disabled={idx===0}
                 style={{ width:26, height:26, borderRadius:6, border:`1px solid ${NEW_G2.border}`,
                   background:NEW_G2.surface, cursor:"pointer", fontSize:12,
-                  color:"#BFBFBF",
+                  color:"#E9E9E9",
                   opacity: idx===0 ? 0.3 : 1, flexShrink:0 }}>↑</button>
               <button onClick={()=>moveDown(idx)} disabled={idx>=ordered.length-1}
                 style={{ width:26, height:26, borderRadius:6, border:`1px solid ${NEW_G2.border}`,
                   background:NEW_G2.surface, cursor:"pointer", fontSize:12,
-                  color:"#BFBFBF",
+                  color:"#E9E9E9",
                   opacity: idx>=ordered.length-1 ? 0.3 : 1, flexShrink:0 }}>↓</button>
               {/* カスタム項目の削除 */}
               {isCustom && (
@@ -6015,7 +6038,7 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
                 fontFamily:FC, color:NEW_G2.ink }}/>
             <button onClick={addCustom}
               style={{ padding:"9px 16px", borderRadius:8, border:"none",
-                background:"#BFBFBF", color:"#fff", fontSize:12,
+                background:"#E8E8E8", color:"#5F5F5F", fontSize:12,
                 fontWeight:700, cursor:"pointer", fontFamily:FC, flexShrink:0 }}>
               追加
             </button>
@@ -6052,7 +6075,7 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
               </button>
               <button onClick={()=>{ resetToDefault(); setResetConfirm(false); }}
                 style={{ flex:1, padding:"10px", borderRadius:8,
-                  border:"none", background:"#BFBFBF",
+                  border:"none", background:"#E9E9E9",
                   color:"#fff", fontSize:12, fontWeight:700,
                   cursor:"pointer", fontFamily:FC }}>
                 リセットする
@@ -6066,11 +6089,170 @@ function OptionsCustomizer({ userOptions, saveUserOpt, onClose }) {
   );
 }
 
+// ─── CatCustomizer ────────────────────────────────────────────────────────────
+function CatCustomizer({ userOptions, saveUserOpt, onClose }) {
+  const F2 = "'Outfit','Hiragino Sans','Noto Sans JP',sans-serif";
+  const G = NEW_G;
+
+  const init = resolveCatSettings(userOptions);
+  const [order,  setOrder]  = useState(init.order);
+  const [hidden, setHidden] = useState(init.hidden);
+  const [colors, setColors] = useState(init.colors);
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
+
+  const save = () => {
+    saveUserOpt("cat_settings", "all", { order, hidden, colors });
+    onClose();
+  };
+
+  const toggleHidden = (k) => {
+    setHidden(prev =>
+      prev.includes(k) ? prev.filter(x=>x!==k) : [...prev, k]
+    );
+  };
+
+  const setColor = (k, colorKey) => {
+    setColors(prev => ({ ...prev, [k]: colorKey }));
+  };
+
+  // ドラッグ並び替え
+  const onDragStart = (i) => setDragIdx(i);
+  const onDragEnter = (i) => setDragOver(i);
+  const onDragEnd   = () => {
+    if (dragIdx === null || dragOver === null || dragIdx === dragOver) {
+      setDragIdx(null); setDragOver(null); return;
+    }
+    const next = [...order];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(dragOver, 0, moved);
+    setOrder(next);
+    setDragIdx(null); setDragOver(null);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(34,34,34,0.45)", zIndex:950,
+      display:"flex", alignItems:"flex-end", fontFamily:F2 }}>
+      <div style={{ background:"#F7F7F7", borderRadius:"22px 22px 0 0", width:"100%",
+        maxHeight:"90vh", overflowY:"auto", boxShadow:"0 -8px 40px rgba(0,0,0,0.15)" }}>
+
+        {/* Header */}
+        <div style={{ padding:"20px 18px 14px", background:"#FFFFFF",
+          borderBottom:`1px solid ${G.border}`, position:"sticky", top:0, zIndex:10,
+          display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div style={{ fontSize:16, fontWeight:700, color:G.ink, letterSpacing:"0.05em" }}>カテゴリのカスタマイズ</div>
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={onClose}
+              style={{ background:"none", border:`1.5px solid ${G.border}`, borderRadius:10,
+                padding:"7px 14px", fontSize:12, fontWeight:600, color:G.greyMid,
+                cursor:"pointer", fontFamily:F2 }}>キャンセル</button>
+            <button onClick={save}
+              style={{ background:"#E8E8E8", border:"none", borderRadius:10,
+                padding:"7px 16px", fontSize:12, fontWeight:700, color:"#5F5F5F",
+                cursor:"pointer", fontFamily:F2 }}>保存</button>
+          </div>
+        </div>
+
+        <div style={{ padding:"16px 18px 48px" }}>
+          <div style={{ fontSize:11, color:G.greyMid, marginBottom:14, lineHeight:1.6 }}>
+            ドラッグで並び替え・目のアイコンで表示/非表示・色を選択できます
+          </div>
+
+          {order.map((k, i) => {
+            const colorKey = colors[k] || CAT_COLOR_DEFAULTS[k];
+            const palette  = CAT_COLOR_OPTIONS.find(p=>p.key===colorKey) || CAT_COLOR_OPTIONS[0];
+            const isHidden = hidden.includes(k);
+            const isDragging = dragIdx === i;
+            const isOver = dragOver === i;
+
+            return (
+              <div key={k}
+                draggable
+                onDragStart={() => onDragStart(i)}
+                onDragEnter={() => onDragEnter(i)}
+                onDragEnd={onDragEnd}
+                onDragOver={e => e.preventDefault()}
+                style={{
+                  background:"#FFFFFF",
+                  border:`1.5px solid ${isOver ? G.ink : G.border}`,
+                  borderRadius:16, padding:"12px 14px", marginBottom:10,
+                  opacity: isDragging ? 0.4 : 1,
+                  cursor:"grab", transition:"border .15s",
+                }}>
+
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  {/* ドラッグハンドル */}
+                  <div style={{ color:G.greyMid, fontSize:16, cursor:"grab", flexShrink:0 }}>⠿</div>
+
+                  {/* カテゴリアイコン + 名前 */}
+                  <div style={{ width:36, height:36, borderRadius:12, background:palette.bg,
+                    display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    <CatIco cat={k} color={palette.fg}/>
+                  </div>
+                  <div style={{ flex:1, fontSize:14, fontWeight:700, color: isHidden ? G.greyMid : G.ink,
+                    textDecoration: isHidden ? "line-through" : "none" }}>
+                    {CATS[k].label}
+                  </div>
+
+                  {/* 表示/非表示トグル */}
+                  <button onClick={() => toggleHidden(k)}
+                    style={{ width:28, height:28, borderRadius:7,
+                      border:`1px solid ${G.border}`,
+                      background:"#F6F6F6",
+                      cursor:"pointer", display:"flex",
+                      alignItems:"center", justifyContent:"center", flexShrink:0,
+                      color:G.greyMid }}
+                    title={isHidden ? "表示する" : "非表示にする"}>
+                    {isHidden
+                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M1 1l22 22"/>
+                        </svg>
+                      : <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    }
+                  </button>
+                </div>
+
+                {/* カラー選択 */}
+                {!isHidden && (
+                  <div style={{ display:"flex", gap:8, marginTop:12, paddingLeft:48 }}>
+                    {CAT_COLOR_OPTIONS.map(p => (
+                      <button key={p.key} onClick={() => setColor(k, p.key)}
+                        title={p.label}
+                        style={{
+                          width:28, height:28, borderRadius:"50%",
+                          background:p.bg, border: colorKey===p.key
+                            ? `2.5px solid ${p.fg}` : "2px solid transparent",
+                          cursor:"pointer", flexShrink:0,
+                          outline: colorKey===p.key ? `2px solid ${p.fg}` : "none",
+                          outlineOffset:1,
+                          transition:"border .1s",
+                        }}/>
+                    ))}
+                    <div style={{ fontSize:11, color:G.greyMid, alignSelf:"center", marginLeft:4 }}>
+                      {CAT_COLOR_OPTIONS.find(p=>p.key===colorKey)?.label}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOptions, saveUserOpt }) {
   const F2 = "'Outfit','Hiragino Sans','Noto Sans JP',sans-serif";
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [deleteStep, setDeleteStep] = useState(0);
   const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [catCustomizerOpen, setCatCustomizerOpen] = useState(false);
 
   // 利用開始日を計算（最古のコンテンツ追加日 or localStorage初回保存日）
   const startDate = (() => {
@@ -6127,7 +6309,7 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOp
         )}
       </div>
 
-      {/* 選択肢のカスタマイズ */}
+      {/* カスタマイズ */}
       <div style={{ background:NEW_G.surface, borderRadius:18, padding:"18px", marginBottom:14 }}>
         <div style={{ fontSize:10, fontWeight:700, color:NEW_G.greyMid, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>カスタマイズ</div>
         <button onClick={()=>setCustomizerOpen(true)}
@@ -6135,8 +6317,18 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOp
             border:`1.5px solid ${NEW_G.border}`, background:"#FFFFFF",
             color:NEW_G.greyDark, fontSize:13, fontWeight:600,
             cursor:"pointer", fontFamily:F2, letterSpacing:"0.03em",
-            display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            marginBottom:10 }}>
           <span>ジャンル・配信サービスなどの選択肢</span>
+          <span style={{ color:NEW_G.greyMid, fontSize:16 }}>›</span>
+        </button>
+        <button onClick={()=>setCatCustomizerOpen(true)}
+          style={{ width:"100%", padding:"13px", borderRadius:12,
+            border:`1.5px solid ${NEW_G.border}`, background:"#FFFFFF",
+            color:NEW_G.greyDark, fontSize:13, fontWeight:600,
+            cursor:"pointer", fontFamily:F2, letterSpacing:"0.03em",
+            display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span>カテゴリの並び順・色・表示設定</span>
           <span style={{ color:NEW_G.greyMid, fontSize:16 }}>›</span>
         </button>
       </div>
@@ -6158,6 +6350,15 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOp
           userOptions={userOptions}
           saveUserOpt={saveUserOpt}
           onClose={()=>setCustomizerOpen(false)}
+        />
+      )}
+
+      {/* CatCustomizer overlay */}
+      {catCustomizerOpen && (
+        <CatCustomizer
+          userOptions={userOptions}
+          saveUserOpt={saveUserOpt}
+          onClose={()=>setCatCustomizerOpen(false)}
         />
       )}
 
@@ -7071,6 +7272,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 removeActivityLog={removeActivity}
                 manualFocusId={manualFocusId}
                 setManualFocusId={setManualFocusId}
+                userOptions={userOptions}
               />
             )}
             {navTab===2 && (
