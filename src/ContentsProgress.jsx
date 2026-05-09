@@ -7575,6 +7575,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
         * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        html, body { height:100%; }
         html { background:#FFFFFF; }
         body { margin:0; background:#FFFFFF; font-family:'Inter','Noto Sans JP','Hiragino Sans',sans-serif; letter-spacing:0.02em; font-size:13px; overscroll-behavior:none; }
         ::-webkit-scrollbar { display:none; }
@@ -7587,16 +7588,33 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           box-sizing:border-box; width:100%; max-width:100%; min-width:0;
         }
         button { letter-spacing:0.02em; }
+        #cp-app-root {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          max-width: 480px;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+        #cp-content {
+          flex: 1;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+        }
+        #cp-bottom-nav {
+          flex-shrink: 0;
+          width: 100%;
+        }
       `}</style>
 
-      <div style={{
-        background: navTab===1 || navTab===3 || navTab===4 ? "#F7F7F7" : "#FFFFFF",
-        fontFamily:F2, maxWidth:480, margin:"0 auto" }}>
+      <div id="cp-app-root" style={{ background: navTab===1||navTab===3||navTab===4 ? "#F7F7F7" : "#FFFFFF", fontFamily:F2 }}>
 
         {/* ── Page content ── */}
+        <div id="cp-content" style={{ background: navTab===1||navTab===3||navTab===4 ? "#F7F7F7" : "#FFFFFF" }}>
         {navTab===1 ? (
-          <div style={{ overflowY:"auto", height:"100vh", background:"#F7F7F7",
-            paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
+          <div style={{ background:"#F7F7F7", paddingBottom:24 }}>
             <ContentsScreen
               items={items}
               watchQueue={watchQueue}
@@ -7613,8 +7631,8 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             />
           </div>
         ) : (
-          /* Home / + / Report / Settings: 自然な高さ（余白スクロールなし） */
-          <div style={{ paddingBottom: navTab===4 ? 0 : "calc(90px + env(safe-area-inset-bottom, 34px))" }}>
+          /* Home / + / Report / Settings */
+          <div style={{ paddingBottom: 24 }}>
             {navTab===0 && (
               <HomeScreen
                 items={items}
@@ -7640,9 +7658,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 userOptions={userOptions}/>
             )}
             {navTab===4 && (
-              <div style={{ overflowY:"auto",
-                height:"calc(100vh - 90px - env(safe-area-inset-bottom, 34px))",
-                paddingBottom:24, background:"#F7F7F7" }}>
+              <div style={{ paddingBottom:24, background:"#F7F7F7" }}>
                 <SettingsScreen
                   user={user}
                   onLogout={onLogout}
@@ -7680,25 +7696,21 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           </div>
         )}
 
+        </div>{/* cp-content */}
+
         {/* ── Bottom Navigation ── */}
-        <div style={{
-          position:"fixed", bottom:0, left:0, right:0,
-          width:"100%", maxWidth:480, margin:"0 auto",
+        <div id="cp-bottom-nav" style={{
           background:NEW_G.nav,
           borderTop:`1px solid ${NEW_G.border}`,
           display:"flex", alignItems:"flex-start", justifyContent:"space-around",
           paddingTop:16,
-          paddingBottom:"calc(34px + env(safe-area-inset-bottom, 0px))",
-          zIndex:200,
+          paddingBottom:"env(safe-area-inset-bottom, 16px)",
+          minHeight:60,
           boxShadow:"0 -4px 20px rgba(0,0,0,0.06)",
-          transform:"translateZ(0)",
-          WebkitTransform:"translateZ(0)",
-          willChange:"transform",
         }}>
           {NAV_ITEMS.map((item, i) => {
             if (item.isAdd) {
               return (
-                /* + ボタンは大きめのタップ領域でラップ */
                 <div key={i}
                   style={{ display:"flex", alignItems:"center", justifyContent:"center",
                     padding:"0 12px", minWidth:64, cursor:"pointer" }}
@@ -7718,7 +7730,6 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 style={{
                   display:"flex", flexDirection:"column", alignItems:"center", gap:5,
                   background:"none", border:"none", cursor:"pointer",
-                  /* 広いタップ領域: 横16px×縦12px+8px */
                   padding:"12px 16px 8px",
                   minWidth:60, minHeight:52,
                   WebkitTapHighlightColor:"transparent",
@@ -7732,7 +7743,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             );
           })}
         </div>
-      </div>
+      </div>{/* cp-app-root */}
 
       {/* ── Modals (global) ── */}
       {editItem && <EditModal item={editItem} onClose={()=>setEdit(null)} onSave={saveEdit} onDelete={deleteItem} userOptions={userOptions}/>}
