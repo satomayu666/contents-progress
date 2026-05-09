@@ -7632,7 +7632,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
         {/* ── Page content ── */}
         <div id="cp-content" style={{ background: navTab===1||navTab===3||navTab===4 ? "#F7F7F7" : "#FFFFFF" }}>
         {navTab===1 ? (
-          <div style={{ background:"#F7F7F7", paddingBottom:24 }}>
+          <div style={{ background:"#F7F7F7", paddingBottom:90 }}>
             <ContentsScreen
               items={items}
               watchQueue={watchQueue}
@@ -7650,7 +7650,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           </div>
         ) : (
           /* Home / + / Report / Settings */
-          <div style={{ paddingBottom: 24 }}>
+          <div style={{ paddingBottom: 90 }}>
             {navTab===0 && (
               <HomeScreen
                 items={items}
@@ -7670,13 +7670,15 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
               <AddPageScreen onAdd={(item)=>{ addItem(item); setGlobalToast("コンテンツを追加しました！"); }} onDone={()=>setNavTab(1)} F2={F2} userOptions={userOptions}/>
             )}
             {navTab===3 && (
+              <div style={{ paddingBottom:-20 }}>
               <ReportPageScreen items={items} activityLog={activityLog} F2={F2}
                 onUpdate={update} onActivityLog={logActivity}
                 removeActivityLog={removeActivity}
                 userOptions={userOptions}/>
+              </div>
             )}
             {navTab===4 && (
-              <div style={{ paddingBottom:24, background:"#F7F7F7" }}>
+              <div style={{ paddingBottom:40, background:"#F7F7F7" }}>
                 <SettingsScreen
                   user={user}
                   onLogout={onLogout}
