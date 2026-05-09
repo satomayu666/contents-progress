@@ -3653,8 +3653,6 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                 desc:"1巻進めるごとに 1回" },
               { cats:"Comic（話単位）",
                 desc:"4話進めるごとに 1回（余りの話もまとめて 1回）" },
-              { cats:"Sports",
-                desc:"1つの試合・配信が「完了」ステータスになったら 1回（視聴時間の長さに関わらず）" },
             ].map(({ cats, desc }, i, arr) => (
               <div key={i} style={{ padding:"12px 0",
                 borderBottom: i < arr.length-1 ? "1px solid #E9E9E9" : "none" }}>
@@ -7684,18 +7682,18 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
 
         {/* ── Bottom Navigation ── */}
         <div style={{
-          position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)",
-          width:"100%", maxWidth:480,
+          position:"fixed", bottom:0, left:0, right:0,
+          width:"100%", maxWidth:480, margin:"0 auto",
           background:NEW_G.nav,
           borderTop:`1px solid ${NEW_G.border}`,
-          /* alignItems:flex-start でアイコンを上寄りに配置 */
           display:"flex", alignItems:"flex-start", justifyContent:"space-around",
-          /* paddingTop を大きくしてアイコンを上に浮かせる */
           paddingTop:16,
-          /* safe-area を多めに確保（デフォルト34px + 余裕分）*/
-          paddingBottom:"calc(34px + env(safe-area-inset-bottom, 34px))",
+          paddingBottom:"calc(34px + env(safe-area-inset-bottom, 0px))",
           zIndex:200,
           boxShadow:"0 -4px 20px rgba(0,0,0,0.06)",
+          transform:"translateZ(0)",
+          WebkitTransform:"translateZ(0)",
+          willChange:"transform",
         }}>
           {NAV_ITEMS.map((item, i) => {
             if (item.isAdd) {
