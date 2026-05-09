@@ -327,7 +327,7 @@ function hint(m) {
 }
 function pct(c,t) { return t?Math.min(100,Math.round(c/t*100)):0; }
 function finAt(m) { const d=new Date(); d.setMinutes(d.getMinutes()+m); return d.toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"}); }
-function today() { return new Date().toISOString().slice(0,10); }
+function today(dayStartHour) { const h = dayStartHour ?? (typeof window!=='undefined' ? (window.__dayStartHour||0) : 0); const d=new Date(); if(h>0 && d.getHours()<h) d.setDate(d.getDate()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function lastNDays(n) {
   return Array.from({length:n},(_,i) => {
     const d=new Date(); d.setDate(d.getDate()-(n-1-i)); return d.toISOString().slice(0,10);
@@ -2006,8 +2006,9 @@ function UrlButton({ url, color, label="URLを開く" }) {
 }
 
 // ─── Past Record Modal ────────────────────────────────────────────────────────
-function PastRecordModal({ item, onSave, onClose }) {
+function PastRecordModal({ item, onSave, onClose, userOptions={} }) {
   const c = CATS[item.category];
+  const catPalette = resolveCatColor(item.category, userOptions);
   const isTimedCat = ["youtube","tv","radio","live","sports"].includes(item.category);
   // article のみ binary（完了/未完了）扱い。timed は分単位入力
   const isBinary = item.category === "article";
@@ -2060,9 +2061,9 @@ function PastRecordModal({ item, onSave, onClose }) {
                 {presets.map(p => (
                   <button key={p} onClick={()=>setAmount(p)}
                     style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600,
-                      border:`1.5px solid ${Number(amount)===p?c.color:G.border}`,
-                      background:Number(amount)===p?tint(c.color):G.surfaceAlt,
-                      color:Number(amount)===p?dk(c.color):G.greyDark,cursor:"pointer",fontFamily:F }}>
+                      border:`1.5px solid ${Number(amount)===p ? catPalette.mid : G.border}`,
+                      background:Number(amount)===p ? catPalette.bg : G.surfaceAlt,
+                      color:Number(amount)===p ? catPalette.fg : G.greyDark, cursor:"pointer", fontFamily:F }}>
                     +{p}{effectiveUnit}
                   </button>
                 ))}
@@ -2608,7 +2609,7 @@ function ItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, onSt
       {toast&&<Toast msg={toast} onHide={()=>setToast(null)}/>}
       {memoOpen&&<MemoPopup text={item.notes} onClose={()=>setMemoOpen(false)}/>}
       {showConfetti&&<Confetti onDone={()=>setShowConfetti(false)}/>}
-      {pastRecordOpen&&<PastRecordModal item={item} onSave={handlePastRecord} onClose={()=>setPastRecord(false)}/>}
+      {pastRecordOpen&&<PastRecordModal item={item} onSave={handlePastRecord} onClose={()=>setPastRecord(false)} userOptions={userOptions}/>}
 
       <div style={{ display:"flex",gap:10,marginTop:8,fontSize:9,color:"#E9E9E9",flexWrap:"wrap",lineHeight:1.5 }}>
         <span>追加: {item.addedAt}</span>
@@ -2774,7 +2775,7 @@ function ContentDetail({ item, items, activityLog, onBack,
                   <div style={{ display:"flex", flexDirection:"column",
                     alignItems:"center", flexShrink:0, width:16 }}>
                     <div style={{ width:10, height:10, borderRadius:"50%",
-                      background:c?.color || "#B0A898", marginTop:3, flexShrink:0 }}/>
+                      background: badgeBg, marginTop:3, flexShrink:0 }}/>
                     {!isLast && (
                       <div style={{ width:1, flex:1, minHeight:20,
                         background:"#DEDAD5", marginTop:3 }}/>
@@ -3016,26 +3017,31 @@ function ContentReport({ items, onSelectItem, userOptions={} }) {
       {/* ── カテゴリフィルター ── */}
       <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:12,
         scrollbarWidth:"none", marginBottom:8 }}>
-        {FILTER_OPTS.map(label => {
-          const k = BY_LABEL[label];
-          const isAct = catFilter === label;
-          const _p = k ? getCRPalette(k) : null;
-          const bg  = _p ? _p.bg : "#E9E9E9";
-          const fg2 = _p ? _p.fg : "#686868";
-          return (
-            <button key={label} onClick={() => setCatFilter(label)}
-              style={{ display:"inline-flex", alignItems:"center", gap:4,
-                padding:"5px 13px", borderRadius:99, fontSize:11, fontWeight:600,
-                border: "none", cursor:"pointer", whiteSpace:"nowrap",
-                flexShrink:0, fontFamily:FC,
-                background: isAct ? (k ? bg : "#E9E9E9") : "#FFFFFF",
-                color: isAct ? (k ? fg2 : "#686868") : "#6A625A",
-                transition:"all .15s" }}>
-              {k && <CatIco cat={k} color={isAct ? fg2 : "#A0A0A0"}/>}
-              {label}
-            </button>
-          );
-        })}
+        {(() => {
+          const cs = resolveCatSettings(userOptions);
+          const visibleKeys = cs.order.filter(k => !cs.hidden.includes(k) && CAT_KEYS.includes(k));
+          const opts = [ALL, ...visibleKeys.map(k => CATS[k].label)];
+          return opts.map(label => {
+            const k = BY_LABEL[label];
+            const isAct = catFilter === label;
+            const _p = k ? getCRPalette(k) : null;
+            const bg  = _p ? _p.bg : "#E9E9E9";
+            const fg2 = _p ? _p.fg : "#686868";
+            return (
+              <button key={label} onClick={() => setCatFilter(label)}
+                style={{ display:"inline-flex", alignItems:"center", gap:4,
+                  padding:"5px 13px", borderRadius:99, fontSize:11, fontWeight:600,
+                  border: "none", cursor:"pointer", whiteSpace:"nowrap",
+                  flexShrink:0, fontFamily:FC,
+                  background: isAct ? (k ? bg : "#E9E9E9") : "#FFFFFF",
+                  color: isAct ? (k ? fg2 : "#686868") : "#6A625A",
+                  transition:"all .15s" }}>
+                {k && <CatIco cat={k} color={isAct ? fg2 : "#A0A0A0"}/>}
+                {label}
+              </button>
+            );
+          });
+        })()}
       </div>
 
       {/* ── 進行中セクション ── */}
@@ -3419,17 +3425,59 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
         <button onClick={prevMonth}
           style={{ background:"none", border:"1px solid #E9E9E9", borderRadius:8,
             width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center",
-            justifyContent:"center", color:"#6A625A" }}>
+            justifyContent:"center", color:"#6A625A", flexShrink:0 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
-        <div style={{ fontSize:15, fontWeight:700, color:"#1A1A1A", letterSpacing:"0.04em" }}>
-          {year}年{month}月
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <div style={{ position:"relative", display:"inline-flex", alignItems:"center" }}>
+            <select
+              value={year}
+              onChange={e => setYear(Number(e.target.value))}
+              style={{ fontSize:15, fontWeight:700, color:"#1A1A1A", letterSpacing:"0.04em",
+                border:"none", background:"transparent", cursor:"pointer",
+                fontFamily:FC, outline:"none", appearance:"none", WebkitAppearance:"none",
+                paddingRight:14 }}>
+              {years.map(y => <option key={y} value={y}>{y}年</option>)}
+            </select>
+            <svg style={{ position:"absolute", right:0, pointerEvents:"none" }}
+              width="10" height="10" viewBox="0 0 24 24" fill="none"
+              stroke="#A0A0A0" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </div>
+          <div style={{ position:"relative", display:"inline-flex", alignItems:"center" }}>
+            <select
+              value={month}
+              onChange={e => {
+                const m = Number(e.target.value);
+                const nowY = new Date().getFullYear();
+                const nowM = new Date().getMonth() + 1;
+                if (year > nowY || (year === nowY && m > nowM)) return;
+                setMonth(m);
+              }}
+              style={{ fontSize:15, fontWeight:700, color:"#1A1A1A", letterSpacing:"0.04em",
+                border:"none", background:"transparent", cursor:"pointer",
+                fontFamily:FC, outline:"none", appearance:"none", WebkitAppearance:"none",
+                paddingRight:14 }}>
+              {months.map(m => {
+                const nowY = new Date().getFullYear();
+                const nowM = new Date().getMonth() + 1;
+                const disabled = year > nowY || (year === nowY && m > nowM);
+                return <option key={m} value={m} disabled={disabled}>{m}月</option>;
+              })}
+            </select>
+            <svg style={{ position:"absolute", right:0, pointerEvents:"none" }}
+              width="10" height="10" viewBox="0 0 24 24" fill="none"
+              stroke="#A0A0A0" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </div>
         </div>
         <button onClick={nextMonth} disabled={isCurrentMonth}
           style={{ background:"none", border:"1px solid #E9E9E9", borderRadius:8,
             width:32, height:32, cursor:isCurrentMonth?"not-allowed":"pointer",
             display:"flex", alignItems:"center", justifyContent:"center",
-            color:isCurrentMonth?"#D0CCC8":"#6A625A", opacity:isCurrentMonth?0.4:1 }}>
+            color:isCurrentMonth?"#D0CCC8":"#6A625A", opacity:isCurrentMonth?0.4:1, flexShrink:0 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>
@@ -4352,8 +4400,18 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
   const [focusConfetti, setFocusConfetti] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0); // 0=今週, -1=先週, -2=2週前, ...
 
-  // ── Date: "22nd April, 2026" format ──────────────────────────────────
-  const now = new Date();
+  // 1分ごとに再レンダリング（日付切り替えタイミングを反映するため）
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const now = (() => {
+    const d = new Date();
+    const h = typeof window !== 'undefined' ? (window.__dayStartHour || 0) : 0;
+    if (h > 0 && d.getHours() < h) d.setDate(d.getDate() - 1);
+    return d;
+  })();
   const day = now.getDate();
   const suffix = day===1||day===21||day===31?"st":day===2||day===22?"nd":day===3||day===23?"rd":"th";
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -4383,13 +4441,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
       });
       if (Object.keys(catCount).length > 0) {
         const topCat = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0][0];
-        const WEEK_DOT_COLOR = {
-          article:"#DADCD1", live:"#EDE6D6", youtube:"#EBE1D8",
-          radio:"#DCE1DF", tv:"#DFDAD7", book:"#DADCD1",
-          anime:"#EDE6D6", drama:"#EBE1D8", movie:"#DCE1DF",
-          manga:"#DFDAD7", sports:"#DADCD1",
-        };
-        dotColor = WEEK_DOT_COLOR[topCat] || CAT_CARD[topCat]?.dotColor || "#B0A898";
+        dotColor = CAT_CARD[topCat]?.dotColor || resolveCatColor(topCat, userOptions).bg || "#B0A898";
       }
       days.push({ date: dd.getDate(), label: dayLabels[i], ymd, dotColor,
         month: dd.getMonth()+1 });
@@ -4923,7 +4975,7 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
               setPastRecord(false);
               setFocusToast(`${date} の記録を追加しました`);
             } catch(err) { console.error('HomeScreen pastRecord error:', err); }
-          }} onClose={()=>setPastRecord(false)}/>
+          }} onClose={()=>setPastRecord(false)} userOptions={userOptions}/>
         )}
       </div>
 
@@ -4963,24 +5015,23 @@ function HomeScreen({ items, activityLog, onUpdate, onMove, onActivityLog, onEdi
                       padding:"10px 0 6px" }}>{stLabel}</div>
                     {group.map(item => {
                       const _itemPalette = resolveCatColor(item.category, userOptions);
-                      const catFg = { article:"#465135",live:"#806C47",youtube:"#7A624C",radio:"#485950",tv:"#534946",book:"#465135",anime:"#806C47",drama:"#7A624C",movie:"#485950",manga:"#534946",sports:"#465135" };
                       const isSelected = focusItem?.id === item.id;
                       return (
                         <button key={item.id}
                           onClick={()=>{ setManualFocusId(item.id); setFocusPicker(false); }}
                           style={{ width:"100%", display:"flex", alignItems:"center", gap:10,
                             padding:"11px 12px", marginBottom:6, borderRadius:12, fontFamily:FC,
-                            border: isSelected ? `1.5px solid ${CATS[item.category].color}` : "1px solid #ECEAE7",
+                            border: isSelected ? `1.5px solid ${_itemPalette.mid}` : "1px solid #ECEAE7",
                             background: isSelected ? "#FAFAFA" : "#FAFAFA",
                             cursor:"pointer", textAlign:"left",
-                            boxShadow: isSelected ? `0 0 0 2px ${CATS[item.category].color}33` : "none" }}>
+                            boxShadow: isSelected ? `0 0 0 2px ${_itemPalette.mid}33` : "none" }}>
                           {/* Category badge */}
                           <span style={{ display:"inline-flex", alignItems:"center", gap:4,
                             background:_itemPalette.bg||"#EBEBEB", borderRadius:7,
                             padding:"3px 9px", flexShrink:0 }}>
-                            <CatIco cat={item.category} color={catFg[item.category]||"#555"}/>
+                            <CatIco cat={item.category} color={_itemPalette.fg}/>
                             <span style={{ fontSize:10, fontWeight:600, letterSpacing:"0.04em",
-                              color:catFg[item.category]||"#555" }}>
+                              color:_itemPalette.fg }}>
                               {CATS[item.category]?.label}
                             </span>
                           </span>
@@ -6077,7 +6128,7 @@ function NewItemCard({ item, onUpdate, onEdit, onMove, nvIndex, onActivityLog, o
           setPastRecord(false);
           setToast(`${date} の記録を追加しました`);
         } catch(err) { console.error('ContentsScreen pastRecord error:', err); }
-      }} onClose={()=>setPastRecord(false)}/>}
+      }} onClose={()=>setPastRecord(false)} userOptions={userOptions}/>}
     </div>
   );
 }
@@ -6545,12 +6596,12 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOp
       {/* Usage stats */}
       {daysSinceStart !== null && (
         <div style={{ background:NEW_G.surface, borderRadius:18, padding:"18px", marginBottom:14 }}>
-          <div style={{ fontSize:10, fontWeight:700, color:NEW_G.greyMid, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>利用状況</div>
+          <div style={{ fontSize:10, fontWeight:700, color:NEW_G.greyMid, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>利用期間</div>
           <div style={{ fontSize:24, fontWeight:700, color:NEW_G.ink, letterSpacing:"-0.02em", marginBottom:4 }}>
             {daysSinceStart}<span style={{ fontSize:14, fontWeight:500, color:NEW_G.greyMid, marginLeft:4 }}>日</span>
           </div>
           <div style={{ fontSize:12, color:NEW_G.greyMid }}>
-            利用開始から {daysSinceStart} 日（{startDate} 〜）
+            利用開始日：{startDate}
           </div>
         </div>
       )}
@@ -6597,10 +6648,31 @@ function SettingsScreen({ user, onLogout, syncStatus, items, onDeleteAll, userOp
             border:`1.5px solid ${NEW_G.border}`, background:"#FFFFFF",
             color:NEW_G.greyDark, fontSize:13, fontWeight:600,
             cursor:"pointer", fontFamily:F2, letterSpacing:"0.03em",
-            display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            marginBottom:10 }}>
           <span>カテゴリの並び順・色・表示設定</span>
           <span style={{ color:NEW_G.greyMid, fontSize:16 }}>›</span>
         </button>
+
+        {/* 日付切り替え時間 */}
+        <div style={{ padding:"16px", borderRadius:12, border:`1.5px solid ${NEW_G.border}`, background:"#FFFFFF" }}>
+          <div style={{ fontSize:13, fontWeight:600, color:NEW_G.greyDark, letterSpacing:"0.03em", marginBottom:12 }}>
+            日付の切り替え時間
+          </div>
+          <select
+            value={userOptions?.["day_start_hour:value"] ?? 0}
+            onChange={e => saveUserOpt("day_start_hour", "value", Number(e.target.value))}
+            style={{ fontSize:13, fontWeight:600, color:NEW_G.greyDark, border:`1.5px solid ${NEW_G.border}`,
+              borderRadius:8, padding:"8px 14px", background:"#F7F7F7",
+              cursor:"pointer", fontFamily:F2, outline:"none", width:"100%", marginBottom:10 }}>
+            {[0,1,2,3,4,5].map(h => (
+              <option key={h} value={h}>{h}:00{h===0?" (デフォルト)":""}</option>
+            ))}
+          </select>
+          <div style={{ fontSize:11, color:NEW_G.greyMid, lineHeight:1.7 }}>
+            設定した時刻を過ぎると翌日に切り替わります。<br/>デフォルトは 0:00 です。
+          </div>
+        </div>
       </div>
 
       {/* App info */}
@@ -6927,6 +6999,9 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       return v ? JSON.parse(v) : {};
     } catch { return {}; }
   });
+  const dayStartHour = Number(userOptions?.["day_start_hour:value"] ?? 0);
+  // 全コンポーネントの today() が参照するグローバル値を更新
+  if (typeof window !== 'undefined') window.__dayStartHour = dayStartHour;
   // Today's Focus 手動選択: localStorage + Supabase で永続化
   const [manualFocusId, setManualFocusIdRaw] = useState(() => {
     try { return localStorage.getItem(LS_FOCUS) || null; } catch { return null; }
@@ -7302,7 +7377,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
     if (delta > 0) {
       updated = { ...updated,
         progressHistory:[...(old.progressHistory||[]),
-          {date:today(), delta, from:old.current, to:updated.current, editedViaModal:true}]
+          {date:today(dayStartHour), delta, from:old.current, to:updated.current, editedViaModal:true}]
       };
     } else if (delta < 0) {
       const hist = [...(old.progressHistory||[])];
@@ -7330,7 +7405,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       }
       // もし rebuilt が空で targetCurrent > 0 なら今日の日付でエントリを1つ作る
       if (rebuilt.length === 0 && targetCurrent > 0) {
-        rebuilt.push({ date: today(), delta: targetCurrent, from: 0, to: targetCurrent, editedViaModal: true });
+        rebuilt.push({ date: today(dayStartHour), delta: targetCurrent, from: 0, to: targetCurrent, editedViaModal: true });
       }
       updated = { ...updated, progressHistory: rebuilt, firstActiveAt: rebuilt[0]?.date || null, completedAt: null };
     }
@@ -7439,7 +7514,7 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
   },[]);
 
   const move = useCallback((id,st)=>{
-    setItems(p=>p.map(it=>{if(it.id!==id)return it;const patch={...it,status:st,completedAt:st==="done"?today():null,current:st==="done"?it.total:it.current};if(st==="active"&&it.status==="queue"&&!it.firstActiveAt)patch.firstActiveAt=today();if(st==="queue")patch.firstActiveAt=null;return patch;}));
+    setItems(p=>p.map(it=>{if(it.id!==id)return it;const patch={...it,status:st,completedAt:st==="done"?today(dayStartHour):null,current:st==="done"?it.total:it.current};if(st==="active"&&it.status==="queue"&&!it.firstActiveAt)patch.firstActiveAt=today(dayStartHour);if(st==="queue")patch.firstActiveAt=null;return patch;}));
     if(st==="done"){
       setConfetti(true);
     }
