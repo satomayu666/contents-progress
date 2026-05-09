@@ -3333,16 +3333,16 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
     const daysInMonth = new Date(year, month, 0).getDate();
     const prefix = `${year}-${String(month).padStart(2,"0")}`;
 
-    // アクティブ日カウント（従来通り activityLog ベース）
-    let activeDays = 0;
-    for (let d=1; d<=daysInMonth; d++) {
-      const ymd = `${prefix}-${String(d).padStart(2,"0")}`;
-      const log = activityLog[ymd];
-      if (log && typeof log==="object") {
-        const cnt = Object.values(log).reduce((a,b)=>a+b,0);
-        if (cnt > 0) activeDays++;
-      }
-    }
+    // アクティブ日カウント（progressHistory ベース — 削除後も即反映）
+    const activeDateSet = new Set();
+    items.forEach(item => {
+      (item.progressHistory || []).forEach(h => {
+        if (h.date && h.date.startsWith(prefix) && (h.delta > 0 || h.completedViaButton || h.statusChange)) {
+          activeDateSet.add(h.date);
+        }
+      });
+    });
+    const activeDays = activeDateSet.size;
 
     // 完了コンテンツ
     const completedItems = items.filter(i =>
