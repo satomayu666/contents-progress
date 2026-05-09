@@ -1425,8 +1425,8 @@ function EditModal({ item, onClose, onSave, onDelete, userOptions = {} }) {
         {/* ── YouTube ── */}
         {f.category==="youtube"&&(<>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-            <div><label style={LBL}>動画の長さ (分)</label><input type="number" style={INP} placeholder="例: 15" value={f.videoDurationMin||""} onChange={e=>set("videoDurationMin",e.target.value)}/></div>
             <div><label style={LBL}>現在 (分)</label><input type="number" style={INP} value={f.current||""} onChange={e=>set("current",e.target.value)} placeholder="0"/></div>
+            <div><label style={LBL}>動画の長さ (分)</label><input type="number" style={INP} placeholder="例: 15" value={f.videoDurationMin||""} onChange={e=>set("videoDurationMin",e.target.value)}/></div>
           </div>
           <FF label="URL"><input style={INP} placeholder="https://youtube.com/watch?v=..." value={f.videoUrl||""} onChange={e=>set("videoUrl",e.target.value)}/></FF>
           <FF label="ジャンル（任意）"><MultiSelect options={resolveOptions(getGenreOptions("youtube"), userOptions[`genre:youtube`])} value={f.genres||[]} onChange={v=>set("genres",v)} otherKey="other" otherValue={f.genreOther||""} onOtherChange={v=>set("genreOther",v)}/></FF>
@@ -3653,8 +3653,6 @@ function PeriodReport({ items, activityLog, year, month, setYear, setMonth,
                 desc:"1巻進めるごとに 1回" },
               { cats:"Comic（話単位）",
                 desc:"4話進めるごとに 1回（余りの話もまとめて 1回）" },
-              { cats:"Sports",
-                desc:"1つの試合・配信が「完了」ステータスになったら 1回（視聴時間の長さに関わらず）" },
             ].map(({ cats, desc }, i, arr) => (
               <div key={i} style={{ padding:"12px 0",
                 borderBottom: i < arr.length-1 ? "1px solid #E9E9E9" : "none" }}>
@@ -6986,6 +6984,19 @@ function ReportPageScreen({ items, activityLog, F2, onUpdate, onActivityLog, rem
 export function ContentsProgress({ user = null, onLogout = null, sbOps = null }) {
   const F2 = "'Outfit','Hiragino Sans','Noto Sans JP',sans-serif";
 
+  // 起動時に safe-area-inset-bottom を一度だけ取得して固定（PWA復帰時のブレ防止）
+  const [safeAreaBottom, setSafeAreaBottom] = useState(34);
+  useEffect(() => {
+    try {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;bottom:0;left:0;height:env(safe-area-inset-bottom,34px);width:1px;pointer-events:none;visibility:hidden;';
+      document.body.appendChild(el);
+      const h = el.getBoundingClientRect().height || 34;
+      setSafeAreaBottom(Math.max(h, 0));
+      document.body.removeChild(el);
+    } catch { setSafeAreaBottom(34); }
+  }, []);
+
   // ── Data state ──────────────────────────────────────────────────────────
   const [items,        setItemsRaw]   = useState(DEFAULTS);
   const [watchQueue,   setWatchQueue] = useState([]);
@@ -7577,8 +7588,9 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
         * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        html, body { height: 100%; margin: 0; }
         html { background:#FFFFFF; }
-        body { margin:0; background:#FFFFFF; font-family:'Inter','Noto Sans JP','Hiragino Sans',sans-serif; letter-spacing:0.02em; font-size:13px; overscroll-behavior:none; }
+        body { background:#FFFFFF; font-family:'Inter','Noto Sans JP','Hiragino Sans',sans-serif; letter-spacing:0.02em; font-size:13px; overscroll-behavior:none; }
         ::-webkit-scrollbar { display:none; }
         * { scrollbar-width:none; }
         *::-webkit-scrollbar { display:none; }
@@ -7589,16 +7601,25 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           box-sizing:border-box; width:100%; max-width:100%; min-width:0;
         }
         button { letter-spacing:0.02em; }
+        #cp-app-root {
+          max-width: 480px;
+          margin: 0 auto;
+          min-height: 100%;
+        }
+        #cp-content {
+          width: 100%;
+        }
+        #cp-bottom-nav {
+          width: 100%;
+        }
       `}</style>
 
-      <div style={{
-        background: navTab===1 || navTab===3 || navTab===4 ? "#F7F7F7" : "#FFFFFF",
-        fontFamily:F2, maxWidth:480, margin:"0 auto" }}>
+      <div id="cp-app-root" style={{ fontFamily:F2 }}>
 
         {/* ── Page content ── */}
+        <div id="cp-content">
         {navTab===1 ? (
-          <div style={{ overflowY:"auto", height:"100vh", background:"#F7F7F7",
-            paddingBottom:"calc(120px + env(safe-area-inset-bottom, 34px))" }}>
+          <div style={{ background:"#F7F7F7", paddingBottom:90 }}>
             <ContentsScreen
               items={items}
               watchQueue={watchQueue}
@@ -7615,8 +7636,8 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
             />
           </div>
         ) : (
-          /* Home / + / Report / Settings: 自然な高さ（余白スクロールなし） */
-          <div style={{ paddingBottom: navTab===4 ? 0 : "calc(90px + env(safe-area-inset-bottom, 34px))" }}>
+          /* Home / + / Report / Settings */
+          <div style={{ paddingBottom: 90 }}>
             {navTab===0 && (
               <HomeScreen
                 items={items}
@@ -7636,15 +7657,15 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
               <AddPageScreen onAdd={(item)=>{ addItem(item); setGlobalToast("コンテンツを追加しました！"); }} onDone={()=>setNavTab(1)} F2={F2} userOptions={userOptions}/>
             )}
             {navTab===3 && (
+              <div style={{ paddingBottom:-20 }}>
               <ReportPageScreen items={items} activityLog={activityLog} F2={F2}
                 onUpdate={update} onActivityLog={logActivity}
                 removeActivityLog={removeActivity}
                 userOptions={userOptions}/>
+              </div>
             )}
             {navTab===4 && (
-              <div style={{ overflowY:"auto",
-                height:"calc(100vh - 90px - env(safe-area-inset-bottom, 34px))",
-                paddingBottom:24, background:"#F7F7F7" }}>
+              <div style={{ paddingBottom:40, background:"#F7F7F7" }}>
                 <SettingsScreen
                   user={user}
                   onLogout={onLogout}
@@ -7682,25 +7703,26 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
           </div>
         )}
 
+        </div>{/* cp-content */}
+
         {/* ── Bottom Navigation ── */}
-        <div style={{
-          position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)",
-          width:"100%", maxWidth:480,
+        <div id="cp-bottom-nav" style={{
+          position:"fixed", bottom:0, left:0, right:0,
+          width:"100%", maxWidth:480, margin:"0 auto",
           background:NEW_G.nav,
           borderTop:`1px solid ${NEW_G.border}`,
-          /* alignItems:flex-start でアイコンを上寄りに配置 */
           display:"flex", alignItems:"flex-start", justifyContent:"space-around",
-          /* paddingTop を大きくしてアイコンを上に浮かせる */
           paddingTop:16,
-          /* safe-area を多めに確保（デフォルト34px + 余裕分）*/
-          paddingBottom:"calc(34px + env(safe-area-inset-bottom, 34px))",
-          zIndex:200,
+          paddingBottom:"calc(34px + env(safe-area-inset-bottom, 0px))",
+          zIndex:99,
           boxShadow:"0 -4px 20px rgba(0,0,0,0.06)",
+          transform:"translateZ(0)",
+          WebkitTransform:"translateZ(0)",
+          willChange:"transform",
         }}>
           {NAV_ITEMS.map((item, i) => {
             if (item.isAdd) {
               return (
-                /* + ボタンは大きめのタップ領域でラップ */
                 <div key={i}
                   style={{ display:"flex", alignItems:"center", justifyContent:"center",
                     padding:"0 12px", minWidth:64, cursor:"pointer" }}
@@ -7720,21 +7742,21 @@ export function ContentsProgress({ user = null, onLogout = null, sbOps = null })
                 style={{
                   display:"flex", flexDirection:"column", alignItems:"center", gap:5,
                   background:"none", border:"none", cursor:"pointer",
-                  /* 広いタップ領域: 横16px×縦12px+8px */
                   padding:"12px 16px 8px",
                   minWidth:60, minHeight:52,
                   WebkitTapHighlightColor:"transparent",
                 }}>
                 <item.icon active={isActive} col={accentColor}/>
                 <span style={{ fontSize:9, fontWeight:isActive?700:500,
-                  color:isActive?accentColor:NEW_G.greyMid, letterSpacing:"0.08em" }}>
+                  color:isActive?accentColor:NEW_G.greyMid, letterSpacing:"0.08em",
+                  fontFamily:F2 }}>
                   {item.label}
                 </span>
               </button>
             );
           })}
         </div>
-      </div>
+      </div>{/* cp-app-root */}
 
       {/* ── Modals (global) ── */}
       {editItem && <EditModal item={editItem} onClose={()=>setEdit(null)} onSave={saveEdit} onDelete={deleteItem} userOptions={userOptions}/>}
