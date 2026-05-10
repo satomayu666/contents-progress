@@ -2744,6 +2744,72 @@ function ContentDetail({ item, items, activityLog, onBack,
             <span>完了日 {item.completedAt}</span>
           )}
         </div>
+
+        {/* ── ジャンル・視聴方法チップ ── */}
+        {(()=>{
+          const isSportsCD = item.category==="sports";
+          const isYTCD = item.category==="youtube";
+          const isTVCD = item.category==="tv";
+          const isRadioCD = item.category==="radio";
+          const isLiveCD = item.category==="live";
+          const isMovieCD = item.category==="movie";
+
+          // 視聴方法ラベル
+          const viewOpts = (() => {
+            if (isSportsCD) return SPORTS_VIEW_OPTIONS;
+            if (isYTCD) return [];
+            if (isTVCD) return TV_VIEW_OPTIONS;
+            if (isRadioCD) return RADIO_VIEW_OPTIONS;
+            if (isLiveCD) return LIVE_VIEW_OPTIONS;
+            if (isMovieCD) return MOVIE_VIEW_OPTIONS;
+            return [];
+          })();
+          const viewLabels = (item.tvViewMethod||[]).map(k => {
+            if (k==="other") return item.tvViewOther||"その他";
+            if (k==="terrestrial" && isSportsCD) return item.terrestrialChannel ? `地上波（${item.terrestrialChannel}）` : "地上波";
+            return viewOpts.find(o=>o.key===k)?.label || k;
+          }).filter(Boolean);
+
+          // 配信サービスラベル
+          const streamingOpts = resolveOptions(getStreamingOptions(item.category), userOptions?.[`streaming:${item.category}`]);
+          const streamingLabels = (item.streamingServices||[]).map(k => {
+            if (k==="other") return item.streamingOther||"その他";
+            return streamingOpts.find(o=>o.key===k)?.label || k;
+          }).filter(Boolean);
+
+          // ジャンルラベル
+          const genreOpts = resolveOptions(getGenreOptions(item.category), userOptions?.[`genre:${item.category}`]);
+          const genreLabels = (item.genres||[]).map(k => {
+            if (k==="other") return item.genreOther||"その他";
+            return genreOpts.find(o=>o.key===k)?.label || k;
+          }).filter(Boolean);
+
+          const allChips = [...viewLabels, ...streamingLabels, ...genreLabels];
+          if (allChips.length === 0) return null;
+
+          return (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginTop:10 }}>
+              {allChips.map((lbl,i) => (
+                <span key={i} style={{ fontSize:10, fontWeight:500,
+                  color:G.greyDark, background:G.surfaceAlt,
+                  border:`1px solid ${G.border}`,
+                  borderRadius:5, padding:"2px 7px" }}>
+                  {lbl}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* ── URLボタン ── */}
+        {(()=>{
+          const url = item.videoUrl||item.articleUrl||item.contentUrl;
+          return url ? (
+            <div style={{ marginTop:10 }}>
+              <UrlButton url={url} color={c?.color || "#9EA89A"}/>
+            </div>
+          ) : null;
+        })()}
       </div>
 
       {/* ── 記録履歴カード ── */}
